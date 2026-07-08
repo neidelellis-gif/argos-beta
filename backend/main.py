@@ -5,31 +5,43 @@ print("                 ARGOS ALPHA")
 print("=" * 60)
 
 positions = load_positions()
-
 total = sum(p["value"] for p in positions)
 
-print()
-print(f"Carteira UBS carregada com sucesso.")
-print(f"Posições : {len(positions)}")
-print(f"Patrimônio: US$ {total:,.2f}")
-
-print()
-print("Ativos monitorados (>3%)")
-print("-" * 60)
+alta = []
+media = []
 
 for p in positions:
 
     weight = p["value"] / total * 100
 
-    if weight >= 3:
+    if weight >= 5:
+        alta.append((weight, p))
 
-        print(
-            f"{p['name']:<40}"
-            f"{p['class']:<15}"
-            f"{weight:>6.2f}%"
-        )
+    elif weight >= 3:
+        media.append((weight, p))
+
+alta.sort(reverse=True)
+media.sort(reverse=True)
+
+print()
+print(f"Patrimônio UBS : US$ {total:,.2f}")
+print()
+
+print("🔴 PRIORIDADE ALTA")
+print("-" * 60)
+
+for weight, p in alta:
+    print(f"{weight:5.2f}%   {p['name']}")
+
+print()
+
+print("🟡 PRIORIDADE MÉDIA")
+print("-" * 60)
+
+for weight, p in media:
+    print(f"{weight:5.2f}%   {p['name']}")
 
 print()
 print("=" * 60)
 print("ARGOS pronto.")
-print("=" * 60) 
+print("=" * 60)
