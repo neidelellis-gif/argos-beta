@@ -1,3 +1,6 @@
+from backend.config.settings import HIGH_PRIORITY, MEDIUM_PRIORITY
+
+
 def analyze_portfolio(positions):
     total = sum(p["value"] for p in positions)
 
@@ -8,9 +11,9 @@ def analyze_portfolio(positions):
         weight = p["value"] / total * 100
         p["weight"] = weight
 
-        if weight >= 5:
+        if weight >= HIGH_PRIORITY:
             high_priority.append(p)
-        elif weight >= 3:
+        elif weight >= MEDIUM_PRIORITY:
             medium_priority.append(p)
 
     high_priority.sort(key=lambda x: x["weight"], reverse=True)

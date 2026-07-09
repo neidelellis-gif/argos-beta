@@ -1,0 +1,102 @@
+{
+  "GLD": {
+    "ticker": "GLD",
+    "name": "SPDR Gold Trust",
+    "aliases": ["GLD", "SPDR GOLD TRUST", "SPDR GOLD SHARES ETF", "SPDR GOLD SHARES"]
+  },
+  "ICE": {
+    "ticker": "ICE",
+    "name": "Intercontinental Exchange Inc",
+    "aliases": ["ICE", "INTERCONTINENTAL EXCHANGE INC", "INTERCONTINENTAL EXCHANGE INC."]
+  },
+  "JNJ": {
+    "ticker": "JNJ",
+    "name": "Johnson & Johnson",
+    "aliases": ["JNJ", "JOHNSON & JOHNSON"]
+  },
+  "AXP": {
+    "ticker": "AXP",
+    "name": "American Express Company",
+    "aliases": ["AXP", "AMERICAN EXPRESS COMPANY"]
+  },
+  "KO": {
+    "ticker": "KO",
+    "name": "Coca-Cola Co.",
+    "aliases": ["KO", "COCA-COLA CO.", "COCA-COLA CO"]
+  },
+  "COHR": {
+    "ticker": "COHR",
+    "name": "Coherent Corp",
+    "aliases": ["COHR", "COHERENT CORP"]
+  },
+  "CEG": {
+    "ticker": "CEG",
+    "name": "Constellation Energy Corporation",
+    "aliases": ["CEG", "CONSTELLATION ENERGY CORPORATION"]
+  },
+  "GEV": {
+    "ticker": "GEV",
+    "name": "GE Vernova Inc",
+    "aliases": ["GEV", "GE VERNOVA INC"]
+  },
+  "MRVL": {
+    "ticker": "MRVL",
+    "name": "Marvell Technology Inc",
+    "aliases": ["MRVL", "MARVELL TECHNOLOGY INC"]
+  },
+  "NOW": {
+    "ticker": "NOW",
+    "name": "ServiceNow Inc",
+    "aliases": ["NOW", "SERVICENOW INC"]
+  },
+  "VRT": {
+    "ticker": "VRT",
+    "name": "Vertiv Holdings Co",
+    "aliases": ["VRT", "VERTIV HOLDINGS CO"]
+  },
+  "TSM": {
+    "ticker": "TSM",
+    "name": "Taiwan Semiconductor ADR",
+    "aliases": ["TSM", "TAIWAN SEMICONDUCTOR-SP ADR"]
+  },
+  "KGC": {
+    "ticker": "KGC",
+    "name": "Kinross Gold Corp",
+    "aliases": ["KGC", "KINROSS GOLD CORP"]
+  },
+  "IBIT": {
+    "ticker": "IBIT",
+    "name": "iShares Bitcoin Trust ETF",
+    "aliases": ["IBIT", "ISHARES BITCOIN TRUST ETF"]
+  },
+  "SPY": {
+    "ticker": "SPY",
+    "name": "SPDR S&P 500 ETF Trust",
+    "aliases": ["SPY", "STATE STREET SPDR SP 500 ETF TRUST", "SPDR S&P 500 ETF TRUST"]
+  },
+  "SMH": {
+    "ticker": "SMH",
+    "name": "VanEck Semiconductor ETF",
+    "aliases": ["SMH", "VANECK SEMICONDUCTOR ETF"]
+  },
+  "CIBR": {
+    "ticker": "CIBR",
+    "name": "First Trust NASDAQ Cybersecurity ETF",
+    "aliases": ["CIBR", "FIRST TRUST NASDAQ CYBERSECU"]
+  },
+  "PTF": {
+    "ticker": "PTF",
+    "name": "First Trust Nasdaq Clean Edge ETF",
+    "aliases": ["PTF", "FIRST TRUST NSDQ CLEAN INFRA USD"]
+  },
+  "DAPP": {
+    "ticker": "DAPP",
+    "name": "VanEck Digital Transformation ETF",
+    "aliases": ["DAPP", "VANECK DIGITAL TRANSFORMATIO ETF"]
+  },
+  "SCHNEIDER": {
+    "ticker": "SCHNEIDER",
+    "name": "Schneider Electric SE",
+    "aliases": ["SCHNEIDER ELECTRIC SE"]
+  }
+}

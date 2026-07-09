@@ -1,0 +1,127 @@
+{
+  "timestamp": "2026-07-09T11:04:15",
+  "source": "UBS",
+  "total": 2676028.68,
+  "positions_count": 29,
+  "high_priority": [
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "UBS BANK USA CORE SAVINGS",
+      "description": "UBS BANK USA CORE SAVINGS",
+      "class": "Caixa",
+      "value": 267164.82,
+      "weight": 9.983630668711667
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "UBS BANK USA CORE SAVINGS PROM",
+      "description": "UBS BANK USA CORE SAVINGS PROM",
+      "class": "Caixa",
+      "value": 209213.86,
+      "weight": 7.818072413185048
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "SMH",
+      "name": "SMH",
+      "description": "VANECK SEMICONDUCTOR ETF",
+      "class": "ETF",
+      "value": 204129.6,
+      "weight": 7.628079681119113
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "JPMORGAN CHASE & CO B/E RATE 05.350% MATURES 07/31/37 CALLABLE (Cusip:48130CV28)",
+      "description": "JPMORGAN CHASE & CO B/E RATE 05.350% MATURES 07/31/37 CALLABLE (Cusip:48130CV28)",
+      "class": "Renda Fixa",
+      "value": 196436.0,
+      "weight": 7.340579025483389
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "MFFXJR",
+      "name": "MFFXJR",
+      "description": "BGF NEXT GENERATION TECHNOLOGY A2 FUND CLASS A2",
+      "class": "Fundo",
+      "value": 172621.75,
+      "weight": 6.45066890688182
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "MFLWCA",
+      "name": "MFLWCA",
+      "description": "PIMCO INCOME FUND E (ACC) SHARES (Cusip:G7112M468)",
+      "class": "Fundo",
+      "value": 157834.51,
+      "weight": 5.898087385221896
+    }
+  ],
+  "medium_priority": [
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "TEVA PHARMACEUTICALS NE CALL@MW+50BP RATE 06.750% MATURES 03/01/28 CALLABLE (Cusip:88167AAK7)",
+      "description": "TEVA PHARMACEUTICALS NE CALL@MW+50BP RATE 06.750% MATURES 03/01/28 CALLABLE (Cusip:88167AAK7)",
+      "class": "Renda Fixa",
+      "value": 127575.0,
+      "weight": 4.767325587855807
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "GLD",
+      "name": "GLD",
+      "description": "SPDR GOLD SHARES ETF",
+      "class": "ETF",
+      "value": 121757.74,
+      "weight": 4.549941520058746
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "FREEPORT-MCMORAN INC B/E 0BP RATE 05.250% MATURES 09/01/29 (Cusip:35671DCD5)",
+      "description": "FREEPORT-MCMORAN INC B/E 0BP RATE 05.250% MATURES 09/01/29 (Cusip:35671DCD5)",
+      "class": "Renda Fixa",
+      "value": 110708.4,
+      "weight": 4.137040863104651
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "ISHARES RUSSELL 1000 VALUE UCITS ETF",
+      "description": "ISHARES RUSSELL 1000 VALUE UCITS ETF",
+      "class": "ETF",
+      "value": 107856.9,
+      "weight": 4.030483709165628
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "UNITED STATES STEEL CORP NTS B/E RATE 06.875% MATURES 03/01/29 (Cusip:912909AU2)",
+      "description": "UNITED STATES STEEL CORP NTS B/E RATE 06.875% MATURES 03/01/29 (Cusip:912909AU2)",
+      "class": "Renda Fixa",
+      "value": 101478.74,
+      "weight": 3.792139477369129
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "ISHARES NASDAQ US BIOTECH UCITS ETF",
+      "description": "ISHARES NASDAQ US BIOTECH UCITS ETF",
+      "class": "ETF",
+      "value": 101168.2,
+      "weight": 3.780534967958564
+    },
+    {
+      "account": "(R2 16003) MAIN JOLIKA",
+      "symbol": "N/A",
+      "name": "DELL INTL L L C & EMC CALL@MW+50BP RATE 05.300% MATURES 10/01/29 CALLABLE (Cusip:24703TAG1)",
+      "description": "DELL INTL L L C & EMC CALL@MW+50BP RATE 05.300% MATURES 10/01/29 CALLABLE (Cusip:24703TAG1)",
+      "class": "Renda Fixa",
+      "value": 81243.2,
+      "weight": 3.035961483043597
+    }
+  ]
+}
