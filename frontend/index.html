@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARGOS AI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <div>
+        <h1>ARGOS AI</h1>
+        <p class="subtitle">Investment Decision System</p>
+      </div>
+      <div class="status">
+        <span class="status-dot"></span>
+        Sistema Online
+      </div>
+    </header>
+
+    <section id="homeScreen" class="panel">
+      <div class="argos-intro">
+        <span class="eyebrow">ARGOS AI</span>
+        <h2>Selecione o patrimônio</h2>
+        <p>Escolha o ambiente que deseja atualizar e analisar.</p>
+      </div>
+
+      <div class="portfolio-grid">
+        <button class="portfolio-card" type="button" data-portfolio="JOLIKA">
+          <span class="portfolio-icon">🏛</span>
+          <strong>JOLIKA</strong>
+          <small>Portfólio institucional</small>
+        </button>
+
+        <button class="portfolio-card" type="button" data-portfolio="NEI">
+          <span class="portfolio-icon">👤</span>
+          <strong>NEI</strong>
+          <small>Portfólio pessoal</small>
+        </button>
+      </div>
+    </section>
+
+    <section id="jolikaScreen" class="panel hidden">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Patrimônio selecionado</span>
+          <h2>JOLIKA</h2>
+        </div>
+        <button class="secondary-button" type="button" data-action="home">
+          Trocar patrimônio
+        </button>
+      </div>
+
+      <div class="upload-grid">
+        <label class="upload-box" for="ubsFile">
+          <span>UBS</span>
+          <small>CSV ou Excel (.csv, .xls, .xlsx)</small>
+          <input id="ubsFile" type="file" accept=".csv,.xls,.xlsx">
+          <div id="ubsFileName" class="file-name">Nenhum arquivo selecionado</div>
+        </label>
+
+        <label class="upload-box" for="santanderFile">
+          <span>Santander</span>
+          <small>Excel (.xls, .xlsx)</small>
+          <input id="santanderFile" type="file" accept=".xls,.xlsx">
+          <div id="santanderFileName" class="file-name">Nenhum arquivo selecionado</div>
+        </label>
+      </div>
+
+      <button id="analyzeJolika" class="primary-button" type="button">
+        ANALISAR CARTEIRAS
+      </button>
+    </section>
+
+    <section id="neiScreen" class="panel hidden">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Patrimônio selecionado</span>
+          <h2>NEI</h2>
+        </div>
+        <button class="secondary-button" type="button" data-action="home">
+          Trocar patrimônio
+        </button>
+      </div>
+
+      <div class="upload-grid">
+        <label class="upload-box" for="agoraFile">
+          <span>Agora</span>
+          <small>CSV ou Excel</small>
+          <input id="agoraFile" type="file" accept=".csv,.xls,.xlsx">
+          <div id="agoraFileName" class="file-name">Nenhum arquivo selecionado</div>
+        </label>
+
+        <label class="upload-box" for="cryptoFile">
+          <span>Cripto</span>
+          <small>CSV ou Excel</small>
+          <input id="cryptoFile" type="file" accept=".csv,.xls,.xlsx">
+          <div id="cryptoFileName" class="file-name">Nenhum arquivo selecionado</div>
+        </label>
+      </div>
+
+      <button id="analyzeNei" class="primary-button" type="button">
+        ANALISAR CARTEIRAS
+      </button>
+    </section>
+
+    <section class="panel ai-panel">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">ARGOS AI</span>
+          <h2 id="aiTitle">Bem-vindo</h2>
+        </div>
+        <button id="toggleValues" class="secondary-button hidden" type="button">
+          👁 Mostrar valores
+        </button>
+      </div>
+
+      <div id="argosResponse" class="argos-response">
+        <p>Selecione um patrimônio para iniciar.</p>
+      </div>
+    </section>
+
+    <section id="resultsSection" class="panel hidden">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">JOLIKA</span>
+          <h2>Top posições consolidadas</h2>
+        </div>
+      </div>
+
+      <div id="totals" class="totals-grid"></div>
+      <div id="topPositions" class="positions-list"></div>
+    </section>
+
+    <footer>ARGOS MVP 0.4</footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
