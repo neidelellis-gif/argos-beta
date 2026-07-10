@@ -46,13 +46,21 @@ function renderResult(result) {
   byId("resultsSection").classList.remove("hidden");
   byId("toggleValues").classList.remove("hidden");
 
-  const items = result.argos_ai.items
-    .map((item) => `<li class="ai-item">${item}</li>`)
-    .join("");
+  const aiItems = state.showValues
+    ? [
+        `Total consolidado: ${formatMoney(result.totals["Total consolidado"])}`,
+        `UBS: ${formatMoney(result.totals["Total UBS"])}`,
+        `Santander: ${formatMoney(result.totals["Total Santander"])}`,
+      ]
+    : [
+        "UBS e Santander carregados com sucesso.",
+      ];
+
+  const aiText = aiItems.map((item) => `<li class="ai-item">${item}</li>`).join("");
 
   setAiMessage(
     result.argos_ai.title,
-    `<ul class="ai-list">${items}</ul>
+    `<ul class="ai-list">${aiText}</ul>
      <div class="next-action">
        <strong>Próxima ação</strong><br>
        ${result.argos_ai.next_action}
@@ -70,17 +78,89 @@ function renderResult(result) {
     `)
     .join("");
 
-  byId("topPositions").innerHTML = result.top_positions
-    .map((position) => `
-      <div class="position-row">
-        <div class="position-symbol">${position.symbol}</div>
-        <div class="position-weight">${position.weight.toFixed(2)}%</div>
-        <div class="position-value ${state.showValues ? "" : "masked"}">
-          ${formatMoney(position.total_value)}
-        </div>
+  byId("topPositions").innerHTML = renderTopHoldings(result.top_positions);
+}
+
+function renderHoldingsValue(value) {
+  return state.showValues
+    ? formatMoney(value)
+    : "••••••";
+}
+
+function renderAssetName(position) {
+  const symbol = position.symbol || "";
+  const name = position.name || "";
+  const hasDistinctName = !!name && name.trim().toUpperCase() !== symbol.trim().toUpperCase();
+
+  return `
+    <div class="asset-cell">
+      <strong class="position-symbol">${symbol}</strong>
+      ${hasDistinctName ? `<span class="position-name">${name}</span>` : ""}
+    </div>
+  `;
+}
+
+function renderTopHoldings(positions) {
+  const institutionNames = ["UBS", "Santander"];
+
+  return `
+    <div class="top-table">
+      <div class="top-table-row top-table-header">
+        <div class="top-table-cell top-table-heading">Ativo</div>
+        ${institutionNames
+          .map(
+            (name) => `<div class="top-table-cell top-table-heading">${name}</div>`
+          )
+          .join("")}
+        <div class="top-table-cell top-table-heading">Consolidado</div>
       </div>
-    `)
-    .join("");
+      ${positions
+        .sort((a, b) => b.total_value - a.total_value)
+        .map((position) => {
+          const institutionMap = new Map(
+            (position.institutions || []).map((institution) => [institution.name, institution])
+          );
+
+          const institutionCells = institutionNames
+            .map((institutionName) => {
+              const institution = institutionMap.get(institutionName);
+              const hasValue = institution && institution.value;
+              const valueDisplay = hasValue
+                ? renderHoldingsValue(institution.value)
+                : "—";
+              const percentDisplay = hasValue
+                ? `${institution.weight_in_institution.toFixed(2)}%`
+                : "—";
+
+              return `
+                <div class="top-table-cell">
+                  <span>${valueDisplay}</span>
+                  <span class="position-subtext">${percentDisplay}</span>
+                </div>
+              `;
+            })
+            .join("");
+
+          const consolidatedValueDisplay = position.total_value
+            ? renderHoldingsValue(position.total_value)
+            : "—";
+
+          return `
+            <div class="top-table-row" data-symbol="${position.symbol}">
+              <div class="top-table-cell">
+                ${renderAssetName(position)}
+              </div>
+              ${institutionCells}
+              <div class="top-table-cell">
+                <span>${consolidatedValueDisplay}</span>
+                <span class="position-subtext">${position.weight.toFixed(2)}%</span>
+              </div>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
 }
 
 async function analyzeJolika() {

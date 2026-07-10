@@ -26,4 +26,4 @@ backend/connectors/*.csv
 backend/portfolio/*.csv
 *.xlsx
 *.xls
-*.pdf
+*.pdfdebug_response*.json

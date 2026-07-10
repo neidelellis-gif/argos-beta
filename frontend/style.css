@@ -47,6 +47,21 @@ h2{font-size:26px;margin-top:5px}
 .position-weight{text-align:right;color:#8fb5ff}
 .position-value{text-align:right;font-variant-numeric:tabular-nums}
 .error-message{color:#fecaca}
+.top-table{display:grid;gap:10px}
+.top-table-row{display:grid;grid-template-columns:minmax(180px,2fr) repeat(2,minmax(120px,1fr)) minmax(120px,1fr);align-items:start;gap:12px;padding:14px 16px;background:#0b1729;border:1px solid #213753;border-radius:12px}
+.top-table-header{background:rgba(62,108,166,.18);border-color:#315a7f}
+.top-table-heading{font-size:13px;color:#8fa0b7;text-transform:uppercase;letter-spacing:.1em;display:flex;flex-direction:column;gap:8px}
+.top-table-cell{display:flex;flex-direction:column;gap:6px;font-variant-numeric:tabular-nums}
+.asset-cell{display:flex;flex-direction:column;gap:4px}
+.position-name{color:#94a8c6;font-size:14px;line-height:1.4}
+.position-subtext{color:#7da6d8;font-size:13px}
+.top-table-cell span{display:block}
+@media(max-width:760px){
+  .top-table-row{grid-template-columns:1fr}
+  .top-table-header{display:none}
+  .top-table-cell{border-top:1px solid #213753;padding-top:12px}
+  .top-table-cell:first-child{border-top:none;padding-top:0}
+}
 footer{text-align:center;color:#5f7189;font-size:13px;margin-top:26px}
 @media(max-width:760px){
   .portfolio-grid,.upload-grid,.totals-grid{grid-template-columns:1fr}

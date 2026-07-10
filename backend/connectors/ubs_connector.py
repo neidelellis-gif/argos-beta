@@ -98,12 +98,22 @@ def _read_rows(path: Path):
 
 
 def _find_header_row(rows):
-    required = {"ACCOUNT NUMBER", "DESCRIPTION", "SYMBOL", "VALUE"}
+    required = {"ACCOUNT NUMBER", "DESCRIPTION", "SYMBOL"}
 
     for index, row in enumerate(rows):
         normalized = {_normalize_header(value) for value in row}
         if required.issubset(normalized):
-            return index
+            value_candidates = [
+                "VALUE",
+                "ACCOUNT VALUE",
+                "MARKET VALUE",
+                "AMOUNT",
+                "BALANCE",
+                "TOTAL VALUE",
+            ]
+            for candidate in value_candidates:
+                if candidate in normalized:
+                    return index
 
     raise ValueError(
         "Não encontrei os cabeçalhos esperados no arquivo UBS."
@@ -126,7 +136,15 @@ def load_positions(file_path=None):
     account_idx = header.index("ACCOUNT NUMBER")
     description_idx = header.index("DESCRIPTION")
     symbol_idx = header.index("SYMBOL")
-    value_idx = header.index("VALUE")
+
+    value_idx = None
+    for candidate in ["VALUE", "ACCOUNT VALUE", "MARKET VALUE", "AMOUNT", "BALANCE", "TOTAL VALUE"]:
+        if candidate in header:
+            value_idx = header.index(candidate)
+            break
+
+    if value_idx is None:
+        raise ValueError("Não encontrei a coluna de valor no arquivo UBS.")
 
     positions = []
 
@@ -143,12 +161,15 @@ def load_positions(file_path=None):
             continue
 
         positions.append({
+            "institution": "UBS",
             "account": account,
             "symbol": symbol,
             "name": get_display_name(symbol, description),
             "description": description,
-            "class": classify_asset(symbol, description),
+            "asset_class": classify_asset(symbol, description),
+            "currency": "USD",
             "value": value,
+            "weight": None,
         })
 
     if not positions:
