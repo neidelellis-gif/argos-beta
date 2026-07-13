@@ -85,8 +85,8 @@ A Release só pode ser encerrada quando todos os itens abaixo forem validados pe
 ### Validação final
 - [x] Testado visualmente no Safari
 - [x] Usuário confirmou: "0.6 certo"
-- [ ] Commit realizado na branch release/0.6
-- [ ] Push realizado para o GitHub
+- [x] Commit realizado na branch release/0.6
+- [x] Push realizado para o GitHub
 
 ## Definição de concluído
 
