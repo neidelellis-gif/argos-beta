@@ -66,6 +66,28 @@ A Release só pode ser encerrada quando todos os itens abaixo forem validados pe
 - [ ] Commit realizado na branch release/0.5
 - [ ] Push realizado para o GitHub
 
+## Release 0.6 — Motor de Contribuição à Meta
+
+### Motor de Contribuição
+- [x] Premissas do gestor em arquivo separado (`backend/config/contribution_assumptions.py`)
+- [x] Meta-base 12.0% explícita no resumo do bloco
+- [x] Análise estrutural por bloco de alocação
+- [x] BIL tratado analiticamente como Caixa Remunerado (sem alterar classificação do conector)
+- [x] Outros fora do cálculo sem ser tratado como retorno zero
+- [x] Cobertura das premissas exibida (% da Jolika modelada)
+- [x] Retorno ponderado identificado como hipotético ("Retorno ponderado hipotético")
+- [x] Gap identificado como estrutural modelado ("Gap estrutural modelado")
+- [x] MOTOR / CONTRIBUIDOR / NEUTRO / ARRASTO ESPERADO calculados deterministicamente
+- [x] Limitação metodológica explícita para ETF, Fundo e Alternativos
+- [x] Nenhuma recomendação de compra ou venda gerada
+- [x] Validação visual confirmada pelo usuário ("0.6 certo")
+
+### Validação final
+- [x] Testado visualmente no Safari
+- [x] Usuário confirmou: "0.6 certo"
+- [ ] Commit realizado na branch release/0.6
+- [ ] Push realizado para o GitHub
+
 ## Definição de concluído
 
 Uma tarefa não está concluída apenas porque compilou ou porque o agente informou sucesso.

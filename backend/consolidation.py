@@ -1,6 +1,8 @@
 import re
 from typing import Dict, Iterable, List
 
+from backend.config.contribution_assumptions import BLOCK_ASSUMPTIONS, META_BASE
+
 
 _KNOWN_SHORT_NAMES = {
     "VISTAONE": "VistaOne",
@@ -135,6 +137,94 @@ def _generate_next_action(position_rows: List[Dict], liquidity: Dict, threshold:
         return "Nenhuma concentração individual acima de 5% foi identificada."
 
     return " ".join(parts)
+
+
+def _classify_block(midpoint: float) -> str:
+    if midpoint >= META_BASE:
+        return "MOTOR"
+    if midpoint >= 7.0:
+        return "CONTRIBUIDOR"
+    if midpoint >= 3.0:
+        return "NEUTRO"
+    return "ARRASTO ESPERADO"
+
+
+def _compute_contribution_analysis(by_asset_class: Dict, liquidity: Dict) -> Dict:
+    caixa_rem_weight = liquidity.get("caixa_remunerado", {}).get("weight", 0.0)
+
+    # Constrói pesos efetivos por bloco analítico.
+    # BIL é extraído da Renda Fixa e tratado como Caixa Remunerado apenas aqui.
+    effective: Dict[str, float] = {}
+    for cls, data in by_asset_class.items():
+        w = data["weight"]
+        if cls == "Renda Fixa":
+            w = max(0.0, w - caixa_rem_weight)
+        effective[cls] = w
+    if caixa_rem_weight > 0:
+        effective["Caixa Remunerado"] = caixa_rem_weight
+
+    modeled: List[Dict] = []
+    unmodeled: List[Dict] = []
+    total_weighted_return = 0.0
+    modeled_weight = 0.0
+
+    for name, assumption in BLOCK_ASSUMPTIONS.items():
+        weight = effective.get(name, 0.0)
+        if weight <= 0.0:
+            continue
+        low = assumption["return_low"]
+        high = assumption["return_high"]
+        mid = (low + high) / 2.0
+        contribution = weight * mid / 100.0
+        total_weighted_return += contribution
+        modeled_weight += weight
+        modeled.append({
+            "name": name,
+            "weight": round(weight, 4),
+            "return_low": low,
+            "return_high": high,
+            "return_mid": round(mid, 4),
+            "weighted_contribution": round(contribution, 4),
+            "classification": _classify_block(mid),
+        })
+
+    for cls, weight in effective.items():
+        if cls not in BLOCK_ASSUMPTIONS and weight > 0:
+            unmodeled.append({
+                "name": cls,
+                "weight": round(weight, 4),
+                "return_low": None,
+                "return_high": None,
+                "return_mid": None,
+                "weighted_contribution": None,
+                "classification": None,
+            })
+
+    modeled.sort(key=lambda b: b["weighted_contribution"], reverse=True)
+    blocks = modeled + unmodeled
+
+    gap = total_weighted_return - META_BASE
+    conclusion = (
+        "Com as premissas estruturais atuais, a capacidade ponderada hipotética do capital modelado "
+        "está abaixo da meta-base. É necessário investigar a composição interna dos blocos "
+        "antes de sugerir realocação."
+        if total_weighted_return < META_BASE else
+        "A capacidade ponderada hipotética do capital modelado atinge ou supera a meta-base "
+        "com as premissas atuais."
+    )
+
+    return {
+        "meta_base": META_BASE,
+        "total_weighted_return": round(total_weighted_return, 4),
+        "modeled_weight": round(modeled_weight, 4),
+        "gap": round(gap, 4),
+        "conclusion": conclusion,
+        "methodology_note": (
+            "ETF, Fundo e Alternativos são blocos heterogêneos. "
+            "A análise atual é estrutural por classe e não substitui análise por mandato ou ativo."
+        ),
+        "blocks": blocks,
+    }
 
 
 def _canonize_asset(symbol: str, name: str, description: str):
@@ -333,6 +423,7 @@ def consolidate_positions(ubs_positions: Iterable[Dict], santander_positions: It
         },
     }
 
+    contribution_analysis = _compute_contribution_analysis(by_asset_class, liquidity)
     next_action = _generate_next_action(position_rows, liquidity)
 
     top_positions = position_rows[:20]
@@ -359,6 +450,7 @@ def consolidate_positions(ubs_positions: Iterable[Dict], santander_positions: It
         "by_asset_class": by_asset_class,
         "liquidity": liquidity,
         "concentration_alerts": concentration_alerts,
+        "contribution_analysis": contribution_analysis,
         "totals": totals,
         "top_positions": top_positions,
     }

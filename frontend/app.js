@@ -218,6 +218,68 @@ function renderTopHoldings(positions) {
 
 const COCKPIT_CLASS_ORDER = ["Caixa", "Renda Fixa", "ETF", "ETF/Fundo", "Ação", "Fundo", "Alternativos", "Outros"];
 
+const CLASSIFICATION_CSS = {
+  "MOTOR": "motor",
+  "CONTRIBUIDOR": "contribuidor",
+  "NEUTRO": "neutro",
+  "ARRASTO ESPERADO": "arrasto-esperado",
+};
+
+function renderContributionBlock(ca) {
+  const el = document.createElement("div");
+  el.id = "cockpit-contribuicao-block";
+  el.className = "cockpit-block cockpit-block--full";
+
+  const rowsHtml = (ca.blocks || []).map((block) => {
+    const hasAssumption = block.return_mid !== null;
+    const badgeCls = hasAssumption ? `cockpit-badge cockpit-badge--${CLASSIFICATION_CSS[block.classification] || ""}` : "";
+    return `
+      <div class="cockpit-contrib-row">
+        <span class="cockpit-contrib-name">${block.name}</span>
+        <span class="cockpit-contrib-weight">${block.weight.toFixed(1)}%</span>
+        <span class="cockpit-contrib-range">${hasAssumption ? `${block.return_low}–${block.return_high}%` : "—"}</span>
+        <span class="cockpit-contrib-contribution">${hasAssumption ? `~${block.weighted_contribution.toFixed(2)}%` : "—"}</span>
+        <span class="${badgeCls}">${hasAssumption ? block.classification : "—"}</span>
+      </div>
+    `;
+  }).join("");
+
+  const gapColor = ca.gap >= 0 ? "#5ee7a0" : "#f97316";
+  const gapSign = ca.gap >= 0 ? "+" : "";
+
+  el.innerHTML = `
+    <div class="cockpit-block-title">Contribuição à Meta
+      <span class="cockpit-contrib-disclaimer">Premissas do gestor</span>
+    </div>
+    <div class="cockpit-contrib-header-row">
+      <span>Bloco</span><span>Peso</span><span>Faixa</span><span>Contribuição</span><span>Classificação</span>
+    </div>
+    ${rowsHtml}
+    <div class="cockpit-contrib-summary">
+      <div class="cockpit-contrib-summary-row">
+        <span>Meta-base</span>
+        <span>${ca.meta_base.toFixed(1)}%</span>
+      </div>
+      <div class="cockpit-contrib-summary-row">
+        <span>Retorno ponderado hipotético</span>
+        <span>~${ca.total_weighted_return.toFixed(1)}%</span>
+      </div>
+      <div class="cockpit-contrib-summary-row">
+        <span>Cobertura das premissas</span>
+        <span>${ca.modeled_weight.toFixed(1)}% da Jolika</span>
+      </div>
+      <div class="cockpit-contrib-summary-row cockpit-contrib-gap">
+        <span>Gap estrutural modelado</span>
+        <span style="color:${gapColor}">${gapSign}${ca.gap.toFixed(1)}%</span>
+      </div>
+    </div>
+    <p class="cockpit-contrib-conclusion">${ca.conclusion}</p>
+    <p class="cockpit-contrib-note">${ca.methodology_note}</p>
+  `;
+
+  return el;
+}
+
 function renderCockpit(result) {
   const cockpit = byId("cockpit");
   if (!cockpit) return;
@@ -310,6 +372,15 @@ function renderCockpit(result) {
 
   // Bloco 5: Próxima Ação
   byId("cockpit-proxima-acao").innerHTML = `<p class="cockpit-action-text">${nextAction}</p>`;
+
+  // Bloco 6: Contribuição à Meta (dinâmico, removido e re-adicionado a cada render)
+  const existingContrib = byId("cockpit-contribuicao-block");
+  if (existingContrib) existingContrib.remove();
+  const ca = result.contribution_analysis;
+  if (ca) {
+    const grid = byId("cockpit").querySelector(".cockpit-grid");
+    if (grid) grid.appendChild(renderContributionBlock(ca));
+  }
 }
 
 async function analyzeJolika() {

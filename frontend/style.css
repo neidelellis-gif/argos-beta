@@ -92,7 +92,29 @@ h2{font-size:26px;margin-top:5px}
 .cockpit-alert-pct{font-size:13px;color:#fbbf24;font-weight:700}
 .cockpit-no-alert{font-size:13px;color:#5ee7a0}
 .cockpit-action-text{font-size:15px;line-height:1.6;color:#d7e0ed}
-@media(max-width:760px){.cockpit-grid{grid-template-columns:1fr}}
+.cockpit-contrib-disclaimer{font-size:11px;font-weight:400;color:#7da6d8;margin-left:10px;letter-spacing:0;text-transform:none}
+.cockpit-contrib-header-row,.cockpit-contrib-row{display:grid;grid-template-columns:130px 60px 90px 90px 1fr;align-items:center;gap:10px;padding:6px 0}
+.cockpit-contrib-header-row{font-size:11px;color:#7da6d8;border-bottom:1px solid #213753;margin-bottom:4px}
+.cockpit-contrib-row{border-bottom:1px solid #172640}
+.cockpit-contrib-row:last-of-type{border-bottom:none}
+.cockpit-contrib-name{font-size:13px;color:#c8d8ef}
+.cockpit-contrib-weight{font-size:13px;color:#8fb5ff;text-align:right}
+.cockpit-contrib-range{font-size:13px;color:#8fa0b7;text-align:right}
+.cockpit-contrib-contribution{font-size:13px;color:#e8edf5;font-weight:700;text-align:right}
+.cockpit-badge{font-size:10px;font-weight:750;letter-spacing:.6px;padding:2px 7px;border-radius:4px;text-transform:uppercase;white-space:nowrap;display:inline-block}
+.cockpit-badge--motor{background:rgba(94,231,160,.15);color:#5ee7a0}
+.cockpit-badge--contribuidor{background:rgba(74,140,255,.15);color:#4a8cff}
+.cockpit-badge--neutro{background:rgba(251,191,36,.15);color:#fbbf24}
+.cockpit-badge--arrasto-esperado{background:rgba(249,115,22,.15);color:#f97316}
+.cockpit-contrib-summary{border-top:1px solid #213753;margin-top:12px;padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.cockpit-contrib-summary-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#c8d8ef}
+.cockpit-contrib-gap{font-weight:700;font-size:14px;margin-top:4px}
+.cockpit-contrib-conclusion{margin-top:14px;font-size:13px;color:#d7e0ed;line-height:1.6;border-left:3px solid #4a8cff;padding-left:10px}
+.cockpit-contrib-note{margin-top:8px;font-size:12px;color:#7da6d8;font-style:italic}
+@media(max-width:760px){.cockpit-grid{grid-template-columns:1fr}
+.cockpit-contrib-header-row{display:none}
+.cockpit-contrib-row{grid-template-columns:1fr auto auto}
+.cockpit-contrib-range{display:none}}
 footer{text-align:center;color:#5f7189;font-size:13px;margin-top:26px}
 @media(max-width:760px){
   .portfolio-grid,.upload-grid,.totals-grid{grid-template-columns:1fr}
