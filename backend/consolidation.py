@@ -1,4 +1,90 @@
+import re
 from typing import Dict, Iterable, List
+
+
+_KNOWN_SHORT_NAMES = {
+    "VISTAONE": "VistaOne",
+    "MFFXJR": "BGF Next Generation Technology",
+    "MFLWCA": "PIMCO Income Fund E (Acc)",
+}
+
+_PRIVATE_CREDIT_PREFIXES = [
+    ("LPM ", "LPM Private Credit"),
+    ("LCRED ", "LCRED Private Credit"),
+]
+
+_ISSUER_ALIASES = [
+    ("ELECTRICITE DE FRANCE", "EDF"),
+    ("BANCO SANTANDER", "Santander"),
+    ("JPMORGAN CHASE", "JPMorgan"),
+    ("JP MORGAN CHASE", "JPMorgan"),
+    ("TEVA PHARMACEUTICAL", "Teva"),
+    ("FREEPORT-MCMORAN", "Freeport-McMoRan"),
+    ("FREEPORT MCMORAN", "Freeport-McMoRan"),
+    ("ENERGY TRANSFER", "Energy Transfer"),
+    ("UNITED STATES STEEL", "U.S. Steel"),
+]
+
+# Vencimento conhecido para títulos cujo texto bruto às vezes não traz o ano.
+_KNOWN_BOND_MATURITIES = {
+    ("JPMorgan", "5.35"): "2037",
+    ("Teva", "6.75"): "2028",
+    ("Freeport-McMoRan", "5.25"): "2029",
+    ("Energy Transfer", "6.94"): "2066",
+    ("U.S. Steel", "6.875"): "2029",
+}
+
+
+def _format_rate(rate: str) -> str:
+    text = f"{float(rate):.3f}".rstrip("0").rstrip(".")
+    return text
+
+
+def _friendly_name(name: str) -> str:
+    if not name:
+        return name
+
+    upper = name.upper()
+
+    if "BLACKSTONE" in upper and "BXPE" in upper:
+        return "BXPE"
+
+    for keyword, short_name in _KNOWN_SHORT_NAMES.items():
+        if upper.startswith(keyword):
+            return short_name
+
+    for prefix, friendly_name in _PRIVATE_CREDIT_PREFIXES:
+        if upper.startswith(prefix):
+            return friendly_name
+
+    for keyword, short_name in _ISSUER_ALIASES:
+        if keyword in upper:
+            rate_match = re.search(r"(\d+(?:\.\d+)?)\s*%", name)
+            year_matches = re.findall(r"\b(?:19|20)\d{2}\b", name)
+
+            parts = [short_name]
+            formatted_rate = None
+            if rate_match:
+                formatted_rate = _format_rate(rate_match.group(1))
+                parts.append(f"{formatted_rate}%")
+
+            year = year_matches[-1] if year_matches else _KNOWN_BOND_MATURITIES.get((short_name, formatted_rate))
+            if year:
+                parts.append(year)
+            return " ".join(parts)
+
+    return name
+
+
+def _is_technical_code(symbol: str) -> bool:
+    clean = (symbol or "").strip().upper()
+    if not clean:
+        return False
+    if not clean.isalnum():
+        return False
+    if not (9 <= len(clean) <= 12):
+        return False
+    return any(char.isdigit() for char in clean)
 
 
 def _is_identifier_like(value: str) -> bool:
@@ -127,9 +213,18 @@ def consolidate_positions(ubs_positions: Iterable[Dict], santander_positions: It
                 "weight_in_institution": institution_weight,
             })
 
+        friendly_name = _friendly_name(item["name"])
+        no_real_ticker = (
+            item["symbol"].strip().upper() == item["name"].strip().upper()
+            and friendly_name.strip().upper() != item["symbol"].strip().upper()
+        )
+
         position_rows.append({
             "symbol": item["symbol"],
-            "name": item["name"],
+            "name": friendly_name,
+            "description": item["description"],
+            "asset_class": item["asset_class"],
+            "is_technical_code": _is_technical_code(item["symbol"]) or no_real_ticker,
             "total_value": item["value"],
             "weight": weight,
             "institutions": institutions,

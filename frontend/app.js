@@ -92,6 +92,14 @@ function renderAssetName(position) {
   const name = position.name || "";
   const hasDistinctName = !!name && name.trim().toUpperCase() !== symbol.trim().toUpperCase();
 
+  if (position.is_technical_code && hasDistinctName) {
+    return `
+      <div class="asset-cell">
+        <strong class="position-symbol">${name}</strong>
+      </div>
+    `;
+  }
+
   return `
     <div class="asset-cell">
       <strong class="position-symbol">${symbol}</strong>
@@ -100,8 +108,96 @@ function renderAssetName(position) {
   `;
 }
 
+const ASSET_CLASS_ORDER = ["Caixa", "Renda Fixa", "ETF", "Ação", "Fundo", "Alternativos", "Outros"];
+
+// Tickers já reconhecidos como ETF pelo ARGOS (ver overrides em backend/consolidation.py).
+const KNOWN_ETF_SYMBOLS = new Set(["GLD", "BIL"]);
+
+function resolveAssetGroup(position) {
+  const rawClass = (position.asset_class || "Outros").trim();
+
+  if (rawClass === "ETF/Fundo") {
+    const haystack = `${position.name || ""} ${position.description || ""}`.toUpperCase();
+    if (haystack.includes("ETF")) return "ETF";
+    if (KNOWN_ETF_SYMBOLS.has((position.symbol || "").trim().toUpperCase())) return "ETF";
+    return "Fundo";
+  }
+
+  return ASSET_CLASS_ORDER.includes(rawClass) ? rawClass : "Outros";
+}
+
+function groupPositionsByAssetClass(positions) {
+  const groups = new Map(ASSET_CLASS_ORDER.map((name) => [name, []]));
+
+  positions.forEach((position) => {
+    const group = resolveAssetGroup(position);
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(position);
+  });
+
+  return ASSET_CLASS_ORDER
+    .map((name) => ({
+      name,
+      items: (groups.get(name) || []).sort((a, b) => b.total_value - a.total_value),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+function renderPositionRow(position, institutionNames) {
+  const institutionMap = new Map(
+    (position.institutions || []).map((institution) => [institution.name, institution])
+  );
+
+  const institutionCells = institutionNames
+    .map((institutionName) => {
+      const institution = institutionMap.get(institutionName);
+      const hasValue = institution && institution.value;
+      const valueDisplay = hasValue
+        ? renderHoldingsValue(institution.value)
+        : "—";
+      const percentDisplay = hasValue
+        ? `${institution.weight_in_institution.toFixed(2)}%`
+        : "—";
+
+      return `
+        <div class="top-table-cell">
+          <span>${valueDisplay}</span>
+          <span class="position-subtext">${percentDisplay}</span>
+        </div>
+      `;
+    })
+    .join("");
+
+  const consolidatedValueDisplay = position.total_value
+    ? renderHoldingsValue(position.total_value)
+    : "—";
+
+  return `
+    <div class="top-table-row" data-symbol="${position.symbol}">
+      <div class="top-table-cell">
+        ${renderAssetName(position)}
+      </div>
+      ${institutionCells}
+      <div class="top-table-cell">
+        <span>${consolidatedValueDisplay}</span>
+        <span class="position-subtext">${position.weight.toFixed(2)}%</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderTopHoldings(positions) {
   const institutionNames = ["UBS", "Santander"];
+  const groups = groupPositionsByAssetClass(positions);
+
+  const groupsHtml = groups
+    .map(
+      (group, index) => `
+        <div class="asset-group-header${index === 0 ? " asset-group-header--first" : ""}">${group.name}</div>
+        ${group.items.map((position) => renderPositionRow(position, institutionNames)).join("")}
+      `
+    )
+    .join("");
 
   return `
     <div class="top-table">
@@ -114,51 +210,7 @@ function renderTopHoldings(positions) {
           .join("")}
         <div class="top-table-cell top-table-heading">Consolidado</div>
       </div>
-      ${positions
-        .sort((a, b) => b.total_value - a.total_value)
-        .map((position) => {
-          const institutionMap = new Map(
-            (position.institutions || []).map((institution) => [institution.name, institution])
-          );
-
-          const institutionCells = institutionNames
-            .map((institutionName) => {
-              const institution = institutionMap.get(institutionName);
-              const hasValue = institution && institution.value;
-              const valueDisplay = hasValue
-                ? renderHoldingsValue(institution.value)
-                : "—";
-              const percentDisplay = hasValue
-                ? `${institution.weight_in_institution.toFixed(2)}%`
-                : "—";
-
-              return `
-                <div class="top-table-cell">
-                  <span>${valueDisplay}</span>
-                  <span class="position-subtext">${percentDisplay}</span>
-                </div>
-              `;
-            })
-            .join("");
-
-          const consolidatedValueDisplay = position.total_value
-            ? renderHoldingsValue(position.total_value)
-            : "—";
-
-          return `
-            <div class="top-table-row" data-symbol="${position.symbol}">
-              <div class="top-table-cell">
-                ${renderAssetName(position)}
-              </div>
-              ${institutionCells}
-              <div class="top-table-cell">
-                <span>${consolidatedValueDisplay}</span>
-                <span class="position-subtext">${position.weight.toFixed(2)}%</span>
-              </div>
-            </div>
-          `;
-        })
-        .join("")}
+      ${groupsHtml}
     </div>
   `;
 }

@@ -5,43 +5,43 @@
 A Release só pode ser encerrada quando todos os itens abaixo forem validados pelo usuário no navegador.
 
 ### Inicialização
-- [ ] Servidor inicia com `python3 -m backend.server`
-- [ ] Interface abre em `http://localhost:8080`
-- [ ] Não existem erros no Terminal
+- [x] Servidor inicia com `python3 -m backend.server`
+- [x] Interface abre em `http://localhost:8080`
+- [x] Não existem erros no Terminal
 
 ### Upload
 - [ ] UBS aceita CSV, XLS e XLSX
 - [ ] Santander aceita XLS e XLSX
-- [ ] Arquivos reais dos bancos são processados sem conversão manual
+- [x] Arquivos reais dos bancos são processados sem conversão manual
 - [ ] Mensagens de erro são claras
 
 ### Consolidação
-- [ ] Total UBS confere
-- [ ] Total Santander confere
-- [ ] Total consolidado confere
-- [ ] Pesos estão corretos
-- [ ] GLD está consolidado entre UBS e Santander
-- [ ] ICE e aliases relevantes estão normalizados
-- [ ] Nenhuma conta ou categoria aparece como ativo
+- [x] Total UBS confere
+- [x] Total Santander confere
+- [x] Total consolidado confere
+- [x] Pesos estão corretos
+- [x] GLD está consolidado entre UBS e Santander
+- [x] ICE e aliases relevantes estão normalizados
+- [x] Nenhuma conta ou categoria aparece como ativo
 
 ### Top Holdings
-- [ ] Colunas Ativo, UBS, Santander e Consolidado aparecem
-- [ ] Cada instituição mostra valor e percentual dentro da própria carteira
-- [ ] Consolidado mostra valor e percentual dentro da Jolika
-- [ ] Ativo ausente em instituição mostra “—”
-- [ ] Ticker e nome não aparecem duplicados
-- [ ] ISIN/CUSIP só aparece quando não houver nome legível
+- [x] Colunas Ativo, UBS, Santander e Consolidado aparecem
+- [x] Cada instituição mostra valor e percentual dentro da própria carteira
+- [x] Consolidado mostra valor e percentual dentro da Jolika
+- [x] Ativo ausente em instituição mostra “—”
+- [x] Ticker e nome não aparecem duplicados
+- [x] ISIN/CUSIP só aparece quando não houver nome legível
 
 ### Privacidade
-- [ ] Valores ficam ocultos por padrão
-- [ ] Percentuais permanecem visíveis
-- [ ] ARGOS AI não expõe valores quando ocultos
-- [ ] Mostrar/Ocultar valores funciona em toda a tela
+- [x] Valores ficam ocultos por padrão
+- [x] Percentuais permanecem visíveis
+- [x] ARGOS AI não expõe valores quando ocultos
+- [x] Mostrar/Ocultar valores funciona em toda a tela
 
 ### Validação final
-- [ ] Testado visualmente no Safari
-- [ ] Usuário confirmou: “Agora ficou certo”
-- [ ] Git status revisado
+- [x] Testado visualmente no Safari
+- [x] Usuário confirmou: “Agora ficou certo”
+- [x] Git status revisado
 - [ ] Commit realizado na branch release/0.4
 - [ ] Push realizado para o GitHub
 
