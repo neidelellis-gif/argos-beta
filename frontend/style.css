@@ -64,6 +64,35 @@ h2{font-size:26px;margin-top:5px}
   .top-table-cell{border-top:1px solid #213753;padding-top:12px}
   .top-table-cell:first-child{border-top:none;padding-top:0}
 }
+.cockpit-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:18px}
+.cockpit-block{background:#0b1729;border:1px solid #213753;border-radius:13px;padding:18px}
+.cockpit-block--full{grid-column:1/-1}
+.cockpit-block-title{font-size:11px;font-weight:750;letter-spacing:1.2px;color:#7da6d8;text-transform:uppercase;margin-bottom:14px}
+.cockpit-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.cockpit-stat{display:flex;flex-direction:column;gap:4px}
+.cockpit-stat-value{font-size:22px;font-weight:760;color:#e8edf5}
+.cockpit-stat-label{font-size:12px;color:#7da6d8}
+.cockpit-class-row{display:grid;grid-template-columns:100px 1fr 48px;align-items:center;gap:10px;margin-bottom:8px}
+.cockpit-class-name{font-size:13px;color:#c8d8ef}
+.cockpit-bar-wrap{background:#1a2f50;border-radius:4px;height:6px;overflow:hidden}
+.cockpit-bar{height:100%;background:#4a8cff;border-radius:4px}
+.cockpit-class-pct{font-size:13px;color:#8fb5ff;text-align:right}
+.cockpit-liquidity-grid{display:flex;flex-direction:column;gap:10px}
+.cockpit-liq-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px}
+.cockpit-liq-label{font-size:13px;color:#c8d8ef}
+.cockpit-liq-value{font-size:13px;color:#8fa0b7;text-align:right;font-variant-numeric:tabular-nums}
+.cockpit-liq-pct{font-size:13px;color:#8fb5ff;text-align:right;min-width:44px}
+.cockpit-liq-row--total{border-top:1px solid #213753;padding-top:10px;margin-top:2px}
+.cockpit-liq-row--total .cockpit-liq-label{font-weight:700;color:#e8edf5}
+.cockpit-liq-row--total .cockpit-liq-pct{font-weight:700;color:#5ee7a0}
+.cockpit-alert-row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #172640}
+.cockpit-alert-row:last-child{border-bottom:none}
+.cockpit-alert-badge{color:#fbbf24;font-size:14px}
+.cockpit-alert-name{font-size:13px;color:#e8edf5}
+.cockpit-alert-pct{font-size:13px;color:#fbbf24;font-weight:700}
+.cockpit-no-alert{font-size:13px;color:#5ee7a0}
+.cockpit-action-text{font-size:15px;line-height:1.6;color:#d7e0ed}
+@media(max-width:760px){.cockpit-grid{grid-template-columns:1fr}}
 footer{text-align:center;color:#5f7189;font-size:13px;margin-top:26px}
 @media(max-width:760px){
   .portfolio-grid,.upload-grid,.totals-grid{grid-template-columns:1fr}

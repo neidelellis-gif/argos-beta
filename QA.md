@@ -45,6 +45,27 @@ A Release só pode ser encerrada quando todos os itens abaixo forem validados pe
 - [x] Commit realizado na branch release/0.4
 - [x] Push realizado para o GitHub
 
+## Release 0.5 — Cockpit Executivo
+
+### Cockpit
+- [x] Resumo Executivo exibe posições consolidadas, instituições e participação percentual
+- [x] Alocação por classe usa todas as posições consolidadas (não apenas Top 20)
+- [x] Soma dos weights das classes fecha aproximadamente 100%
+- [x] ETF/Fundo resolvido analiticamente por item (não exibido como classe final)
+- [x] Liquidez separa Caixa e Caixa Remunerado
+- [x] BIL permanece ativo gerador de retorno (não tratado como caixa inerte)
+- [x] Concentração acima de 5% identificada e exibida com alerta
+- [x] Nomenclatura executiva usa ticker amigável (GLD, não SPDR GOLD TRUST)
+- [x] Próxima Ação deriva dos dados reais da carteira (determinística)
+- [x] Mostrar/Ocultar valores controla também o Cockpit
+- [x] Validação visual confirmada pelo usuário
+
+### Validação final
+- [x] Testado visualmente no Safari
+- [x] Usuário confirmou: Release 0.5 validada visualmente
+- [ ] Commit realizado na branch release/0.5
+- [ ] Push realizado para o GitHub
+
 ## Definição de concluído
 
 Uma tarefa não está concluída apenas porque compilou ou porque o agente informou sucesso.

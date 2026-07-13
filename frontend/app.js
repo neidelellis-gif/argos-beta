@@ -79,6 +79,7 @@ function renderResult(result) {
     .join("");
 
   byId("topPositions").innerHTML = renderTopHoldings(result.top_positions);
+  renderCockpit(result);
 }
 
 function renderHoldingsValue(value) {
@@ -213,6 +214,102 @@ function renderTopHoldings(positions) {
       ${groupsHtml}
     </div>
   `;
+}
+
+const COCKPIT_CLASS_ORDER = ["Caixa", "Renda Fixa", "ETF", "ETF/Fundo", "Ação", "Fundo", "Alternativos", "Outros"];
+
+function renderCockpit(result) {
+  const cockpit = byId("cockpit");
+  if (!cockpit) return;
+  cockpit.classList.remove("hidden");
+
+  const summary = result.summary || {};
+  const byClass = result.by_asset_class || {};
+  const liquidity = result.liquidity || {};
+  const alerts = result.concentration_alerts || [];
+  const nextAction = (result.argos_ai || {}).next_action || "";
+
+  // Bloco 1: Resumo Executivo
+  const instWeights = Object.entries(summary.institution_weights || {});
+  byId("cockpit-resumo").innerHTML = `
+    <div class="cockpit-stat-grid">
+      <div class="cockpit-stat">
+        <span class="cockpit-stat-value">${summary.total_positions ?? "—"}</span>
+        <span class="cockpit-stat-label">posições consolidadas</span>
+      </div>
+      <div class="cockpit-stat">
+        <span class="cockpit-stat-value">${summary.institution_count ?? "—"}</span>
+        <span class="cockpit-stat-label">instituições</span>
+      </div>
+      ${instWeights.map(([name, pct]) => `
+        <div class="cockpit-stat">
+          <span class="cockpit-stat-value">${pct.toFixed(1)}%</span>
+          <span class="cockpit-stat-label">${name}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+  // Bloco 2: Alocação por Classe
+  const classEntries = COCKPIT_CLASS_ORDER
+    .filter((cls) => byClass[cls] && byClass[cls].count > 0)
+    .map((cls) => [cls, byClass[cls]]);
+  Object.entries(byClass).forEach(([cls, data]) => {
+    if (!COCKPIT_CLASS_ORDER.includes(cls) && data.count > 0) classEntries.push([cls, data]);
+  });
+
+  byId("cockpit-alocacao").innerHTML = classEntries.map(([cls, data]) => `
+    <div class="cockpit-class-row">
+      <span class="cockpit-class-name">${cls}</span>
+      <div class="cockpit-bar-wrap">
+        <div class="cockpit-bar" style="width:${Math.min(data.weight, 100).toFixed(1)}%"></div>
+      </div>
+      <span class="cockpit-class-pct">${data.weight.toFixed(1)}%</span>
+    </div>
+  `).join("");
+
+  // Bloco 3: Liquidez
+  const caixa = liquidity.caixa || {};
+  const caixaRem = liquidity.caixa_remunerado || {};
+  const totalLiq = liquidity.total || {};
+
+  function liqValue(v) {
+    return state.showValues ? formatMoney(v || 0) : "——";
+  }
+
+  byId("cockpit-liquidez").innerHTML = `
+    <div class="cockpit-liquidity-grid">
+      <div class="cockpit-liq-row">
+        <span class="cockpit-liq-label">Caixa</span>
+        <span class="cockpit-liq-value">${liqValue(caixa.value)}</span>
+        <span class="cockpit-liq-pct">${(caixa.weight || 0).toFixed(1)}%</span>
+      </div>
+      <div class="cockpit-liq-row">
+        <span class="cockpit-liq-label">Caixa Remunerado</span>
+        <span class="cockpit-liq-value">${liqValue(caixaRem.value)}</span>
+        <span class="cockpit-liq-pct">${(caixaRem.weight || 0).toFixed(1)}%</span>
+      </div>
+      <div class="cockpit-liq-row cockpit-liq-row--total">
+        <span class="cockpit-liq-label">Liquidez Total</span>
+        <span class="cockpit-liq-value">${liqValue(totalLiq.value)}</span>
+        <span class="cockpit-liq-pct">${(totalLiq.weight || 0).toFixed(1)}%</span>
+      </div>
+    </div>
+  `;
+
+  // Bloco 4: Concentração e Alertas
+  byId("cockpit-concentracao").innerHTML = alerts.length > 0
+    ? alerts.map((alert) => `
+        <div class="cockpit-alert-row">
+          <span class="cockpit-alert-badge">⚠</span>
+          <span class="cockpit-alert-name">${alert.is_technical_code ? alert.name : alert.symbol}</span>
+          <span class="cockpit-alert-pct">${alert.weight.toFixed(2)}%</span>
+        </div>
+      `).join("")
+    : `<p class="cockpit-no-alert">Nenhuma concentração acima de 5%.</p>`;
+
+  // Bloco 5: Próxima Ação
+  byId("cockpit-proxima-acao").innerHTML = `<p class="cockpit-action-text">${nextAction}</p>`;
 }
 
 async function analyzeJolika() {

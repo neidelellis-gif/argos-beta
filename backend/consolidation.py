@@ -34,6 +34,13 @@ _KNOWN_BOND_MATURITIES = {
     ("U.S. Steel", "6.875"): "2029",
 }
 
+# Símbolos tratados como Caixa Remunerado no bloco analítico do Cockpit.
+# Não altera a classificação original do conector.
+_CAIXA_REMUNERADO_SYMBOLS = {"BIL"}
+
+# Tickers reconhecidos pelo ARGOS como ETF para reclassificação analítica de "ETF/Fundo".
+_KNOWN_ETF_SYMBOLS = {"GLD", "BIL", "SMH"}
+
 
 def _format_rate(rate: str) -> str:
     text = f"{float(rate):.3f}".rstrip("0").rstrip(".")
@@ -96,6 +103,38 @@ def _is_identifier_like(value: str) -> bool:
     if len(clean) in {9, 10} and clean.isalnum():
         return True
     return False
+
+
+def _resolve_etf_fundo_class(position: Dict) -> str:
+    haystack = f"{position.get('name', '')} {position.get('description', '')}".upper()
+    if "ETF" in haystack:
+        return "ETF"
+    if position.get("symbol", "").upper() in _KNOWN_ETF_SYMBOLS:
+        return "ETF"
+    return "Fundo"
+
+
+def _generate_next_action(position_rows: List[Dict], liquidity: Dict, threshold: float = 5.0, liq_threshold: float = 10.0) -> str:
+    concentrated = [p for p in position_rows if p["weight"] > threshold]
+    liq_weight = liquidity.get("total", {}).get("weight", 0.0)
+
+    parts = []
+
+    if concentrated:
+        top = concentrated[0]
+        label = top["symbol"] if not top.get("is_technical_code") else top["name"]
+        parts.append(
+            f"{label} representa {top['weight']:.2f}% da Jolika"
+            " e merece monitoramento de concentração."
+        )
+
+    if liq_weight > liq_threshold:
+        parts.append(f"A liquidez total está em {liq_weight:.1f}%, criando capacidade de alocação.")
+
+    if not parts:
+        return "Nenhuma concentração individual acima de 5% foi identificada."
+
+    return " ".join(parts)
 
 
 def _canonize_asset(symbol: str, name: str, description: str):
@@ -232,6 +271,70 @@ def consolidate_positions(ubs_positions: Iterable[Dict], santander_positions: It
 
     position_rows.sort(key=lambda item: item["total_value"], reverse=True)
 
+    # Alocação por classe — calculada de TODAS as posições antes do corte Top 20.
+    # "ETF/Fundo" é reclassificado analiticamente; a classificação original da posição não é alterada.
+    by_asset_class: Dict[str, Dict] = {}
+    for row in position_rows:
+        cls = row["asset_class"] or "Outros"
+        if cls == "ETF/Fundo":
+            cls = _resolve_etf_fundo_class(row)
+        if cls not in by_asset_class:
+            by_asset_class[cls] = {"value": 0.0, "weight": 0.0, "count": 0}
+        by_asset_class[cls]["value"] += row["total_value"]
+        by_asset_class[cls]["count"] += 1
+    for cls in by_asset_class:
+        by_asset_class[cls]["weight"] = (
+            by_asset_class[cls]["value"] / total_value * 100
+        ) if total_value else 0.0
+
+    # Liquidez analítica (não altera classificação original do conector).
+    caixa_value = by_asset_class.get("Caixa", {}).get("value", 0.0)
+    caixa_remunerado_value = sum(
+        row["total_value"] for row in position_rows
+        if row["symbol"].upper() in _CAIXA_REMUNERADO_SYMBOLS
+    )
+    liquidity = {
+        "caixa": {
+            "value": caixa_value,
+            "weight": (caixa_value / total_value * 100) if total_value else 0.0,
+        },
+        "caixa_remunerado": {
+            "value": caixa_remunerado_value,
+            "weight": (caixa_remunerado_value / total_value * 100) if total_value else 0.0,
+        },
+        "total": {
+            "value": caixa_value + caixa_remunerado_value,
+            "weight": (
+                (caixa_value + caixa_remunerado_value) / total_value * 100
+            ) if total_value else 0.0,
+        },
+    }
+
+    # Alertas de concentração.
+    _CONCENTRATION_THRESHOLD = 5.0
+    concentration_alerts = [
+        {
+            "symbol": row["symbol"],
+            "name": row["name"],
+            "weight": row["weight"],
+            "is_technical_code": row["is_technical_code"],
+        }
+        for row in position_rows
+        if row["weight"] > _CONCENTRATION_THRESHOLD
+    ][:5]
+
+    # Resumo dinâmico (não hardcoda instituições).
+    summary = {
+        "total_positions": len(position_rows),
+        "institution_count": len(institution_order),
+        "institution_weights": {
+            name: (institution_totals[name] / total_value * 100) if total_value else 0.0
+            for name in institution_order
+        },
+    }
+
+    next_action = _generate_next_action(position_rows, liquidity)
+
     top_positions = position_rows[:20]
     top_symbol = top_positions[0]["symbol"] if top_positions else "N/A"
     top_weight = top_positions[0]["weight"] if top_positions else 0.0
@@ -250,8 +353,12 @@ def consolidate_positions(ubs_positions: Iterable[Dict], santander_positions: It
                     for name, value in institution_totals.items()
                 ) + ".",
             ],
-            "next_action": "Verificar exposição por ativo e buscar equilíbrio entre instituições.",
+            "next_action": next_action,
         },
+        "summary": summary,
+        "by_asset_class": by_asset_class,
+        "liquidity": liquidity,
+        "concentration_alerts": concentration_alerts,
         "totals": totals,
         "top_positions": top_positions,
     }
