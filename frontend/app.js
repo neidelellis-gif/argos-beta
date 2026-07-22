@@ -1,493 +1,171 @@
-const state = { result: null, showValues: false };
+"use strict";
 
-const byId = (id) => document.getElementById(id);
-
-function showScreen(name) {
-  ["homeScreen", "jolikaScreen", "neiScreen"].forEach((id) => {
-    byId(id).classList.add("hidden");
-  });
-  byId(name).classList.remove("hidden");
-}
-
-function formatMoney(value) {
-  if (!state.showValues) return "••••••";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD"
-  }).format(value);
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(",", 2)[1]);
-    reader.onerror = () => reject(new Error(`Não foi possível ler ${file.name}.`));
-    reader.readAsDataURL(file);
-  });
-}
-
-function setAiMessage(title, html) {
-  byId("aiTitle").textContent = title;
-  byId("argosResponse").innerHTML = html;
-}
-
-function setFileName(inputId, outputId) {
-  const input = byId(inputId);
-  const output = byId(outputId);
-
-  input.addEventListener("change", () => {
-    const file = input.files[0];
-    output.textContent = file ? file.name : "Nenhum arquivo selecionado";
-  });
-}
-
-function renderResult(result) {
-  state.result = result;
-  byId("resultsSection").classList.remove("hidden");
-  byId("toggleValues").classList.remove("hidden");
-
-  const aiItems = state.showValues
-    ? [
-        `Total consolidado: ${formatMoney(result.totals["Total consolidado"])}`,
-        `UBS: ${formatMoney(result.totals["Total UBS"])}`,
-        `Santander: ${formatMoney(result.totals["Total Santander"])}`,
-      ]
-    : [
-        "UBS e Santander carregados com sucesso.",
-      ];
-
-  const aiText = aiItems.map((item) => `<li class="ai-item">${item}</li>`).join("");
-
-  setAiMessage(
-    result.argos_ai.title,
-    `<ul class="ai-list">${aiText}</ul>
-     <div class="next-action">
-       <strong>Próxima ação</strong><br>
-       ${result.argos_ai.next_action}
-     </div>`
-  );
-
-  byId("totals").innerHTML = Object.entries(result.totals)
-    .map(([label, value]) => `
-      <div class="total-card">
-        <div class="total-label">${label}</div>
-        <div class="money-value ${state.showValues ? "" : "masked"}">
-          ${formatMoney(value)}
-        </div>
-      </div>
-    `)
-    .join("");
-
-  byId("topPositions").innerHTML = renderTopHoldings(result.top_positions);
-  renderCockpit(result);
-}
-
-function renderHoldingsValue(value) {
-  return state.showValues
-    ? formatMoney(value)
-    : "••••••";
-}
-
-function renderAssetName(position) {
-  const symbol = position.symbol || "";
-  const name = position.name || "";
-  const hasDistinctName = !!name && name.trim().toUpperCase() !== symbol.trim().toUpperCase();
-
-  if (position.is_technical_code && hasDistinctName) {
-    return `
-      <div class="asset-cell">
-        <strong class="position-symbol">${name}</strong>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="asset-cell">
-      <strong class="position-symbol">${symbol}</strong>
-      ${hasDistinctName ? `<span class="position-name">${name}</span>` : ""}
-    </div>
-  `;
-}
-
-const ASSET_CLASS_ORDER = ["Caixa", "Renda Fixa", "ETF", "Ação", "Fundo", "Alternativos", "Outros"];
-
-// Tickers já reconhecidos como ETF pelo ARGOS (ver overrides em backend/consolidation.py).
-const KNOWN_ETF_SYMBOLS = new Set(["GLD", "BIL"]);
-
-function resolveAssetGroup(position) {
-  const rawClass = (position.asset_class || "Outros").trim();
-
-  if (rawClass === "ETF/Fundo") {
-    const haystack = `${position.name || ""} ${position.description || ""}`.toUpperCase();
-    if (haystack.includes("ETF")) return "ETF";
-    if (KNOWN_ETF_SYMBOLS.has((position.symbol || "").trim().toUpperCase())) return "ETF";
-    return "Fundo";
-  }
-
-  return ASSET_CLASS_ORDER.includes(rawClass) ? rawClass : "Outros";
-}
-
-function groupPositionsByAssetClass(positions) {
-  const groups = new Map(ASSET_CLASS_ORDER.map((name) => [name, []]));
-
-  positions.forEach((position) => {
-    const group = resolveAssetGroup(position);
-    if (!groups.has(group)) groups.set(group, []);
-    groups.get(group).push(position);
-  });
-
-  return ASSET_CLASS_ORDER
-    .map((name) => ({
-      name,
-      items: (groups.get(name) || []).sort((a, b) => b.total_value - a.total_value),
-    }))
-    .filter((group) => group.items.length > 0);
-}
-
-function renderPositionRow(position, institutionNames) {
-  const institutionMap = new Map(
-    (position.institutions || []).map((institution) => [institution.name, institution])
-  );
-
-  const institutionCells = institutionNames
-    .map((institutionName) => {
-      const institution = institutionMap.get(institutionName);
-      const hasValue = institution && institution.value;
-      const valueDisplay = hasValue
-        ? renderHoldingsValue(institution.value)
-        : "—";
-      const percentDisplay = hasValue
-        ? `${institution.weight_in_institution.toFixed(2)}%`
-        : "—";
-
-      return `
-        <div class="top-table-cell">
-          <span>${valueDisplay}</span>
-          <span class="position-subtext">${percentDisplay}</span>
-        </div>
-      `;
-    })
-    .join("");
-
-  const consolidatedValueDisplay = position.total_value
-    ? renderHoldingsValue(position.total_value)
-    : "—";
-
-  return `
-    <div class="top-table-row" data-symbol="${position.symbol}">
-      <div class="top-table-cell">
-        ${renderAssetName(position)}
-      </div>
-      ${institutionCells}
-      <div class="top-table-cell">
-        <span>${consolidatedValueDisplay}</span>
-        <span class="position-subtext">${position.weight.toFixed(2)}%</span>
-      </div>
-    </div>
-  `;
-}
-
-function renderTopHoldings(positions) {
-  const institutionNames = ["UBS", "Santander"];
-  const groups = groupPositionsByAssetClass(positions);
-
-  const groupsHtml = groups
-    .map(
-      (group, index) => `
-        <div class="asset-group-header${index === 0 ? " asset-group-header--first" : ""}">${group.name}</div>
-        ${group.items.map((position) => renderPositionRow(position, institutionNames)).join("")}
-      `
-    )
-    .join("");
-
-  return `
-    <div class="top-table">
-      <div class="top-table-row top-table-header">
-        <div class="top-table-cell top-table-heading">Ativo</div>
-        ${institutionNames
-          .map(
-            (name) => `<div class="top-table-cell top-table-heading">${name}</div>`
-          )
-          .join("")}
-        <div class="top-table-cell top-table-heading">Consolidado</div>
-      </div>
-      ${groupsHtml}
-    </div>
-  `;
-}
-
-const COCKPIT_CLASS_ORDER = ["Caixa", "Renda Fixa", "ETF", "ETF/Fundo", "Ação", "Fundo", "Alternativos", "Outros"];
-
-const CLASSIFICATION_CSS = {
-  "MOTOR": "motor",
-  "CONTRIBUIDOR": "contribuidor",
-  "NEUTRO": "neutro",
-  "ARRASTO ESPERADO": "arrasto-esperado",
+const STATUS_LABELS = {
+    pendente: "Pendente",
+    em_construcao: "Em construção",
+    pronto: "Pronto"
 };
 
-function renderContributionBlock(ca) {
-  const el = document.createElement("div");
-  el.id = "cockpit-contribuicao-block";
-  el.className = "cockpit-block cockpit-block--full";
+function setGreeting() {
+    const greeting = document.getElementById("greeting");
+    const currentDate = document.getElementById("currentDate");
+    const now = new Date();
+    const hour = now.getHours();
 
-  const rowsHtml = (ca.blocks || []).map((block) => {
-    const hasAssumption = block.return_mid !== null;
-    const badgeCls = hasAssumption ? `cockpit-badge cockpit-badge--${CLASSIFICATION_CSS[block.classification] || ""}` : "";
-    return `
-      <div class="cockpit-contrib-row">
-        <span class="cockpit-contrib-name">${block.name}</span>
-        <span class="cockpit-contrib-weight">${block.weight.toFixed(1)}%</span>
-        <span class="cockpit-contrib-range">${hasAssumption ? `${block.return_low}–${block.return_high}%` : "—"}</span>
-        <span class="cockpit-contrib-contribution">${hasAssumption ? `~${block.weighted_contribution.toFixed(2)}%` : "—"}</span>
-        <span class="${badgeCls}">${hasAssumption ? block.classification : "—"}</span>
-      </div>
-    `;
-  }).join("");
-
-  const gapColor = ca.gap >= 0 ? "#5ee7a0" : "#f97316";
-  const gapSign = ca.gap >= 0 ? "+" : "";
-
-  el.innerHTML = `
-    <div class="cockpit-block-title">Contribuição à Meta
-      <span class="cockpit-contrib-disclaimer">Premissas do gestor</span>
-    </div>
-    <div class="cockpit-contrib-header-row">
-      <span>Bloco</span><span>Peso</span><span>Faixa</span><span>Contribuição</span><span>Classificação</span>
-    </div>
-    ${rowsHtml}
-    <div class="cockpit-contrib-summary">
-      <div class="cockpit-contrib-summary-row">
-        <span>Meta-base</span>
-        <span>${ca.meta_base.toFixed(1)}%</span>
-      </div>
-      <div class="cockpit-contrib-summary-row">
-        <span>Retorno ponderado hipotético</span>
-        <span>~${ca.total_weighted_return.toFixed(1)}%</span>
-      </div>
-      <div class="cockpit-contrib-summary-row">
-        <span>Cobertura das premissas</span>
-        <span>${ca.modeled_weight.toFixed(1)}% da Jolika</span>
-      </div>
-      <div class="cockpit-contrib-summary-row cockpit-contrib-gap">
-        <span>Gap estrutural modelado</span>
-        <span style="color:${gapColor}">${gapSign}${ca.gap.toFixed(1)}%</span>
-      </div>
-    </div>
-    <p class="cockpit-contrib-conclusion">${ca.conclusion}</p>
-    <p class="cockpit-contrib-note">${ca.methodology_note}</p>
-  `;
-
-  return el;
-}
-
-function renderCockpit(result) {
-  const cockpit = byId("cockpit");
-  if (!cockpit) return;
-  cockpit.classList.remove("hidden");
-
-  const summary = result.summary || {};
-  const byClass = result.by_asset_class || {};
-  const liquidity = result.liquidity || {};
-  const alerts = result.concentration_alerts || [];
-  const nextAction = (result.argos_ai || {}).next_action || "";
-
-  // Bloco 1: Resumo Executivo
-  const instWeights = Object.entries(summary.institution_weights || {});
-  byId("cockpit-resumo").innerHTML = `
-    <div class="cockpit-stat-grid">
-      <div class="cockpit-stat">
-        <span class="cockpit-stat-value">${summary.total_positions ?? "—"}</span>
-        <span class="cockpit-stat-label">posições consolidadas</span>
-      </div>
-      <div class="cockpit-stat">
-        <span class="cockpit-stat-value">${summary.institution_count ?? "—"}</span>
-        <span class="cockpit-stat-label">instituições</span>
-      </div>
-      ${instWeights.map(([name, pct]) => `
-        <div class="cockpit-stat">
-          <span class="cockpit-stat-value">${pct.toFixed(1)}%</span>
-          <span class="cockpit-stat-label">${name}</span>
-        </div>
-      `).join("")}
-    </div>
-  `;
-
-  // Bloco 2: Alocação por Classe
-  const classEntries = COCKPIT_CLASS_ORDER
-    .filter((cls) => byClass[cls] && byClass[cls].count > 0)
-    .map((cls) => [cls, byClass[cls]]);
-  Object.entries(byClass).forEach(([cls, data]) => {
-    if (!COCKPIT_CLASS_ORDER.includes(cls) && data.count > 0) classEntries.push([cls, data]);
-  });
-
-  byId("cockpit-alocacao").innerHTML = classEntries.map(([cls, data]) => `
-    <div class="cockpit-class-row">
-      <span class="cockpit-class-name">${cls}</span>
-      <div class="cockpit-bar-wrap">
-        <div class="cockpit-bar" style="width:${Math.min(data.weight, 100).toFixed(1)}%"></div>
-      </div>
-      <span class="cockpit-class-pct">${data.weight.toFixed(1)}%</span>
-    </div>
-  `).join("");
-
-  // Bloco 3: Liquidez
-  const caixa = liquidity.caixa || {};
-  const caixaRem = liquidity.caixa_remunerado || {};
-  const totalLiq = liquidity.total || {};
-
-  function liqValue(v) {
-    return state.showValues ? formatMoney(v || 0) : "——";
-  }
-
-  byId("cockpit-liquidez").innerHTML = `
-    <div class="cockpit-liquidity-grid">
-      <div class="cockpit-liq-row">
-        <span class="cockpit-liq-label">Caixa</span>
-        <span class="cockpit-liq-value">${liqValue(caixa.value)}</span>
-        <span class="cockpit-liq-pct">${(caixa.weight || 0).toFixed(1)}%</span>
-      </div>
-      <div class="cockpit-liq-row">
-        <span class="cockpit-liq-label">Caixa Remunerado</span>
-        <span class="cockpit-liq-value">${liqValue(caixaRem.value)}</span>
-        <span class="cockpit-liq-pct">${(caixaRem.weight || 0).toFixed(1)}%</span>
-      </div>
-      <div class="cockpit-liq-row cockpit-liq-row--total">
-        <span class="cockpit-liq-label">Liquidez Total</span>
-        <span class="cockpit-liq-value">${liqValue(totalLiq.value)}</span>
-        <span class="cockpit-liq-pct">${(totalLiq.weight || 0).toFixed(1)}%</span>
-      </div>
-    </div>
-  `;
-
-  // Bloco 4: Concentração e Alertas
-  byId("cockpit-concentracao").innerHTML = alerts.length > 0
-    ? alerts.map((alert) => `
-        <div class="cockpit-alert-row">
-          <span class="cockpit-alert-badge">⚠</span>
-          <span class="cockpit-alert-name">${alert.is_technical_code ? alert.name : alert.symbol}</span>
-          <span class="cockpit-alert-pct">${alert.weight.toFixed(2)}%</span>
-        </div>
-      `).join("")
-    : `<p class="cockpit-no-alert">Nenhuma concentração acima de 5%.</p>`;
-
-  // Bloco 5: Próxima Ação
-  byId("cockpit-proxima-acao").innerHTML = `<p class="cockpit-action-text">${nextAction}</p>`;
-
-  // Bloco 6: Contribuição à Meta (dinâmico, removido e re-adicionado a cada render)
-  const existingContrib = byId("cockpit-contribuicao-block");
-  if (existingContrib) existingContrib.remove();
-  const ca = result.contribution_analysis;
-  if (ca) {
-    const grid = byId("cockpit").querySelector(".cockpit-grid");
-    if (grid) grid.appendChild(renderContributionBlock(ca));
-  }
-}
-
-async function analyzeJolika() {
-  const ubs = byId("ubsFile").files[0];
-  const santander = byId("santanderFile").files[0];
-
-  if (!ubs || !santander) {
-    setAiMessage(
-      "Arquivos necessários",
-      "<p class='error-message'>Selecione os arquivos da UBS e do Santander.</p>"
-    );
-    return;
-  }
-
-  const button = byId("analyzeJolika");
-  button.disabled = true;
-  button.textContent = "ANALISANDO...";
-
-  setAiMessage(
-    "Análise em andamento",
-    "<p>Lendo as carteiras e consolidando a Jolika.</p>"
-  );
-
-  try {
-    const payload = {
-      portfolio: "JOLIKA",
-      files: {
-        ubs: {
-          name: ubs.name,
-          content: await fileToBase64(ubs)
-        },
-        santander: {
-          name: santander.name,
-          content: await fileToBase64(santander)
-        }
-      }
-    };
-
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.ok) {
-      throw new Error(data.error || "A análise não pôde ser concluída.");
+    if (hour < 12) {
+        greeting.textContent = "Bom dia, Nei.";
+    } else if (hour < 18) {
+        greeting.textContent = "Boa tarde, Nei.";
+    } else {
+        greeting.textContent = "Boa noite, Nei.";
     }
 
-    renderResult(data.result);
-  } catch (error) {
-    setAiMessage(
-      "Não foi possível analisar",
-      `<p class="error-message">${error.message}</p>`
-    );
-  } finally {
-    button.disabled = false;
-    button.textContent = "ANALISAR CARTEIRAS";
-  }
+    currentDate.textContent = new Intl.DateTimeFormat("pt-BR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+    }).format(now);
+}
+
+function formatUpdatedAt(value) {
+    if (!value) {
+        return "Não disponível";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "Não disponível";
+    }
+
+    return new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+    }).format(date);
+}
+
+function createExecutiveCard(item, index) {
+    const article = document.createElement("article");
+    article.className = "executive-card";
+
+    const number = document.createElement("span");
+    number.className = "card-number";
+    number.textContent = String(index + 1).padStart(2, "0");
+
+    const area = document.createElement("p");
+    area.className = "card-area";
+    area.textContent = item.area;
+
+    const title = document.createElement("h3");
+    title.textContent = item.title;
+
+    const summary = document.createElement("p");
+    summary.className = "card-summary";
+    summary.textContent = item.summary;
+
+    const footer = document.createElement("div");
+    footer.className = "card-footer";
+
+    const status = document.createElement("span");
+    status.className = `status-badge status-${item.status}`;
+    status.textContent = STATUS_LABELS[item.status] || item.status;
+
+    const action = document.createElement("span");
+    action.className = "analysis-link";
+    action.textContent = "Análise completa em preparação";
+
+    footer.append(status, action);
+    article.append(number, area, title, summary, footer);
+
+    return article;
+}
+
+function createModuleCard(item) {
+    const article = document.createElement("article");
+    article.className = "module-card";
+    article.id = item.id;
+
+    const header = document.createElement("div");
+    header.className = "module-header";
+
+    const title = document.createElement("h3");
+    title.textContent = item.title;
+
+    const status = document.createElement("span");
+    status.className = `status-badge status-${item.status}`;
+    status.textContent = STATUS_LABELS[item.status] || item.status;
+
+    const description = document.createElement("p");
+    description.textContent = item.description;
+
+    header.append(title, status);
+    article.append(header, description);
+
+    return article;
+}
+
+function renderCockpit(data) {
+    const executiveCards = document.getElementById("executiveCards");
+    const moduleCards = document.getElementById("moduleCards");
+    const executiveCount = document.getElementById("executiveCount");
+    const lastUpdate = document.getElementById("lastUpdate");
+
+    executiveCards.innerHTML = "";
+    moduleCards.innerHTML = "";
+
+    const executiveItems = Array.isArray(data.executive) ? data.executive : [];
+    const moduleItems = Array.isArray(data.sections) ? data.sections : [];
+
+    executiveItems.forEach((item, index) => {
+        executiveCards.appendChild(createExecutiveCard(item, index));
+    });
+
+    moduleItems.forEach((item) => {
+        moduleCards.appendChild(createModuleCard(item));
+    });
+
+    executiveCount.textContent = `${executiveItems.length} conclusões`;
+    lastUpdate.textContent = formatUpdatedAt(data.updated_at);
+}
+
+function renderError(message) {
+    const executiveCards = document.getElementById("executiveCards");
+    const moduleCards = document.getElementById("moduleCards");
+    const lastUpdate = document.getElementById("lastUpdate");
+
+    executiveCards.innerHTML = `<p class="error-message">${message}</p>`;
+    moduleCards.innerHTML = "";
+    lastUpdate.textContent = "Falha no carregamento";
+}
+
+async function loadCockpit() {
+    try {
+        const response = await fetch("/api/cockpit", {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+
+        if (!payload.ok || !payload.cockpit) {
+            throw new Error(payload.error || "Resposta inválida do servidor.");
+        }
+
+        renderCockpit(payload.cockpit);
+    } catch (error) {
+        console.error(error);
+        renderError("Não foi possível carregar o Cockpit Executivo.");
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  setFileName("ubsFile", "ubsFileName");
-  setFileName("santanderFile", "santanderFileName");
-  setFileName("agoraFile", "agoraFileName");
-  setFileName("cryptoFile", "cryptoFileName");
-
-  document.querySelectorAll("[data-portfolio]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const portfolio = button.dataset.portfolio;
-
-      showScreen(portfolio === "JOLIKA" ? "jolikaScreen" : "neiScreen");
-
-      setAiMessage(
-        portfolio,
-        `<p>${
-          portfolio === "JOLIKA"
-            ? "Selecione os arquivos UBS e Santander."
-            : "Selecione os arquivos Agora e Cripto."
-        }</p>`
-      );
-    });
-  });
-
-  document.querySelectorAll('[data-action="home"]').forEach((button) => {
-    button.addEventListener("click", () => {
-      showScreen("homeScreen");
-      setAiMessage("Bem-vindo", "<p>Selecione um patrimônio para iniciar.</p>");
-    });
-  });
-
-  byId("analyzeJolika").addEventListener("click", analyzeJolika);
-
-  byId("analyzeNei").addEventListener("click", () => {
-    setAiMessage(
-      "NEI",
-      "<p>A integração da carteira pessoal ainda não está ativa neste MVP.</p>"
-    );
-  });
-
-  byId("toggleValues").addEventListener("click", () => {
-    state.showValues = !state.showValues;
-    byId("toggleValues").textContent = state.showValues
-      ? "🙈 Ocultar valores"
-      : "👁 Mostrar valores";
-
-    if (state.result) renderResult(state.result);
-  });
+    setGreeting();
+    loadCockpit();
 });

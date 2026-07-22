@@ -1,172 +1,91 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ARGOS AI</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ARGOS - Cockpit Executivo">
+    <title>ARGOS — Cockpit Executivo</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="container">
-    <header>
-      <div>
-        <h1>ARGOS AI</h1>
-        <p class="subtitle">Investment Decision System</p>
-      </div>
-      <div class="status">
-        <span class="status-dot"></span>
-        Sistema Online
-      </div>
-    </header>
+    <div class="app-shell">
+        <aside class="sidebar" aria-label="Navegação principal">
+            <div class="brand">
+                <span class="brand-mark">A</span>
+                <div>
+                    <strong>ARGOS</strong>
+                    <span>Beta 0.2</span>
+                </div>
+            </div>
 
-    <section id="homeScreen" class="panel">
-      <div class="argos-intro">
-        <span class="eyebrow">ARGOS AI</span>
-        <h2>Selecione o patrimônio</h2>
-        <p>Escolha o ambiente que deseja atualizar e analisar.</p>
-      </div>
+            <nav class="main-nav">
+                <a class="nav-item active" href="#cockpit" aria-current="page">Cockpit Executivo</a>
+                <a class="nav-item" href="#panorama-global">Panorama Global</a>
+                <a class="nav-item" href="#inteligencia-mercado">Inteligência de Mercado</a>
+                <a class="nav-item" href="#calendario-mercado">Calendário de Mercado</a>
+                <a class="nav-item" href="#carteiras">Carteiras</a>
+                <a class="nav-item" href="#simulacoes">Simulações</a>
+                <a class="nav-item" href="#configuracoes">Configurações</a>
+            </nav>
 
-      <div class="portfolio-grid">
-        <button class="portfolio-card" type="button" data-portfolio="JOLIKA">
-          <span class="portfolio-icon">🏛</span>
-          <strong>JOLIKA</strong>
-          <small>Portfólio institucional</small>
-        </button>
+            <div class="sidebar-footer">
+                <span class="system-dot" aria-hidden="true"></span>
+                Sistema em execução
+            </div>
+        </aside>
 
-        <button class="portfolio-card" type="button" data-portfolio="NEI">
-          <span class="portfolio-icon">👤</span>
-          <strong>NEI</strong>
-          <small>Portfólio pessoal</small>
-        </button>
-      </div>
-    </section>
+        <main class="main-content">
+            <header class="page-header" id="cockpit">
+                <div>
+                    <p class="eyebrow">COCKPIT EXECUTIVO</p>
+                    <h1 id="greeting">Carregando...</h1>
+                    <p id="currentDate" class="current-date"></p>
+                </div>
+                <div class="header-status">
+                    <span class="status-label">Última atualização</span>
+                    <strong id="lastUpdate">Carregando...</strong>
+                </div>
+            </header>
 
-    <section id="jolikaScreen" class="panel hidden">
-      <div class="section-heading">
-        <div>
-          <span class="eyebrow">Patrimônio selecionado</span>
-          <h2>JOLIKA</h2>
-        </div>
-        <button class="secondary-button" type="button" data-action="home">
-          Trocar patrimônio
-        </button>
-      </div>
+            <section class="executive-section" aria-labelledby="executive-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">VISÃO EXECUTIVA</p>
+                        <h2 id="executive-title">O que merece atenção agora</h2>
+                    </div>
+                    <span class="section-count" id="executiveCount">0 conclusões</span>
+                </div>
+                <div id="executiveCards" class="executive-grid" aria-live="polite">
+                    <p class="loading-message">Carregando conclusões...</p>
+                </div>
+            </section>
 
-      <div class="upload-grid">
-        <label class="upload-box" for="ubsFile">
-          <span>UBS</span>
-          <small>CSV ou Excel (.csv, .xls, .xlsx)</small>
-          <input id="ubsFile" type="file" accept=".csv,.xls,.xlsx">
-          <div id="ubsFileName" class="file-name">Nenhum arquivo selecionado</div>
-        </label>
+            <section class="modules-section" aria-labelledby="modules-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">MÓDULOS OFICIAIS</p>
+                        <h2 id="modules-title">Estrutura do ARGOS</h2>
+                    </div>
+                </div>
+                <div id="moduleCards" class="modules-grid" aria-live="polite">
+                    <p class="loading-message">Carregando módulos...</p>
+                </div>
+            </section>
 
-        <label class="upload-box" for="santanderFile">
-          <span>Santander</span>
-          <small>Excel (.xls, .xlsx)</small>
-          <input id="santanderFile" type="file" accept=".xls,.xlsx">
-          <div id="santanderFileName" class="file-name">Nenhum arquivo selecionado</div>
-        </label>
-      </div>
+            <section class="configuration-section" id="configuracoes" aria-labelledby="configuration-title">
+                <div>
+                    <p class="eyebrow">CONFIGURAÇÕES</p>
+                    <h2 id="configuration-title">Ambientes patrimoniais</h2>
+                    <p class="section-description">Pessoa Física e Jolika permanecem separadas em todas as análises, simulações e consolidações.</p>
+                </div>
+                <div class="environment-list">
+                    <div class="environment-chip">Pessoa Física</div>
+                    <div class="environment-chip">Jolika</div>
+                </div>
+            </section>
+        </main>
+    </div>
 
-      <button id="analyzeJolika" class="primary-button" type="button">
-        ANALISAR CARTEIRAS
-      </button>
-    </section>
-
-    <section id="neiScreen" class="panel hidden">
-      <div class="section-heading">
-        <div>
-          <span class="eyebrow">Patrimônio selecionado</span>
-          <h2>NEI</h2>
-        </div>
-        <button class="secondary-button" type="button" data-action="home">
-          Trocar patrimônio
-        </button>
-      </div>
-
-      <div class="upload-grid">
-        <label class="upload-box" for="agoraFile">
-          <span>Agora</span>
-          <small>CSV ou Excel</small>
-          <input id="agoraFile" type="file" accept=".csv,.xls,.xlsx">
-          <div id="agoraFileName" class="file-name">Nenhum arquivo selecionado</div>
-        </label>
-
-        <label class="upload-box" for="cryptoFile">
-          <span>Cripto</span>
-          <small>CSV ou Excel</small>
-          <input id="cryptoFile" type="file" accept=".csv,.xls,.xlsx">
-          <div id="cryptoFileName" class="file-name">Nenhum arquivo selecionado</div>
-        </label>
-      </div>
-
-      <button id="analyzeNei" class="primary-button" type="button">
-        ANALISAR CARTEIRAS
-      </button>
-    </section>
-
-    <section class="panel ai-panel">
-      <div class="section-heading">
-        <div>
-          <span class="eyebrow">ARGOS AI</span>
-          <h2 id="aiTitle">Bem-vindo</h2>
-        </div>
-        <button id="toggleValues" class="secondary-button hidden" type="button">
-          👁 Mostrar valores
-        </button>
-      </div>
-
-      <div id="argosResponse" class="argos-response">
-        <p>Selecione um patrimônio para iniciar.</p>
-      </div>
-    </section>
-
-    <section id="resultsSection" class="panel hidden">
-      <div class="section-heading">
-        <div>
-          <span class="eyebrow">JOLIKA</span>
-          <h2>Top posições consolidadas</h2>
-        </div>
-      </div>
-
-      <div id="totals" class="totals-grid"></div>
-      <div id="topPositions" class="positions-list"></div>
-    </section>
-
-    <section id="cockpit" class="panel hidden">
-      <div class="section-heading">
-        <div>
-          <span class="eyebrow">JOLIKA</span>
-          <h2>Cockpit Executivo</h2>
-        </div>
-      </div>
-      <div class="cockpit-grid">
-        <div class="cockpit-block">
-          <div class="cockpit-block-title">Resumo Executivo</div>
-          <div id="cockpit-resumo"></div>
-        </div>
-        <div class="cockpit-block">
-          <div class="cockpit-block-title">Alocação por Classe</div>
-          <div id="cockpit-alocacao"></div>
-        </div>
-        <div class="cockpit-block">
-          <div class="cockpit-block-title">Liquidez</div>
-          <div id="cockpit-liquidez"></div>
-        </div>
-        <div class="cockpit-block">
-          <div class="cockpit-block-title">Concentração e Alertas</div>
-          <div id="cockpit-concentracao"></div>
-        </div>
-        <div class="cockpit-block cockpit-block--full">
-          <div class="cockpit-block-title">Próxima Ação</div>
-          <div id="cockpit-proxima-acao"></div>
-        </div>
-      </div>
-    </section>
-
-    <footer>ARGOS 0.6</footer>
-  </main>
-
-  <script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

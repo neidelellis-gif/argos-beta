@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "category": "Sistema",
+    "text": "ARGOS inicializado com sucesso."
+  },
+  {
+    "id": 2,
+    "priority": 2,
+    "category": "Mercado",
+    "text": "Nenhum evento crítico identificado."
+  },
+  {
+    "id": 3,
+    "priority": 3,
+    "category": "Agenda",
+    "text": "Agenda ainda não sincronizada."
+  },
+  {
+    "id": 4,
+    "priority": 4,
+    "category": "Carteira",
+    "text": "Aguardando atualização dos investimentos."
+  }
+]

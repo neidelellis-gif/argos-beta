@@ -1,0 +1,58 @@
+{
+  "updated_at": "2026-07-22T12:00:00-03:00",
+  "executive": [
+    {
+      "id": "portfolio-cash",
+      "area": "Carteiras",
+      "title": "Carteiras aguardando atualização",
+      "summary": "O ARGOS ainda não recebeu os arquivos atuais das instituições para produzir o diagnóstico executivo.",
+      "status": "pendente"
+    },
+    {
+      "id": "market-intelligence",
+      "area": "Inteligência de Mercado",
+      "title": "Inteligência de mercado ainda não processada",
+      "summary": "As fontes de pesquisa e newsletters serão incorporadas nas próximas etapas do MVP.",
+      "status": "pendente"
+    },
+    {
+      "id": "market-calendar",
+      "area": "Calendário de Mercado",
+      "title": "Calendário de mercado ainda não sincronizado",
+      "summary": "Eventos macroeconômicos, resultados e dividendos serão exibidos quando o módulo estiver conectado.",
+      "status": "pendente"
+    }
+  ],
+  "sections": [
+    {
+      "id": "panorama-global",
+      "title": "Panorama Global",
+      "description": "Cinco acontecimentos financeiros relevantes das últimas 24 horas.",
+      "status": "em_construcao"
+    },
+    {
+      "id": "inteligencia-mercado",
+      "title": "Inteligência de Mercado",
+      "description": "Síntese analítica de research, newsletters, resultados e documentos de mercado.",
+      "status": "em_construcao"
+    },
+    {
+      "id": "calendario-mercado",
+      "title": "Calendário de Mercado",
+      "description": "Eventos futuros capazes de influenciar o mercado e as carteiras.",
+      "status": "em_construcao"
+    },
+    {
+      "id": "carteiras",
+      "title": "Carteiras",
+      "description": "Diagnóstico individual por instituição, seguido de validação e consolidação separada entre Pessoa Física e Jolika.",
+      "status": "em_construcao"
+    },
+    {
+      "id": "simulacoes",
+      "title": "Simulações",
+      "description": "Comparação entre a composição atual e cenários baseados nas premissas cadastradas.",
+      "status": "em_construcao"
+    }
+  ]
+}
