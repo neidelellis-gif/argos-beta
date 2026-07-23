@@ -38,3 +38,24 @@ class Quote:
         data = asdict(self)
         data["timestamp"] = self.timestamp.isoformat()
         return data
+
+@dataclass(frozen=True)
+class MarketIntelligence:
+    """Resposta consolidada da Camada de Inteligência de Mercado do ARGOS."""
+
+    quote: Quote
+    confidence: float
+    sources_consulted: int
+    sources_confirmed: int
+    quality_status: str
+    decision_note: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "quote": self.quote.to_dict(),
+            "confidence": self.confidence,
+            "sources_consulted": self.sources_consulted,
+            "sources_confirmed": self.sources_confirmed,
+            "quality_status": self.quality_status,
+            "decision_note": self.decision_note,
+        }
