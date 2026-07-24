@@ -56,6 +56,31 @@ class MarketConsolidatorTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             consolidator.consolidate(quotes)
 
+    def test_returns_most_recent_valid_quote(self):
+        consolidator = MarketConsolidator()
+
+        older_quote = Quote(
+            ticker="NVDA",
+            price=100.0,
+            currency="USD",
+            provider="provider_a",
+            timestamp=datetime(2026, 7, 24, 10, 0, tzinfo=timezone.utc),
+            status="ok",
+        )
+
+        newer_quote = Quote(
+            ticker="NVDA",
+            price=101.0,
+            currency="USD",
+            provider="provider_b",
+            timestamp=datetime(2026, 7, 24, 11, 0, tzinfo=timezone.utc),
+            status="ok",
+        )
+
+        result = consolidator.consolidate([older_quote, newer_quote])
+
+        self.assertEqual(result, newer_quote)
+
 
 if __name__ == "__main__":
     unittest.main()

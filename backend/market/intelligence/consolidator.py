@@ -14,8 +14,13 @@ class MarketConsolidator:
         if not quotes:
             raise ValueError("Nenhuma cotação disponível para consolidação.")
 
-        for quote in quotes:
-            if self._validator.is_valid(quote):
-                return quote
+        valid_quotes = [
+            quote
+            for quote in quotes
+            if self._validator.is_valid(quote)
+        ]
 
-        raise ValueError("Nenhuma cotação válida disponível para consolidação.")
+        if not valid_quotes:
+            raise ValueError("Nenhuma cotação válida disponível para consolidação.")
+
+        return max(valid_quotes, key=lambda quote: quote.timestamp)
