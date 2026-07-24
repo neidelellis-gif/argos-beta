@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+from backend.market.intelligence.validators.quote_validator import QuoteValidator
 from backend.market.models import Quote
 
 
 class MarketConsolidator:
     """Consolida resultados de múltiplas fontes."""
 
+    def __init__(self) -> None:
+        self._validator = QuoteValidator()
+
     def consolidate(self, quotes: list[Quote]) -> Quote:
         if not quotes:
             raise ValueError("Nenhuma cotação disponível para consolidação.")
 
-        # MVP: utiliza a primeira cotação válida.
-        # Nas próximas etapas serão adicionadas regras de consenso,
-        # divergência entre provedores e detecção de outliers.
-        return quotes[0]
+        for quote in quotes:
+            if self._validator.is_valid(quote):
+                return quote
+
+        raise ValueError("Nenhuma cotação válida disponível para consolidação.")
