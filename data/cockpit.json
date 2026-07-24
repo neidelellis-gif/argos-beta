@@ -1,58 +1,58 @@
 {
-  "updated_at": "2026-07-22T12:00:00-03:00",
+  "updated_at": "2026-07-24T11:00:00-03:00",
   "executive": [
     {
-      "id": "portfolio-cash",
-      "area": "Carteiras",
-      "title": "Carteiras aguardando atualização",
-      "summary": "O ARGOS ainda não recebeu os arquivos atuais das instituições para produzir o diagnóstico executivo.",
+      "id": "daily-status",
+      "area": "Situação do dia",
+      "title": "Nenhuma carteira analisada hoje",
+      "summary": "O ARGOS está operacional, mas ainda não recebeu os arquivos atualizados das instituições. Nenhuma decisão de investimento deve ser produzida antes da análise individual de cada banco.",
       "status": "pendente"
     },
     {
-      "id": "market-intelligence",
-      "area": "Inteligência de Mercado",
-      "title": "Inteligência de mercado ainda não processada",
-      "summary": "As fontes de pesquisa e newsletters serão incorporadas nas próximas etapas do MVP.",
+      "id": "daily-priority",
+      "area": "Prioridade nº 1",
+      "title": "Atualizar as carteiras",
+      "summary": "A primeira ação do dia é carregar os arquivos atuais da Pessoa Física e da Jolika para que o ARGOS execute os diagnósticos individuais por instituição.",
       "status": "pendente"
     },
     {
-      "id": "market-calendar",
-      "area": "Calendário de Mercado",
-      "title": "Calendário de mercado ainda não sincronizado",
-      "summary": "Eventos macroeconômicos, resultados e dividendos serão exibidos quando o módulo estiver conectado.",
+      "id": "daily-agenda",
+      "area": "Agenda do dia",
+      "title": "Preparar a análise patrimonial",
+      "summary": "1. Receber os arquivos das instituições. 2. Analisar cada banco separadamente. 3. Validar os diagnósticos. 4. Consolidar Pessoa Física e Jolika separadamente.",
       "status": "pendente"
     }
   ],
   "sections": [
     {
+      "id": "carteiras",
+      "title": "Carteiras",
+      "description": "0 instituições analisadas hoje. Aguardando o recebimento dos arquivos atuais.",
+      "status": "pendente"
+    },
+    {
       "id": "panorama-global",
       "title": "Panorama Global",
-      "description": "Cinco acontecimentos financeiros relevantes das últimas 24 horas.",
-      "status": "em_construcao"
+      "description": "Ainda não atualizado para o dia de hoje.",
+      "status": "pendente"
     },
     {
       "id": "inteligencia-mercado",
       "title": "Inteligência de Mercado",
-      "description": "Síntese analítica de research, newsletters, resultados e documentos de mercado.",
-      "status": "em_construcao"
+      "description": "Ainda não processada para o dia de hoje.",
+      "status": "pendente"
     },
     {
       "id": "calendario-mercado",
       "title": "Calendário de Mercado",
-      "description": "Eventos futuros capazes de influenciar o mercado e as carteiras.",
-      "status": "em_construcao"
+      "description": "Ainda não sincronizado para o dia de hoje.",
+      "status": "pendente"
     },
     {
-      "id": "carteiras",
-      "title": "Carteiras",
-      "description": "Diagnóstico individual por instituição, seguido de validação e consolidação separada entre Pessoa Física e Jolika.",
-      "status": "em_construcao"
-    },
-    {
-      "id": "simulacoes",
-      "title": "Simulações",
-      "description": "Comparação entre a composição atual e cenários baseados nas premissas cadastradas.",
-      "status": "em_construcao"
+      "id": "agenda",
+      "title": "Agenda",
+      "description": "Aguardando os diagnósticos para gerar prioridades executáveis.",
+      "status": "pendente"
     }
   ]
 }

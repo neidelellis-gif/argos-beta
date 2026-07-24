@@ -3,89 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="ARGOS - Cockpit Executivo">
-    <title>ARGOS — Cockpit Executivo</title>
+    <meta name="description" content="ARGOS - Diário Executivo">
+    <title>ARGOS — Diário Executivo</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-shell">
-        <aside class="sidebar" aria-label="Navegação principal">
-            <div class="brand">
-                <span class="brand-mark">A</span>
-                <div>
-                    <strong>ARGOS</strong>
-                    <span>Beta 0.2</span>
-                </div>
+<div class="app-shell">
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <span class="brand-mark">A</span>
+
+            <div>
+                <strong>ARGOS</strong>
+                <span>MVP</span>
             </div>
 
-            <nav class="main-nav">
-                <a class="nav-item active" href="#cockpit" aria-current="page">Cockpit Executivo</a>
-                <a class="nav-item" href="#panorama-global">Panorama Global</a>
-                <a class="nav-item" href="#inteligencia-mercado">Inteligência de Mercado</a>
-                <a class="nav-item" href="#calendario-mercado">Calendário de Mercado</a>
-                <a class="nav-item" href="#carteiras">Carteiras</a>
-                <a class="nav-item" href="#simulacoes">Simulações</a>
-                <a class="nav-item" href="#configuracoes">Configurações</a>
-            </nav>
+        </div>
 
-            <div class="sidebar-footer">
-                <span class="system-dot" aria-hidden="true"></span>
-                Sistema em execução
+        <nav class="main-nav">
+
+            <a class="nav-item active">ARGOS Diário</a>
+
+            <a class="nav-item">Panorama Global</a>
+
+            <a class="nav-item">Mercados</a>
+
+            <a class="nav-item">Carteiras</a>
+
+            <a class="nav-item">Agenda</a>
+
+            <a class="nav-item">Simulações</a>
+
+            <a class="nav-item">Configurações</a>
+
+        </nav>
+
+        <div class="sidebar-footer">
+
+            <span class="system-dot"></span>
+
+            Sistema operacional
+
+        </div>
+
+    </aside>
+
+    <main class="main-content">
+
+        <header class="page-header">
+
+            <div>
+
+                <p class="eyebrow">
+                    ARGOS DIÁRIO
+                </p>
+
+                <h1 id="greeting">
+                    Carregando...
+                </h1>
+
+                <p id="currentDate"
+                   class="current-date">
+                </p>
+
             </div>
-        </aside>
 
-        <main class="main-content">
-            <header class="page-header" id="cockpit">
+            <div class="header-status">
+
+                <span class="status-label">
+                    Última atualização
+                </span>
+
+                <strong id="lastUpdate">
+                    Carregando...
+                </strong>
+
+            </div>
+
+        </header>
+
+        <section class="executive-section">
+
+            <div class="section-heading">
+
                 <div>
-                    <p class="eyebrow">COCKPIT EXECUTIVO</p>
-                    <h1 id="greeting">Carregando...</h1>
-                    <p id="currentDate" class="current-date"></p>
-                </div>
-                <div class="header-status">
-                    <span class="status-label">Última atualização</span>
-                    <strong id="lastUpdate">Carregando...</strong>
-                </div>
-            </header>
 
-            <section class="executive-section" aria-labelledby="executive-title">
-                <div class="section-heading">
-                    <div>
-                        <p class="eyebrow">VISÃO EXECUTIVA</p>
-                        <h2 id="executive-title">O que merece atenção agora</h2>
-                    </div>
-                    <span class="section-count" id="executiveCount">0 conclusões</span>
-                </div>
-                <div id="executiveCards" class="executive-grid" aria-live="polite">
-                    <p class="loading-message">Carregando conclusões...</p>
-                </div>
-            </section>
+                    <p class="eyebrow">
+                        SITUAÇÃO DO DIA
+                    </p>
 
-            <section class="modules-section" aria-labelledby="modules-title">
-                <div class="section-heading">
-                    <div>
-                        <p class="eyebrow">MÓDULOS OFICIAIS</p>
-                        <h2 id="modules-title">Estrutura do ARGOS</h2>
-                    </div>
-                </div>
-                <div id="moduleCards" class="modules-grid" aria-live="polite">
-                    <p class="loading-message">Carregando módulos...</p>
-                </div>
-            </section>
+                    <h2>
+                        O que merece sua atenção hoje
+                    </h2>
 
-            <section class="configuration-section" id="configuracoes" aria-labelledby="configuration-title">
+                </div>
+
+                <span
+                    class="section-count"
+                    id="executiveCount">
+                </span>
+
+            </div>
+
+            <div
+                id="executiveCards"
+                class="executive-grid">
+            </div>
+
+        </section>
+
+        <section class="modules-section">
+
+            <div class="section-heading">
+
                 <div>
-                    <p class="eyebrow">CONFIGURAÇÕES</p>
-                    <h2 id="configuration-title">Ambientes patrimoniais</h2>
-                    <p class="section-description">Pessoa Física e Jolika permanecem separadas em todas as análises, simulações e consolidações.</p>
-                </div>
-                <div class="environment-list">
-                    <div class="environment-chip">Pessoa Física</div>
-                    <div class="environment-chip">Jolika</div>
-                </div>
-            </section>
-        </main>
-    </div>
 
-    <script src="app.js"></script>
+                    <p class="eyebrow">
+                        MÓDULOS
+                    </p>
+
+                    <h2>
+                        Status do ARGOS
+                    </h2>
+
+                </div>
+
+            </div>
+
+            <div
+                id="moduleCards"
+                class="modules-grid">
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+<script src="app.js"></script>
+
 </body>
 </html>

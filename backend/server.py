@@ -13,6 +13,8 @@ if __package__ in {None, ""}:
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
+from backend.daily.engine import get_daily_status
+
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
@@ -86,6 +88,8 @@ def load_cockpit() -> Dict:
         raise ValueError(
             "O arquivo cockpit.json deve conter um objeto."
         )
+
+    cockpit["daily"] = get_daily_status()
 
     return {
         "ok": True,
