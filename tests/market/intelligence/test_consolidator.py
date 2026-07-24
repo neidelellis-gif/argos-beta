@@ -81,6 +81,31 @@ class MarketConsolidatorTest(unittest.TestCase):
 
         self.assertEqual(result, newer_quote)
 
+    def test_tie_uses_provider_name(self):
+        consolidator = MarketConsolidator()
+
+        quote_b = Quote(
+            ticker="NVDA",
+            price=101.0,
+            currency="USD",
+            provider="z_provider",
+            timestamp=datetime(2026, 7, 24, 11, 0, tzinfo=timezone.utc),
+            status="ok",
+        )
+
+        quote_a = Quote(
+            ticker="NVDA",
+            price=100.0,
+            currency="USD",
+            provider="a_provider",
+            timestamp=datetime(2026, 7, 24, 11, 0, tzinfo=timezone.utc),
+            status="ok",
+        )
+
+        result = consolidator.consolidate([quote_b, quote_a])
+
+        self.assertEqual(result, quote_a)
+
 
 if __name__ == "__main__":
     unittest.main()

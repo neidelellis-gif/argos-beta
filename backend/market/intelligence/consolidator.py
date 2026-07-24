@@ -23,4 +23,18 @@ class MarketConsolidator:
         if not valid_quotes:
             raise ValueError("Nenhuma cotação válida disponível para consolidação.")
 
-        return max(valid_quotes, key=lambda quote: quote.timestamp)
+        most_recent_timestamp = max(
+            quote.timestamp
+            for quote in valid_quotes
+        )
+
+        most_recent_quotes = [
+            quote
+            for quote in valid_quotes
+            if quote.timestamp == most_recent_timestamp
+        ]
+
+        return min(
+            most_recent_quotes,
+            key=lambda quote: quote.provider,
+        )
