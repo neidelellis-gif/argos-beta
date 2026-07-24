@@ -31,6 +31,31 @@ class MarketConsolidatorTest(unittest.TestCase):
 
         self.assertEqual(result, valid_quote)
 
+    def test_raises_error_when_no_valid_quotes_exist(self):
+        consolidator = MarketConsolidator()
+
+        quotes = [
+            Quote(
+                ticker="NVDA",
+                price=None,
+                currency=None,
+                provider="provider_a",
+                timestamp=datetime.now(timezone.utc),
+                status="unavailable",
+            ),
+            Quote(
+                ticker="NVDA",
+                price=None,
+                currency=None,
+                provider="provider_b",
+                timestamp=datetime.now(timezone.utc),
+                status="unavailable",
+            ),
+        ]
+
+        with self.assertRaises(ValueError):
+            consolidator.consolidate(quotes)
+
 
 if __name__ == "__main__":
     unittest.main()
