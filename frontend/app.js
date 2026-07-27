@@ -39,6 +39,8 @@ const FILE_SOURCE_IDENTIFIERS = [
     }
 ];
 
+let importedPortfolioPositions = [];
+
 function normalizeCsvHeader(header) {
     return header
         .replace(/^\uFEFF/, "")
@@ -54,6 +56,59 @@ function identifyFileSource(csvData) {
     );
 
     return identifier ? identifier.source : null;
+}
+
+function parseTipRanksNumber(value) {
+    const normalizedValue = value.trim();
+
+    if (!normalizedValue || normalizedValue === "-") {
+        return null;
+    }
+
+    const isNegative = normalizedValue.startsWith("(")
+        && normalizedValue.endsWith(")");
+    const number = Number(normalizedValue.replace(/[$,%()\s]/g, ""));
+
+    if (!Number.isFinite(number)) {
+        return null;
+    }
+
+    return isNegative ? -number : number;
+}
+
+function transformTipRanksPortfolio({ headers, dataRows }) {
+    const headerIndexes = new Map(
+        headers.map((header, index) => [normalizeCsvHeader(header), index])
+    );
+    const valueFor = (row, ...names) => {
+        const name = names.find((candidate) => headerIndexes.has(candidate));
+        return name === undefined ? "" : row[headerIndexes.get(name)].trim();
+    };
+
+    return dataRows
+        .filter((row) => valueFor(row, "ticker", "symbol", "stock"))
+        .map((row) => ({
+            institution: "TipRanks",
+            ticker: valueFor(row, "ticker", "symbol", "stock"),
+            name: valueFor(row, "name", "company", "company name"),
+            shares: parseTipRanksNumber(
+                valueFor(row, "shares", "quantity", "no of shares")
+            ),
+            price: parseTipRanksNumber(valueFor(row, "price")),
+            holdingValue: parseTipRanksNumber(
+                valueFor(row, "holding value", "market value")
+            ),
+            smartScore: parseTipRanksNumber(
+                valueFor(row, "smart score", "tipranks smart score")
+            ),
+            analystConsensus: valueFor(row, "analyst consensus"),
+            analystPriceTarget: parseTipRanksNumber(
+                valueFor(row, "analyst price target", "price target")
+            ),
+            analystPriceTargetPercent: parseTipRanksNumber(
+                valueFor(row, "analyst price target %", "price target %")
+            )
+        }));
 }
 
 function setGreeting() {
@@ -105,6 +160,13 @@ function setupPortfolioFilePicker() {
             );
 
             const source = identifyFileSource({ headers, dataRows });
+
+            if (source === "TipRanks Portfolio Export") {
+                importedPortfolioPositions = transformTipRanksPortfolio({
+                    headers,
+                    dataRows
+                });
+            }
 
             renderPortfolioFileSummary(
                 fileSummary,
