@@ -6,6 +6,52 @@ const STATUS_LABELS = {
     pronto: "Pronto"
 };
 
+const FILE_SOURCE_IDENTIFIERS = [
+    {
+        source: "TipRanks Portfolio Export",
+        matches({ headers }) {
+            const normalizedHeaders = new Set(headers.map(normalizeCsvHeader));
+            const hasAssetIdentifier = ["ticker", "symbol"].some(
+                (header) => normalizedHeaders.has(header)
+            );
+            const hasPortfolioData = ["shares", "quantity", "market value"].some(
+                (header) => normalizedHeaders.has(header)
+            );
+            const hasTipRanksData = [
+                "analyst consensus",
+                "price target",
+                "smart score",
+                "tipranks smart score"
+            ].some((header) => normalizedHeaders.has(header));
+
+            return hasAssetIdentifier && hasPortfolioData && hasTipRanksData;
+        }
+    },
+    {
+        source: "CSV Genérico",
+        matches({ headers }) {
+            return headers.length > 1;
+        }
+    }
+];
+
+function normalizeCsvHeader(header) {
+    return header
+        .replace(/^\uFEFF/, "")
+        .trim()
+        .toLowerCase()
+        .replace(/[._-]+/g, " ")
+        .replace(/\s+/g, " ");
+}
+
+function identifyFileSource(csvData) {
+    const identifier = FILE_SOURCE_IDENTIFIERS.find(
+        (candidate) => candidate.matches(csvData)
+    );
+
+    return identifier ? identifier.source : null;
+}
+
 function setGreeting() {
     const greeting = document.getElementById("greeting");
     const currentDate = document.getElementById("currentDate");
@@ -54,7 +100,14 @@ function setupPortfolioFilePicker() {
                 parseCsv(await selectedFile.text())
             );
 
-            renderPortfolioFileSummary(fileSummary, dataRows.length, headers);
+            const source = identifyFileSource({ headers, dataRows });
+
+            renderPortfolioFileSummary(
+                fileSummary,
+                dataRows.length,
+                headers,
+                source
+            );
         } catch (error) {
             renderPortfolioFileError(fileSummary);
         }
@@ -137,14 +190,19 @@ function getCsvDataRows(rows) {
     return { headers, dataRows };
 }
 
-function renderPortfolioFileSummary(container, rowCount, headers) {
+function renderPortfolioFileSummary(container, rowCount, headers, source) {
     const summary = document.createElement("p");
     summary.textContent = `${rowCount} linhas · ${headers.length} colunas`;
 
     const columns = document.createElement("p");
     columns.textContent = `Cabeçalhos: ${headers.join(", ")}`;
 
-    container.append(summary, columns);
+    const identifiedSource = document.createElement("p");
+    identifiedSource.textContent = source
+        ? `Origem identificada: ${source}`
+        : "Origem desconhecida.";
+
+    container.append(summary, columns, identifiedSource);
 }
 
 function renderPortfolioFileError(container) {
