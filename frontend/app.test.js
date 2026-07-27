@@ -333,6 +333,72 @@ test("renders the Santander Excel source identification", () => {
     );
 });
 
+test("renders the Santander position count", () => {
+    const children = [];
+    context.document.createElement = () => ({
+        className: "",
+        textContent: ""
+    });
+    const container = {
+        append(...elements) {
+            children.push(...elements);
+        }
+    };
+
+    context.renderSantanderPositionCount(container, 17);
+
+    assert.deepEqual(
+        children.map((child) => child.textContent),
+        ["Quantidade de posições encontradas: 17"]
+    );
+});
+
+test("shows Santander source and count after selecting its Excel", async () => {
+    const elements = new Map();
+    const fileInput = {
+        files: [{
+            name: "your-positions-4005106-38.xlsx",
+            async arrayBuffer() {
+                return Uint8Array.from([1, 2, 3]).buffer;
+            }
+        }],
+        addEventListener(_event, listener) {
+            this.changeListener = listener;
+        }
+    };
+    elements.set("portfolioFile", fileInput);
+    elements.set("portfolioFileName", { textContent: "" });
+    elements.set("portfolioFileSummary", createElement("div"));
+    elements.set("tipRanksPreview", { hidden: false });
+    elements.set("tipRanksPreviewContent", createElement("div"));
+    context.document.getElementById = (id) => elements.get(id);
+    context.document.createElement = createElement;
+    context.btoa = (value) => Buffer.from(value, "binary").toString("base64");
+    context.fetch = async () => ({
+        ok: true,
+        async json() {
+            return {
+                ok: true,
+                source: "Santander Excel Export",
+                position_count: 23
+            };
+        }
+    });
+
+    context.setupPortfolioFilePicker();
+    await fileInput.changeListener();
+
+    assert.deepEqual(
+        elements.get("portfolioFileSummary").children.map(
+            (child) => child.textContent
+        ),
+        [
+            "Origem identificada: Santander Excel Export",
+            "Quantidade de posições encontradas: 23"
+        ]
+    );
+});
+
 test("renders the UBS holdings source below the file information", () => {
     const children = [];
     const document = context.document;

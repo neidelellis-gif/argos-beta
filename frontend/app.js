@@ -211,6 +211,28 @@ function setupPortfolioFilePicker() {
 
         if (santanderSource) {
             renderIdentifiedFileSource(fileSummary, santanderSource);
+            try {
+                const response = await fetch("/api/santander/inspect", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        file: {
+                            name: selectedFile.name,
+                            content: await readFileAsBase64(selectedFile)
+                        }
+                    })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.error || "Invalid Santander Excel");
+                }
+                renderSantanderPositionCount(
+                    fileSummary,
+                    result.position_count
+                );
+            } catch (error) {
+                renderSantanderExcelError(fileSummary);
+            }
             return;
         }
 
@@ -248,6 +270,29 @@ function setupPortfolioFilePicker() {
             renderPortfolioFileError(fileSummary);
         }
     });
+}
+
+function readFileAsBase64(file) {
+    return file.arrayBuffer().then((buffer) => {
+        let binary = "";
+        new Uint8Array(buffer).forEach((byte) => {
+            binary += String.fromCharCode(byte);
+        });
+        return btoa(binary);
+    });
+}
+
+function renderSantanderPositionCount(container, positionCount) {
+    const count = document.createElement("p");
+    count.textContent = `Quantidade de posições encontradas: ${positionCount}`;
+    container.append(count);
+}
+
+function renderSantanderExcelError(container) {
+    const error = document.createElement("p");
+    error.className = "file-picker-error";
+    error.textContent = "Não foi possível ler o Excel do Santander.";
+    container.appendChild(error);
 }
 
 function hideTipRanksPreview(section, container) {

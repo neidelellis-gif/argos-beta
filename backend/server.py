@@ -177,6 +177,25 @@ def analyze_request(data: Dict) -> Dict:
                 pass
 
 
+def inspect_santander_request(data: Dict) -> Dict:
+    from backend.connectors.santander_connector import inspect_excel_export
+
+    file_payload = data.get("file")
+    file_name = file_payload.get("name", "santander.xlsx") \
+        if isinstance(file_payload, dict) else "santander.xlsx"
+    file_path = _save_temp_file(
+        _decode_file_payload(file_payload),
+        suffix=Path(file_name).suffix,
+    )
+    try:
+        return {"ok": True, **inspect_excel_export(file_path)}
+    finally:
+        try:
+            file_path.unlink()
+        except OSError:
+            pass
+
+
 class ArgosRequestHandler(
     http.server.SimpleHTTPRequestHandler
 ):
@@ -250,7 +269,11 @@ class ArgosRequestHandler(
         super().do_GET()
 
     def do_POST(self):
-        if self.path != "/api/analyze":
+        handlers = {
+            "/api/analyze": analyze_request,
+            "/api/santander/inspect": inspect_santander_request,
+        }
+        if self.path not in handlers:
             self.send_error(
                 404,
                 "Endpoint não encontrado"
@@ -285,9 +308,7 @@ class ArgosRequestHandler(
             return
 
         try:
-            response = analyze_request(
-                payload
-            )
+            response = handlers[self.path](payload)
 
             self._send_json(
                 response,

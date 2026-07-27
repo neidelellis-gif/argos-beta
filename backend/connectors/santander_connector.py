@@ -1,9 +1,13 @@
 import csv
 import re
+import zipfile
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence
+from xml.etree import ElementTree
 
 SUPPORTED_EXTENSIONS = {".xls", ".xlsx"}
+SANTANDER_EXCEL_SOURCE = "Santander Excel Export"
+ASSET_SUMMARY_TITLE = "RESUMO DE ATIVOS"
 
 
 def _normalize_header(value):
@@ -48,6 +52,165 @@ def _xlsx_rows(path: Path):
     workbook = load_workbook(path, data_only=True, read_only=True)
     worksheet = workbook.active
     return [list(row) for row in worksheet.iter_rows(values_only=True)]
+
+
+def _row_contains(row, expected):
+    return any(_normalize_header(value) == expected for value in row)
+
+
+def _count_asset_summary_positions(rows, title_index):
+    header_index = next(
+        (
+            index
+            for index in range(title_index + 1, len(rows))
+            if _has_header_markers(rows[index])
+        ),
+        None,
+    )
+    if header_index is None:
+        raise ValueError(
+            "Não encontrei o início da tabela de posições em RESUMO DE ATIVOS."
+        )
+
+    mapping = _map_block_headers(rows[header_index])
+    value_index = mapping.get("value")
+    if value_index is None:
+        raise ValueError(
+            "Não encontrei a coluna de valor da tabela em RESUMO DE ATIVOS."
+        )
+
+    count = 0
+    table_started = False
+    for row in rows[header_index + 1 :]:
+        if _is_total_row(row):
+            return count
+        if _is_blank_row(row):
+            if table_started:
+                return count
+            continue
+        if _has_header_markers(row):
+            break
+
+        table_started = True
+        if _parse_number(_safe_get(row, value_index)) is not None:
+            count += 1
+
+    if not table_started:
+        raise ValueError("A tabela RESUMO DE ATIVOS não contém posições.")
+    return count
+
+
+def _xlsx_sheet_rows(path):
+    main_namespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    relationship_namespace = (
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    )
+    package_relationship_namespace = (
+        "http://schemas.openxmlformats.org/package/2006/relationships"
+    )
+
+    try:
+        archive = zipfile.ZipFile(path)
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise ValueError("O arquivo Santander não é um XLSX válido.") from exc
+
+    with archive:
+        try:
+            workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
+            relationships = ElementTree.fromstring(
+                archive.read("xl/_rels/workbook.xml.rels")
+            )
+        except (KeyError, ElementTree.ParseError) as exc:
+            raise ValueError("O arquivo Santander não é um XLSX válido.") from exc
+
+        targets = {
+            relationship.attrib["Id"]: relationship.attrib["Target"]
+            for relationship in relationships.findall(
+                f"{{{package_relationship_namespace}}}Relationship"
+            )
+        }
+        shared_strings = []
+        if "xl/sharedStrings.xml" in archive.namelist():
+            shared_root = ElementTree.fromstring(
+                archive.read("xl/sharedStrings.xml")
+            )
+            for item in shared_root.findall(f"{{{main_namespace}}}si"):
+                shared_strings.append("".join(
+                    node.text or ""
+                    for node in item.iter(f"{{{main_namespace}}}t")
+                ))
+
+        for sheet in workbook.findall(f".//{{{main_namespace}}}sheet"):
+            relationship_id = sheet.attrib[f"{{{relationship_namespace}}}id"]
+            target = targets[relationship_id].lstrip("/")
+            worksheet_path = (
+                target if target.startswith("xl/") else f"xl/{target}"
+            )
+            worksheet = ElementTree.fromstring(archive.read(worksheet_path))
+            rows = []
+            for row_node in worksheet.findall(f".//{{{main_namespace}}}row"):
+                row = []
+                for cell in row_node.findall(f"{{{main_namespace}}}c"):
+                    reference = cell.attrib.get("r", "A1")
+                    letters = "".join(
+                        character
+                        for character in reference
+                        if character.isalpha()
+                    )
+                    column = 0
+                    for letter in letters.upper():
+                        column = column * 26 + ord(letter) - ord("A") + 1
+                    while len(row) < column:
+                        row.append(None)
+
+                    cell_type = cell.attrib.get("t")
+                    value_node = cell.find(f"{{{main_namespace}}}v")
+                    if cell_type == "inlineStr":
+                        value = "".join(
+                            node.text or ""
+                            for node in cell.iter(f"{{{main_namespace}}}t")
+                        )
+                    elif value_node is None:
+                        value = None
+                    elif cell_type == "s":
+                        value = shared_strings[int(value_node.text)]
+                    else:
+                        raw_value = value_node.text
+                        try:
+                            value = float(raw_value)
+                        except (TypeError, ValueError):
+                            value = raw_value
+                    row[column - 1] = value
+                rows.append(row)
+            yield sheet.attrib.get("name", ""), rows
+
+
+def inspect_excel_export(file_path):
+    """Identifica a tabela RESUMO DE ATIVOS sem converter suas posições."""
+    path = Path(file_path)
+    if path.suffix.lower() != ".xlsx":
+        raise ValueError("O arquivo Santander deve estar em XLSX.")
+    if not path.exists():
+        raise ValueError(f"Arquivo Santander não encontrado: {path.name}")
+
+    for _sheet_name, rows in _xlsx_sheet_rows(path):
+        title_index = next(
+            (
+                index
+                for index, row in enumerate(rows)
+                if _row_contains(row, ASSET_SUMMARY_TITLE)
+            ),
+            None,
+        )
+        if title_index is not None:
+            return {
+                "source": SANTANDER_EXCEL_SOURCE,
+                "position_count": _count_asset_summary_positions(
+                    rows, title_index
+                ),
+            }
+
+    raise ValueError("Não encontrei a seção RESUMO DE ATIVOS no arquivo Santander.")
 
 
 def _xls_rows(path: Path):
