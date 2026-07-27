@@ -212,6 +212,7 @@ h3 {
     font-size: 0.9rem;
 }
 
+.portfolio-import-section,
 .executive-section,
 .modules-section,
 .configuration-section {
@@ -221,6 +222,43 @@ h3 {
     border-radius: var(--radius-large);
     background: var(--surface-soft);
     box-shadow: var(--shadow);
+}
+
+.portfolio-file-picker {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.file-picker-button {
+    padding: 11px 15px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 160ms ease, border-color 160ms ease;
+}
+
+.file-picker-button:hover,
+.file-picker-button:focus-visible {
+    border-color: var(--accent);
+    background: var(--surface-hover);
+}
+
+.file-picker-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+}
+
+.file-picker-name {
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
 }
 
 .section-heading {
@@ -436,6 +474,7 @@ h3 {
     }
 
     .executive-section,
+    .portfolio-import-section,
     .modules-section,
     .configuration-section {
         padding: 21px;
@@ -443,6 +482,11 @@ h3 {
 
     .environment-list {
         justify-content: flex-start;
+    }
+
+    .portfolio-file-picker {
+        align-items: flex-start;
+        flex-direction: column;
     }
 }
 
