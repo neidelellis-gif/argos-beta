@@ -106,6 +106,25 @@ test("converts a TipRanks CSV row to an internal ARGOS position", () => {
     );
 });
 
+test("converts unavailable TipRanks text fields to null", () => {
+    const csvData = readCsv([
+        "Ticker,Name,No. of Shares,Analyst Consensus,Smart Score",
+        "ICE,N/A,10,-,9",
+        "N/A,Acme,5,,8",
+        "-,Other,3,Buy,7"
+    ].join("\n"));
+
+    const positions = JSON.parse(JSON.stringify(
+        context.transformTipRanksPortfolio(csvData)
+    ));
+
+    assert.equal(positions[0].name, null);
+    assert.equal(positions[0].analystConsensus, null);
+    assert.equal(positions[1].ticker, null);
+    assert.equal(positions[1].analystConsensus, null);
+    assert.equal(positions[2].ticker, null);
+});
+
 test("identifies a structurally valid multi-column CSV as generic", () => {
     const csvData = readCsv("Asset,Type,Value\nBond A,Fixed Income,$100");
 
@@ -224,4 +243,21 @@ test("hides and clears the TipRanks preview", () => {
 
     assert.equal(section.hidden, true);
     assert.deepEqual(container.children, []);
+});
+
+test("renders null TipRanks values as an em dash", () => {
+    context.document.createElement = createElement;
+    const section = { hidden: true };
+    const container = createElement("div");
+    const position = {
+        institution: "TipRanks",
+        ticker: "ICE",
+        name: null
+    };
+
+    context.renderTipRanksPreview(section, container, [position]);
+
+    const body = container.children[0].children[0].children[1];
+    assert.equal(body.children[0].children[2].textContent, "—");
+    assert.equal(body.children[0].children[3].textContent, "");
 });

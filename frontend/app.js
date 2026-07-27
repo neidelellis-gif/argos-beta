@@ -89,6 +89,15 @@ function parseTipRanksNumber(value) {
     return isNegative ? -number : number;
 }
 
+function parseTipRanksText(value) {
+    const normalizedValue = value.trim();
+
+    return !normalizedValue || normalizedValue.toUpperCase() === "N/A"
+        || normalizedValue === "-"
+        ? null
+        : normalizedValue;
+}
+
 function transformTipRanksPortfolio({ headers, dataRows }) {
     const headerIndexes = new Map(
         headers.map((header, index) => [normalizeCsvHeader(header), index])
@@ -102,8 +111,12 @@ function transformTipRanksPortfolio({ headers, dataRows }) {
         .filter((row) => valueFor(row, "ticker", "symbol", "stock"))
         .map((row) => ({
             institution: "TipRanks",
-            ticker: valueFor(row, "ticker", "symbol", "stock"),
-            name: valueFor(row, "name", "company", "company name"),
+            ticker: parseTipRanksText(
+                valueFor(row, "ticker", "symbol", "stock")
+            ),
+            name: parseTipRanksText(
+                valueFor(row, "name", "company", "company name")
+            ),
             shares: parseTipRanksNumber(
                 valueFor(row, "shares", "quantity", "no of shares")
             ),
@@ -114,7 +127,9 @@ function transformTipRanksPortfolio({ headers, dataRows }) {
             smartScore: parseTipRanksNumber(
                 valueFor(row, "smart score", "tipranks smart score")
             ),
-            analystConsensus: valueFor(row, "analyst consensus"),
+            analystConsensus: parseTipRanksText(
+                valueFor(row, "analyst consensus")
+            ),
             analystPriceTarget: parseTipRanksNumber(
                 valueFor(row, "analyst price target", "price target")
             ),
@@ -229,8 +244,10 @@ function renderTipRanksPreview(section, container, positions) {
         TIPRANKS_PREVIEW_COLUMNS.forEach(([, property]) => {
             const cell = document.createElement("td");
             const value = position[property];
-            cell.textContent = value === null || value === undefined
-                ? ""
+            cell.textContent = value === null
+                ? "—"
+                : value === undefined
+                    ? ""
                 : String(value);
             row.appendChild(cell);
         });
