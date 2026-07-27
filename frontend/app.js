@@ -50,17 +50,9 @@ function setupPortfolioFilePicker() {
         }
 
         try {
-            const rows = parseCsv(await selectedFile.text());
-            const headers = rows[0];
-            const dataRows = rows.slice(1);
-
-            if (
-                headers.length === 0
-                || headers.some((header) => !header.trim())
-                || dataRows.some((row) => row.length !== headers.length)
-            ) {
-                throw new Error("Invalid CSV structure");
-            }
+            const { headers, dataRows } = getCsvDataRows(
+                parseCsv(await selectedFile.text())
+            );
 
             renderPortfolioFileSummary(fileSummary, dataRows.length, headers);
         } catch (error) {
@@ -118,6 +110,31 @@ function parseCsv(content) {
     }
 
     return rows;
+}
+
+function getCsvDataRows(rows) {
+    const nonEmptyRows = rows.filter(
+        (row) => row.some((value) => value.trim() !== "")
+    );
+    const headers = nonEmptyRows[0] || [];
+    const dataRows = nonEmptyRows.slice(1);
+
+    if (headers.length === 0 || headers.some((header) => !header.trim())) {
+        throw new Error("Invalid CSV header");
+    }
+
+    while (
+        dataRows.length > 0
+        && dataRows[dataRows.length - 1].length < headers.length
+    ) {
+        dataRows.pop();
+    }
+
+    if (dataRows.some((row) => row.length !== headers.length)) {
+        throw new Error("Invalid CSV data row");
+    }
+
+    return { headers, dataRows };
 }
 
 function renderPortfolioFileSummary(container, rowCount, headers) {
