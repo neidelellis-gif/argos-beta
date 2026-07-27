@@ -19,11 +19,27 @@ function readCsv(content) {
     return context.getCsvDataRows(context.parseCsv(content));
 }
 
+const UBS_FIXTURE_PATH =
+    "frontend/test/fixtures/UBS_Holdings_27_07_2026.csv";
+
+function readUbsFixture() {
+    return readCsv(fs.readFileSync(UBS_FIXTURE_PATH, "utf8"));
+}
+
+function importUbsPositions(csvData) {
+    const headerIndexes = new Map(
+        csvData.headers.map((header, index) => [header, index])
+    );
+
+    return csvData.dataRows.map((row) => ({
+        name: row[headerIndexes.get("DESCRIPTION")],
+        ticker: context.parseTipRanksText(row[headerIndexes.get("SYMBOL")]),
+        cusip: context.parseTipRanksText(row[headerIndexes.get("CUSIP")])
+    }));
+}
+
 test("identifies the real UBS holdings export structure", () => {
-    const csvData = readCsv(fs.readFileSync(
-        "frontend/test/fixtures/UBS_Holdings_27_07_2026.csv",
-        "utf8"
-    ));
+    const csvData = readUbsFixture();
 
     assert.deepEqual(
         JSON.parse(JSON.stringify(csvData.headers)),
@@ -49,13 +65,58 @@ test("identifies the real UBS holdings export structure", () => {
     assert.equal(context.identifyFileSource(csvData), "UBS Holdings Export");
 });
 
-test("keeps compatibility with the alternate UBS portfolio header", () => {
-    const csvData = readCsv([
-        "DESCRIPTION,SYMBOL,CUSIP,QUANTITY,PRICE,VALUE,% OF PORTFOLIO",
-        "Example,SYM,000000000,1,1,1,1%"
-    ].join("\n"));
+test("imports all 28 positions from the real UBS holdings export", () => {
+    const csvData = readUbsFixture();
+    const positions = importUbsPositions(csvData);
 
-    assert.equal(context.identifyFileSource(csvData), "UBS Holdings Export");
+    assert.equal(csvData.dataRows.length, 28);
+    assert.equal(positions.length, 28);
+});
+
+test("preserves both UBS cash positions", () => {
+    const positions = importUbsPositions(readUbsFixture());
+    const cashPositions = positions.filter(({ name }) => [
+        "UBS Insured Sweep Program",
+        "UBS CASH RESERVE"
+    ].includes(name));
+
+    assert.deepEqual(
+        Array.from(cashPositions, ({ name }) => name),
+        ["UBS Insured Sweep Program", "UBS CASH RESERVE"]
+    );
+    assert.ok(cashPositions.every(({ ticker }) => ticker === null));
+});
+
+test("imports every SYMBOL N/A position with a null ticker", () => {
+    const csvData = readUbsFixture();
+    const symbolIndex = csvData.headers.indexOf("SYMBOL");
+    const unavailableSymbolRows = csvData.dataRows.filter(
+        (row) => row[symbolIndex] === "N/A"
+    );
+    const positions = importUbsPositions(csvData);
+    const unavailableTickerPositions = positions.filter(
+        ({ ticker }) => ticker === null
+    );
+
+    assert.equal(unavailableSymbolRows.length, 15);
+    assert.equal(unavailableTickerPositions.length, unavailableSymbolRows.length);
+});
+
+test("preserves positions identified only by CUSIP", () => {
+    const positions = importUbsPositions(readUbsFixture());
+    const cusipOnlyPositions = positions.filter(
+        ({ ticker, cusip }) => ticker === null && cusip !== null
+    );
+
+    assert.equal(cusipOnlyPositions.length, 13);
+    assert.ok(cusipOnlyPositions.some(
+        ({ name, cusip }) => name.startsWith("BNP PARIBAS")
+            && cusip === "09663N454"
+    ));
+    assert.ok(cusipOnlyPositions.some(
+        ({ name, cusip }) => name === "WARRANTS OAS SA"
+            && cusip === "P7331H100"
+    ));
 });
 
 test("skips multiple introductory lines before the CSV header", () => {
