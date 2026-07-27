@@ -14,9 +14,13 @@ const FILE_SOURCE_IDENTIFIERS = [
             const hasAssetIdentifier = ["ticker", "symbol", "stock"].some(
                 (header) => normalizedHeaders.has(header)
             );
-            const hasPortfolioData = ["shares", "quantity", "market value"].some(
-                (header) => normalizedHeaders.has(header)
-            );
+            const hasPortfolioData = [
+                "shares",
+                "quantity",
+                "market value",
+                "no of shares",
+                "holding value"
+            ].some((header) => normalizedHeaders.has(header));
             const hasTipRanksData = [
                 "analyst consensus",
                 "price target",

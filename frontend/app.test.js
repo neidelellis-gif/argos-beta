@@ -61,6 +61,18 @@ test("rejects a trailing row with more columns than the header", () => {
 
 test("identifies a TipRanks portfolio export from its real headers", () => {
     const csvData = readCsv([
+        "Ticker,Name,No. of Shares,Price,% Change,Analyst Consensus,Analyst Price Target %,Analyst Price Target,Smart Score,Holding Value,Holding Gain Change,Holding Gain Change %",
+        "ICE,Intercontinental Exchange,10,$175.00,1.25%,Strong Buy,2.86%,$180,9,\"$1,750.00\",$194.44,12.50%"
+    ].join("\n"));
+
+    assert.equal(
+        context.identifyFileSource(csvData),
+        "TipRanks Portfolio Export"
+    );
+});
+
+test("identifies the TipRanks format with Stock and Market Value", () => {
+    const csvData = readCsv([
         "Stock,Price,Price Change,Market Value,Portfolio Weight,Total Gain/Loss,Smart Score,Analyst Consensus,Price Target",
         "ICE,$175.00,1.25%,\"$1,750.00\",10%,12.50%,9,Strong Buy,$180"
     ].join("\n"));
