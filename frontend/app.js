@@ -115,15 +115,15 @@ function createOverviewCard(item) {
     const title = document.createElement("h3");
     title.textContent = item.title || "";
 
-    const value = document.createElement("div");
-    value.className = "overview-value";
-    value.textContent = item.value || "";
+    const summary = document.createElement("p");
+    summary.className = "overview-description";
+    summary.textContent = item.summary || "";
 
-    const description = document.createElement("p");
-    description.className = "overview-description";
-    description.textContent = item.description || "";
+    const status = document.createElement("span");
+    status.className = `status-badge status-${item.status}`;
+    status.textContent = STATUS_LABELS[item.status] || item.status || "";
 
-    article.append(title, value, description);
+    article.append(title, summary, status);
 
     return article;
 }
@@ -141,7 +141,9 @@ function renderCockpit(data) {
 
     const overviewItems = Array.isArray(data.global_overview)
         ? data.global_overview
-        : [];
+        : data.global_overview
+            ? [data.global_overview]
+            : [];
 
     const executiveItems = Array.isArray(data.executive)
         ? data.executive
