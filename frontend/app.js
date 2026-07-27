@@ -75,6 +75,12 @@ const TIPRANKS_PREVIEW_COLUMNS = [
 
 let importedPortfolioPositions = [];
 
+function identifySantanderExcelSource(fileName) {
+    return /^your-positions-\d+-\d+\.xlsx$/i.test(fileName)
+        ? "Santander Excel Export"
+        : null;
+}
+
 function normalizeCsvHeader(header) {
     return header
         .replace(/^\uFEFF/, "")
@@ -198,6 +204,13 @@ function setupPortfolioFilePicker() {
         hideTipRanksPreview(previewSection, previewContent);
 
         if (!selectedFile) {
+            return;
+        }
+
+        const santanderSource = identifySantanderExcelSource(selectedFile.name);
+
+        if (santanderSource) {
+            renderIdentifiedFileSource(fileSummary, santanderSource);
             return;
         }
 
@@ -379,12 +392,16 @@ function renderPortfolioFileSummary(container, rowCount, headers, source) {
     const columns = document.createElement("p");
     columns.textContent = `Cabeçalhos: ${headers.join(", ")}`;
 
+    container.append(summary, columns);
+    renderIdentifiedFileSource(container, source);
+}
+
+function renderIdentifiedFileSource(container, source) {
     const identifiedSource = document.createElement("p");
     identifiedSource.textContent = source
         ? `Origem identificada: ${source}`
         : "Origem desconhecida.";
-
-    container.append(summary, columns, identifiedSource);
+    container.append(identifiedSource);
 }
 
 function renderPortfolioFileError(container) {
