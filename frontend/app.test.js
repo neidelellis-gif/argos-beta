@@ -19,6 +19,53 @@ function readCsv(content) {
     return context.getCsvDataRows(context.parseCsv(content));
 }
 
+test("identifies the real UBS holdings export structure", () => {
+    const csvData = readCsv(fs.readFileSync(
+        "frontend/test/fixtures/UBS_Holdings_27_07_2026.csv",
+        "utf8"
+    ));
+
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(csvData.headers)),
+        [
+            "DESCRIPTION",
+            "SYMBOL",
+            "CUSIP",
+            "QUANTITY",
+            "PRICE",
+            "VALUE",
+            "% OF PORTFOLIO"
+        ]
+    );
+    assert.equal(context.identifyFileSource(csvData), "UBS Holdings Export");
+});
+
+test("skips multiple introductory lines before the CSV header", () => {
+    const result = readCsv([
+        "HOLDINGS",
+        "Generated on 27/07/2026",
+        "Asset,Type,Value",
+        "Bond A,Fixed Income,$100"
+    ].join("\n"));
+
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(result)),
+        {
+            headers: ["Asset", "Type", "Value"],
+            dataRows: [["Bond A", "Fixed Income", "$100"]]
+        }
+    );
+});
+
+test("does not identify a partial UBS header set as UBS", () => {
+    const csvData = readCsv([
+        "DESCRIPTION,SYMBOL,CUSIP,QUANTITY,PRICE,VALUE",
+        "Example,SYM,000000000,1,1,1"
+    ].join("\n"));
+
+    assert.equal(context.identifyFileSource(csvData), "CSV Genérico");
+});
+
 test("keeps rows matching the header and ignores a short footer", () => {
     const result = readCsv([
         "Asset,Type,Value",
@@ -157,6 +204,29 @@ test("renders the identified source below the file information", () => {
     assert.equal(
         children.at(-1).textContent,
         "Origem identificada: TipRanks Portfolio Export"
+    );
+});
+
+test("renders the UBS holdings source below the file information", () => {
+    const children = [];
+    const document = context.document;
+    document.createElement = () => ({ className: "", textContent: "" });
+    const container = {
+        append(...elements) {
+            children.push(...elements);
+        }
+    };
+
+    context.renderPortfolioFileSummary(
+        container,
+        1,
+        ["DESCRIPTION", "SYMBOL", "CUSIP"],
+        "UBS Holdings Export"
+    );
+
+    assert.equal(
+        children.at(-1).textContent,
+        "Origem identificada: UBS Holdings Export"
     );
 });
 
