@@ -59,10 +59,10 @@ test("rejects a trailing row with more columns than the header", () => {
     );
 });
 
-test("identifies a TipRanks portfolio export from normalized headers", () => {
+test("identifies a TipRanks portfolio export from its real headers", () => {
     const csvData = readCsv([
-        "\uFEFFTicker,Company Name,Shares,Analyst_Consensus,Price Target",
-        "ICE,Intercontinental Exchange,10,Strong Buy,$180"
+        "Stock,Price,Price Change,Market Value,Portfolio Weight,Total Gain/Loss,Smart Score,Analyst Consensus,Price Target",
+        "ICE,$175.00,1.25%,\"$1,750.00\",10%,12.50%,9,Strong Buy,$180"
     ].join("\n"));
 
     assert.equal(
