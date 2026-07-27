@@ -8,6 +8,23 @@ const STATUS_LABELS = {
 
 const FILE_SOURCE_IDENTIFIERS = [
     {
+        source: "UBS Holdings Export",
+        matches({ headers }) {
+            const normalizedHeaders = new Set(headers.map(normalizeCsvHeader));
+            const ubsHeaders = [
+                "description",
+                "symbol",
+                "cusip",
+                "quantity",
+                "price",
+                "value",
+                "% of portfolio"
+            ];
+
+            return ubsHeaders.every((header) => normalizedHeaders.has(header));
+        }
+    },
+    {
         source: "TipRanks Portfolio Export",
         matches({ headers }) {
             const normalizedHeaders = new Set(headers.map(normalizeCsvHeader));
@@ -320,8 +337,18 @@ function getCsvDataRows(rows) {
     const nonEmptyRows = rows.filter(
         (row) => row.some((value) => value.trim() !== "")
     );
-    const headers = nonEmptyRows[0] || [];
-    const dataRows = nonEmptyRows.slice(1);
+    const structuralHeaderIndex = nonEmptyRows.findIndex(
+        (row, index) => row.length > 1
+            && nonEmptyRows[index + 1]?.length === row.length
+    );
+    const firstMultiColumnIndex = nonEmptyRows.findIndex(
+        (row) => row.length > 1
+    );
+    const headerIndex = structuralHeaderIndex >= 0
+        ? structuralHeaderIndex
+        : Math.max(firstMultiColumnIndex, 0);
+    const headers = nonEmptyRows[headerIndex] || [];
+    const dataRows = nonEmptyRows.slice(headerIndex + 1);
 
     if (headers.length === 0 || headers.some((header) => !header.trim())) {
         throw new Error("Invalid CSV header");
