@@ -39,6 +39,19 @@ const FILE_SOURCE_IDENTIFIERS = [
     }
 ];
 
+const TIPRANKS_PREVIEW_COLUMNS = [
+    ["Institution", "institution"],
+    ["Ticker", "ticker"],
+    ["Name", "name"],
+    ["Shares", "shares"],
+    ["Price", "price"],
+    ["Holding Value", "holdingValue"],
+    ["Smart Score", "smartScore"],
+    ["Analyst Consensus", "analystConsensus"],
+    ["Analyst Price Target", "analystPriceTarget"],
+    ["Analyst Price Target %", "analystPriceTargetPercent"]
+];
+
 let importedPortfolioPositions = [];
 
 function normalizeCsvHeader(header) {
@@ -137,6 +150,8 @@ function setupPortfolioFilePicker() {
     const fileInput = document.getElementById("portfolioFile");
     const fileName = document.getElementById("portfolioFileName");
     const fileSummary = document.getElementById("portfolioFileSummary");
+    const previewSection = document.getElementById("tipRanksPreview");
+    const previewContent = document.getElementById("tipRanksPreviewContent");
 
     fileInput.addEventListener("change", async () => {
         const selectedFile = fileInput.files[0];
@@ -144,6 +159,7 @@ function setupPortfolioFilePicker() {
             ? selectedFile.name
             : "Nenhum arquivo selecionado";
         fileSummary.replaceChildren();
+        hideTipRanksPreview(previewSection, previewContent);
 
         if (!selectedFile) {
             return;
@@ -166,6 +182,11 @@ function setupPortfolioFilePicker() {
                     headers,
                     dataRows
                 });
+                renderTipRanksPreview(
+                    previewSection,
+                    previewContent,
+                    importedPortfolioPositions
+                );
             }
 
             renderPortfolioFileSummary(
@@ -178,6 +199,53 @@ function setupPortfolioFilePicker() {
             renderPortfolioFileError(fileSummary);
         }
     });
+}
+
+function hideTipRanksPreview(section, container) {
+    section.hidden = true;
+    container.replaceChildren();
+}
+
+function renderTipRanksPreview(section, container, positions) {
+    const tableWrapper = document.createElement("div");
+    tableWrapper.className = "tipranks-preview-table-wrapper";
+
+    const table = document.createElement("table");
+    table.className = "tipranks-preview-table";
+
+    const header = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    TIPRANKS_PREVIEW_COLUMNS.forEach(([label]) => {
+        const cell = document.createElement("th");
+        cell.scope = "col";
+        cell.textContent = label;
+        headerRow.appendChild(cell);
+    });
+    header.appendChild(headerRow);
+
+    const body = document.createElement("tbody");
+    positions.slice(0, 10).forEach((position) => {
+        const row = document.createElement("tr");
+        TIPRANKS_PREVIEW_COLUMNS.forEach(([, property]) => {
+            const cell = document.createElement("td");
+            const value = position[property];
+            cell.textContent = value === null || value === undefined
+                ? ""
+                : String(value);
+            row.appendChild(cell);
+        });
+        body.appendChild(row);
+    });
+
+    table.append(header, body);
+    tableWrapper.appendChild(table);
+
+    const total = document.createElement("p");
+    total.className = "tipranks-preview-total";
+    total.textContent = `Total de posições convertidas: ${positions.length}`;
+
+    container.replaceChildren(tableWrapper, total);
+    section.hidden = false;
 }
 
 function parseCsv(content) {

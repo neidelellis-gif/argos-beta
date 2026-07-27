@@ -155,3 +155,73 @@ test("renders the unknown source message when detection fails", () => {
 
     assert.equal(children.at(-1).textContent, "Origem desconhecida.");
 });
+
+function createElement(tagName) {
+    return {
+        tagName,
+        children: [],
+        className: "",
+        textContent: "",
+        append(...elements) {
+            this.children.push(...elements);
+        },
+        appendChild(element) {
+            this.children.push(element);
+        },
+        replaceChildren(...elements) {
+            this.children = elements;
+        }
+    };
+}
+
+test("renders exactly the internal TipRanks fields for at most 10 positions", () => {
+    context.document.createElement = createElement;
+    const section = { hidden: true };
+    const container = createElement("div");
+    const positions = Array.from({ length: 12 }, (_, index) => ({
+        institution: "TipRanks",
+        ticker: `T${index}`,
+        name: `Asset ${index}`,
+        shares: index,
+        price: index + 1,
+        holdingValue: index + 2,
+        smartScore: index + 3,
+        analystConsensus: "Buy",
+        analystPriceTarget: index + 4,
+        analystPriceTargetPercent: index + 5
+    }));
+    const originalPositions = JSON.stringify(positions);
+
+    context.renderTipRanksPreview(section, container, positions);
+
+    const [wrapper, total] = container.children;
+    const [table] = wrapper.children;
+    const [head, body] = table.children;
+    assert.deepEqual(
+        head.children[0].children.map((cell) => cell.textContent),
+        [
+            "Institution", "Ticker", "Name", "Shares", "Price",
+            "Holding Value", "Smart Score", "Analyst Consensus",
+            "Analyst Price Target", "Analyst Price Target %"
+        ]
+    );
+    assert.equal(body.children.length, 10);
+    assert.deepEqual(
+        body.children[0].children.map((cell) => cell.textContent),
+        ["TipRanks", "T0", "Asset 0", "0", "1", "2", "3", "Buy", "4", "5"]
+    );
+    assert.equal(total.textContent, "Total de posições convertidas: 12");
+    assert.equal(section.hidden, false);
+    assert.equal(JSON.stringify(positions), originalPositions);
+});
+
+test("hides and clears the TipRanks preview", () => {
+    const section = { hidden: false };
+    const container = createElement("div");
+    container.children = [createElement("table")];
+
+    context.hideTipRanksPreview(section, container);
+
+    assert.equal(section.hidden, true);
+    assert.deepEqual(container.children, []);
+});

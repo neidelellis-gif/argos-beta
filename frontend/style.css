@@ -213,6 +213,7 @@ h3 {
 }
 
 .portfolio-import-section,
+.tipranks-preview-section,
 .executive-section,
 .modules-section,
 .configuration-section {
@@ -222,6 +223,37 @@ h3 {
     border-radius: var(--radius-large);
     background: var(--surface-soft);
     box-shadow: var(--shadow);
+}
+
+.tipranks-preview-table-wrapper {
+    overflow-x: auto;
+}
+
+.tipranks-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+.tipranks-preview-table th,
+.tipranks-preview-table td {
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--border-soft);
+    text-align: left;
+    font-size: 0.84rem;
+}
+
+.tipranks-preview-table th {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.tipranks-preview-total {
+    margin: 14px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.86rem;
 }
 
 .portfolio-file-picker {
