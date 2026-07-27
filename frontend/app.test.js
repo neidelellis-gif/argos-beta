@@ -83,6 +83,29 @@ test("identifies the TipRanks format with Stock and Market Value", () => {
     );
 });
 
+test("converts a TipRanks CSV row to an internal ARGOS position", () => {
+    const csvData = readCsv([
+        "Ticker,Name,No. of Shares,Price,% Change,Analyst Consensus,Analyst Price Target %,Analyst Price Target,Smart Score,Holding Value,Holding Gain Change,Holding Gain Change %",
+        "ICE,Intercontinental Exchange,10,$175.00,1.25%,Strong Buy,2.86%,$180,9,\"$1,750.00\",$194.44,12.50%"
+    ].join("\n"));
+
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.transformTipRanksPortfolio(csvData))),
+        [{
+            institution: "TipRanks",
+            ticker: "ICE",
+            name: "Intercontinental Exchange",
+            shares: 10,
+            price: 175,
+            holdingValue: 1750,
+            smartScore: 9,
+            analystConsensus: "Strong Buy",
+            analystPriceTarget: 180,
+            analystPriceTargetPercent: 2.86
+        }]
+    );
+});
+
 test("identifies a structurally valid multi-column CSV as generic", () => {
     const csvData = readCsv("Asset,Type,Value\nBond A,Fixed Income,$100");
 
