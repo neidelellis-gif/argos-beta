@@ -11,7 +11,7 @@ const FILE_SOURCE_IDENTIFIERS = [
         source: "TipRanks Portfolio Export",
         matches({ headers }) {
             const normalizedHeaders = new Set(headers.map(normalizeCsvHeader));
-            const hasAssetIdentifier = ["ticker", "symbol"].some(
+            const hasAssetIdentifier = ["ticker", "symbol", "stock"].some(
                 (header) => normalizedHeaders.has(header)
             );
             const hasPortfolioData = ["shares", "quantity", "market value"].some(
