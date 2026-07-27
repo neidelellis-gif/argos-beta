@@ -1,5 +1,10 @@
 {
   "updated_at": "2026-07-24T11:00:00-03:00",
+  "global_overview": {
+    "title": "Panorama Global",
+    "summary": "O ARGOS aguarda o processamento das carteiras para gerar a visão consolidada do patrimônio e do mercado.",
+    "status": "pendente"
+  },
   "executive": [
     {
       "id": "daily-status",

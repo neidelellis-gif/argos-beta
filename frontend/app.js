@@ -108,17 +108,52 @@ function createModuleCard(item) {
     return article;
 }
 
+function createOverviewCard(item) {
+    const article = document.createElement("article");
+    article.className = "overview-card";
+
+    const title = document.createElement("h3");
+    title.textContent = item.title || "";
+
+    const value = document.createElement("div");
+    value.className = "overview-value";
+    value.textContent = item.value || "";
+
+    const description = document.createElement("p");
+    description.className = "overview-description";
+    description.textContent = item.description || "";
+
+    article.append(title, value, description);
+
+    return article;
+}
+
 function renderCockpit(data) {
+    const globalOverview = document.getElementById("globalOverview");
     const executiveCards = document.getElementById("executiveCards");
     const moduleCards = document.getElementById("moduleCards");
     const executiveCount = document.getElementById("executiveCount");
     const lastUpdate = document.getElementById("lastUpdate");
 
+    globalOverview.innerHTML = "";
     executiveCards.innerHTML = "";
     moduleCards.innerHTML = "";
 
-    const executiveItems = Array.isArray(data.executive) ? data.executive : [];
-    const moduleItems = Array.isArray(data.sections) ? data.sections : [];
+    const overviewItems = Array.isArray(data.global_overview)
+        ? data.global_overview
+        : [];
+
+    const executiveItems = Array.isArray(data.executive)
+        ? data.executive
+        : [];
+
+    const moduleItems = Array.isArray(data.sections)
+        ? data.sections
+        : [];
+
+    overviewItems.forEach((item) => {
+        globalOverview.appendChild(createOverviewCard(item));
+    });
 
     executiveItems.forEach((item, index) => {
         executiveCards.appendChild(createExecutiveCard(item, index));
