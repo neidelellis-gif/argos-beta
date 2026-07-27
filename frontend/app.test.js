@@ -65,6 +65,35 @@ test("identifies the real UBS holdings export structure", () => {
     assert.equal(context.identifyFileSource(csvData), "UBS Holdings Export");
 });
 
+test("identifies the real Santander Excel export filename", () => {
+    assert.equal(
+        context.identifySantanderExcelSource(
+            "your-positions-4005106-38.xlsx"
+        ),
+        "Santander Excel Export"
+    );
+});
+
+test("identifies the Santander Excel export extension case-insensitively", () => {
+    assert.equal(
+        context.identifySantanderExcelSource(
+            "YOUR-POSITIONS-4005106-38.XLSX"
+        ),
+        "Santander Excel Export"
+    );
+});
+
+test("does not identify similar filenames as Santander Excel exports", () => {
+    [
+        "your-positions-4005106.xlsx",
+        "your-positions-account-38.xlsx",
+        "your-positions-4005106-38.xls",
+        "copy-your-positions-4005106-38.xlsx"
+    ].forEach((fileName) => {
+        assert.equal(context.identifySantanderExcelSource(fileName), null);
+    });
+});
+
 test("imports all 28 positions from the real UBS holdings export", () => {
     const csvData = readUbsFixture();
     const positions = importUbsPositions(csvData);
@@ -283,6 +312,24 @@ test("renders the identified source below the file information", () => {
     assert.equal(
         children.at(-1).textContent,
         "Origem identificada: TipRanks Portfolio Export"
+    );
+});
+
+test("renders the Santander Excel source identification", () => {
+    const children = [];
+    const document = context.document;
+    document.createElement = () => ({ className: "", textContent: "" });
+    const container = {
+        append(...elements) {
+            children.push(...elements);
+        }
+    };
+
+    context.renderIdentifiedFileSource(container, "Santander Excel Export");
+
+    assert.equal(
+        children[0].textContent,
+        "Origem identificada: Santander Excel Export"
     );
 });
 
