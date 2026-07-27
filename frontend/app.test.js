@@ -28,15 +28,33 @@ test("identifies the real UBS holdings export structure", () => {
     assert.deepEqual(
         JSON.parse(JSON.stringify(csvData.headers)),
         [
+            "ACCOUNT NUMBER",
             "DESCRIPTION",
             "SYMBOL",
             "CUSIP",
             "QUANTITY",
             "PRICE",
+            "AS OF",
+            "FACTOR",
+            "CHANGE IN PRICE",
             "VALUE",
-            "% OF PORTFOLIO"
+            "CHANGE IN VALUE",
+            "PERCENT CHANGE",
+            "YIELD",
+            "UNREALIZED GAIN/LOSS $",
+            "UNREALIZED GAIN/LOSS %",
+            "PERCENT OF PORTFOLIO"
         ]
     );
+    assert.equal(context.identifyFileSource(csvData), "UBS Holdings Export");
+});
+
+test("keeps compatibility with the alternate UBS portfolio header", () => {
+    const csvData = readCsv([
+        "DESCRIPTION,SYMBOL,CUSIP,QUANTITY,PRICE,VALUE,% OF PORTFOLIO",
+        "Example,SYM,000000000,1,1,1,1%"
+    ].join("\n"));
+
     assert.equal(context.identifyFileSource(csvData), "UBS Holdings Export");
 });
 

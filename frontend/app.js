@@ -17,11 +17,15 @@ const FILE_SOURCE_IDENTIFIERS = [
                 "cusip",
                 "quantity",
                 "price",
-                "value",
-                "% of portfolio"
+                "value"
             ];
+            const hasPortfolioPercentage = [
+                "percent of portfolio",
+                "% of portfolio"
+            ].some((header) => normalizedHeaders.has(header));
 
-            return ubsHeaders.every((header) => normalizedHeaders.has(header));
+            return ubsHeaders.every((header) => normalizedHeaders.has(header))
+                && hasPortfolioPercentage;
         }
     },
     {
