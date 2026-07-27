@@ -58,3 +58,65 @@ test("rejects a trailing row with more columns than the header", () => {
         /Invalid CSV data row/
     );
 });
+
+test("identifies a TipRanks portfolio export from normalized headers", () => {
+    const csvData = readCsv([
+        "\uFEFFTicker,Company Name,Shares,Analyst_Consensus,Price Target",
+        "ICE,Intercontinental Exchange,10,Strong Buy,$180"
+    ].join("\n"));
+
+    assert.equal(
+        context.identifyFileSource(csvData),
+        "TipRanks Portfolio Export"
+    );
+});
+
+test("identifies a structurally valid multi-column CSV as generic", () => {
+    const csvData = readCsv("Asset,Type,Value\nBond A,Fixed Income,$100");
+
+    assert.equal(context.identifyFileSource(csvData), "CSV Genérico");
+});
+
+test("reports an unknown source when no identifier matches", () => {
+    const csvData = readCsv("Notes\nImported manually");
+
+    assert.equal(context.identifyFileSource(csvData), null);
+});
+
+test("renders the identified source below the file information", () => {
+    const children = [];
+    const document = context.document;
+    document.createElement = () => ({ className: "", textContent: "" });
+    const container = {
+        append(...elements) {
+            children.push(...elements);
+        }
+    };
+
+    context.renderPortfolioFileSummary(
+        container,
+        1,
+        ["Ticker", "Shares", "Smart Score"],
+        "TipRanks Portfolio Export"
+    );
+
+    assert.equal(
+        children.at(-1).textContent,
+        "Origem identificada: TipRanks Portfolio Export"
+    );
+});
+
+test("renders the unknown source message when detection fails", () => {
+    const children = [];
+    const document = context.document;
+    document.createElement = () => ({ className: "", textContent: "" });
+    const container = {
+        append(...elements) {
+            children.push(...elements);
+        }
+    };
+
+    context.renderPortfolioFileSummary(container, 1, ["Notes"], null);
+
+    assert.equal(children.at(-1).textContent, "Origem desconhecida.");
+});
