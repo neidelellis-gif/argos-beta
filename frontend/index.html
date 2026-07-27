@@ -112,13 +112,22 @@
                 <input
                     id="portfolioFile"
                     class="file-picker-input"
-                    type="file">
+                    type="file"
+                    accept=".csv,text/csv">
 
-                <span
-                    id="portfolioFileName"
-                    class="file-picker-name">
-                    Nenhum arquivo selecionado
-                </span>
+                <div class="file-picker-details">
+                    <span
+                        id="portfolioFileName"
+                        class="file-picker-name">
+                        Nenhum arquivo selecionado
+                    </span>
+
+                    <div
+                        id="portfolioFileSummary"
+                        class="file-picker-summary"
+                        aria-live="polite">
+                    </div>
+                </div>
 
             </div>
 

@@ -261,6 +261,22 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.file-picker-details,
+.file-picker-summary {
+    display: grid;
+    gap: 6px;
+}
+
+.file-picker-summary p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.86rem;
+}
+
+.file-picker-summary .file-picker-error {
+    color: var(--warning);
+}
+
 .section-heading {
     display: flex;
     justify-content: space-between;
