@@ -28,6 +28,18 @@ function setGreeting() {
     }).format(now);
 }
 
+function setupPortfolioFilePicker() {
+    const fileInput = document.getElementById("portfolioFile");
+    const fileName = document.getElementById("portfolioFileName");
+
+    fileInput.addEventListener("change", () => {
+        const selectedFile = fileInput.files[0];
+        fileName.textContent = selectedFile
+            ? selectedFile.name
+            : "Nenhum arquivo selecionado";
+    });
+}
+
 function formatUpdatedAt(value) {
     if (!value) {
         return "Não disponível";
@@ -204,5 +216,6 @@ async function loadCockpit() {
 
 document.addEventListener("DOMContentLoaded", () => {
     setGreeting();
+    setupPortfolioFilePicker();
     loadCockpit();
 });
