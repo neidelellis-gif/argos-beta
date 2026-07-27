@@ -31,13 +31,110 @@ function setGreeting() {
 function setupPortfolioFilePicker() {
     const fileInput = document.getElementById("portfolioFile");
     const fileName = document.getElementById("portfolioFileName");
+    const fileSummary = document.getElementById("portfolioFileSummary");
 
-    fileInput.addEventListener("change", () => {
+    fileInput.addEventListener("change", async () => {
         const selectedFile = fileInput.files[0];
         fileName.textContent = selectedFile
             ? selectedFile.name
             : "Nenhum arquivo selecionado";
+        fileSummary.replaceChildren();
+
+        if (!selectedFile) {
+            return;
+        }
+
+        if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
+            renderPortfolioFileError(fileSummary);
+            return;
+        }
+
+        try {
+            const rows = parseCsv(await selectedFile.text());
+            const headers = rows[0];
+            const dataRows = rows.slice(1);
+
+            if (
+                headers.length === 0
+                || headers.some((header) => !header.trim())
+                || dataRows.some((row) => row.length !== headers.length)
+            ) {
+                throw new Error("Invalid CSV structure");
+            }
+
+            renderPortfolioFileSummary(fileSummary, dataRows.length, headers);
+        } catch (error) {
+            renderPortfolioFileError(fileSummary);
+        }
     });
+}
+
+function parseCsv(content) {
+    if (!content.trim()) {
+        throw new Error("Empty CSV");
+    }
+
+    const rows = [];
+    let row = [];
+    let field = "";
+    let insideQuotes = false;
+
+    for (let index = 0; index < content.length; index += 1) {
+        const character = content[index];
+
+        if (insideQuotes) {
+            if (character === '"' && content[index + 1] === '"') {
+                field += '"';
+                index += 1;
+            } else if (character === '"') {
+                insideQuotes = false;
+            } else {
+                field += character;
+            }
+        } else if (character === '"' && field === "") {
+            insideQuotes = true;
+        } else if (character === ",") {
+            row.push(field);
+            field = "";
+        } else if (character === "\n") {
+            row.push(field.endsWith("\r") ? field.slice(0, -1) : field);
+            rows.push(row);
+            row = [];
+            field = "";
+        } else if (character === '"') {
+            throw new Error("Unexpected quote");
+        } else {
+            field += character;
+        }
+    }
+
+    if (insideQuotes) {
+        throw new Error("Unclosed quoted field");
+    }
+
+    row.push(field.endsWith("\r") ? field.slice(0, -1) : field);
+    if (row.some((value) => value !== "") || rows.length === 0) {
+        rows.push(row);
+    }
+
+    return rows;
+}
+
+function renderPortfolioFileSummary(container, rowCount, headers) {
+    const summary = document.createElement("p");
+    summary.textContent = `${rowCount} linhas · ${headers.length} colunas`;
+
+    const columns = document.createElement("p");
+    columns.textContent = `Cabeçalhos: ${headers.join(", ")}`;
+
+    container.append(summary, columns);
+}
+
+function renderPortfolioFileError(container) {
+    const error = document.createElement("p");
+    error.className = "file-picker-error";
+    error.textContent = "Não foi possível ler um CSV válido.";
+    container.appendChild(error);
 }
 
 function formatUpdatedAt(value) {
