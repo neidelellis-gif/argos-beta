@@ -573,3 +573,10 @@ test("refreshes the operational dashboard after a successful import", async () =
         "Importação concluída."
     );
 });
+
+test("formats the last import date and time returned by the dashboard", () => {
+    const formatted = context.formatUpdatedAt("2026-07-28T14:35:00Z");
+
+    assert.match(formatted, /28\/07\/2026/);
+    assert.match(formatted, /14:35/);
+});
