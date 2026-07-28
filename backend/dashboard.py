@@ -4,6 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Dict, Iterable, Optional
 
+from backend.daily.experience import build_daily_experience
 from backend.models import PortfolioPosition
 from backend.portfolio_consolidation import consolidate_portfolio_positions
 from backend.portfolio_diagnostics import (
@@ -41,6 +42,7 @@ def build_dashboard(
     last_import_at: Optional[datetime] = None,
 ) -> Dict:
     """Build one dashboard response from positions already normalized to MPU."""
+    positions = tuple(positions)
     consolidation = consolidate_portfolio_positions(positions)
     institution_diagnostics = tuple(
         diagnose_institution(institution_positions)
@@ -107,6 +109,11 @@ def build_dashboard(
             "current_date": (current_date or date.today()).isoformat(),
             "version": DASHBOARD_VERSION,
         },
+        "daily": build_daily_experience(
+            positions,
+            current_date=current_date,
+            last_import_at=last_import_at,
+        ),
         "labels": {
             "last_update": "Última importação",
             "overview": "Panorama",
