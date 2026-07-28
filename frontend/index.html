@@ -81,7 +81,57 @@
             </div>
 
         </header>
-        <section class="dashboard-section" aria-labelledby="factsTitle">
+        <section class="daily-experience" aria-label="Resumo executivo diário">
+            <div class="daily-lead">
+                <p class="eyebrow">EM POUCOS SEGUNDOS</p>
+                <h2>O que merece sua atenção hoje</h2>
+                <p id="dailyWindow" class="section-description"></p>
+            </div>
+
+            <div class="daily-grid">
+                <article class="daily-panel daily-panel-wide" aria-labelledby="factsTitle">
+                    <div class="panel-heading">
+                        <h2 id="factsTitle">Fatos importantes</h2>
+                        <span id="factsCount" class="section-count"></span>
+                    </div>
+                    <div id="importantFacts" class="daily-list"></div>
+                </article>
+
+                <article class="daily-panel" aria-labelledby="prioritiesTitle">
+                    <div class="panel-heading">
+                        <h2 id="prioritiesTitle">Prioridades do dia</h2>
+                        <span id="prioritiesCount" class="section-count"></span>
+                    </div>
+                    <div id="dailyPriorities" class="daily-list"></div>
+                </article>
+
+                <article class="daily-panel" aria-labelledby="analysesTitle">
+                    <div class="panel-heading">
+                        <h2 id="analysesTitle">Análises</h2>
+                        <span id="analysesCount" class="section-count"></span>
+                    </div>
+                    <div id="dailyAnalyses" class="daily-list"></div>
+                </article>
+
+                <article class="daily-panel daily-panel-wide" aria-labelledby="panoramaTitle">
+                    <div class="panel-heading">
+                        <h2 id="panoramaTitle">Panorama global</h2>
+                        <span class="section-count">5 frentes monitoradas</span>
+                    </div>
+                    <div id="dailyPanorama" class="panorama-grid"></div>
+                </article>
+
+                <article class="daily-panel daily-panel-wide" aria-labelledby="agendaTitle">
+                    <div class="panel-heading">
+                        <h2 id="agendaTitle">Agenda de mercado</h2>
+                        <span id="agendaCount" class="section-count"></span>
+                    </div>
+                    <div id="marketAgenda" class="daily-list"></div>
+                </article>
+            </div>
+        </section>
+
+        <section class="dashboard-section" aria-label="Dashboard operacional">
             <div class="dashboard-toolbar">
                 <div>
                     <p class="eyebrow">DASHBOARD OPERACIONAL</p>
@@ -90,11 +140,6 @@
                 <button id="toggleValues" class="values-toggle" type="button">
                     Mostrar valores
                 </button>
-            </div>
-
-            <div class="dashboard-block">
-                <h2 id="factsTitle">Fatos importantes</h2>
-                <ul id="importantFacts" class="facts-list"></ul>
             </div>
 
             <div class="dashboard-block">

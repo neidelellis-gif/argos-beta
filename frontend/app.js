@@ -8,6 +8,12 @@ const STATUS_LABELS = {
     pronto: "Pronto"
 };
 
+const PRIORITY_CLASSES = {
+    Alta: "high",
+    Moderada: "moderate",
+    Baixa: "low"
+};
+
 const FILE_SOURCE_IDENTIFIERS = [
     {
         source: "Exportação de posições UBS",
@@ -662,19 +668,119 @@ function appendWarnings(container, warnings) {
     ));
 }
 
-function renderDashboard(data) {
+function createTextElement(tag, className, text) {
+    const element = document.createElement(tag);
+    element.className = className;
+    element.textContent = text || "";
+    return element;
+}
+
+function createEmptyState(message) {
+    return createTextElement("p", "daily-empty", message);
+}
+
+function createDailyItem({ title, eyebrow, summary, priority, metadata }) {
+    const article = document.createElement("article");
+    article.className = "daily-item";
+    const header = document.createElement("div");
+    header.className = "daily-item-header";
+    header.append(
+        createTextElement("span", "daily-item-eyebrow", eyebrow),
+        createTextElement("span", `priority priority-${PRIORITY_CLASSES[priority] || "low"}`, priority)
+    );
+    article.append(
+        header,
+        createTextElement("h3", "", title),
+        createTextElement("p", "daily-item-summary", summary)
+    );
+    if (metadata) {
+        article.append(createTextElement("p", "daily-item-meta", metadata));
+    }
+    return article;
+}
+
+function renderDailyExperience(daily) {
     const facts = document.getElementById("importantFacts");
+    const priorities = document.getElementById("dailyPriorities");
+    const analyses = document.getElementById("dailyAnalyses");
+    const panorama = document.getElementById("dailyPanorama");
+    const agenda = document.getElementById("marketAgenda");
+    [facts, priorities, analyses, panorama, agenda].forEach(
+        (container) => container.replaceChildren()
+    );
+
+    document.getElementById("dailyWindow").textContent =
+        `Contexto disponível para as últimas ${daily.lookback_hours} horas.`;
+    document.getElementById("factsCount").textContent =
+        formatCount(daily.important_facts.length, "fato", "fatos");
+    document.getElementById("prioritiesCount").textContent =
+        formatCount(daily.priorities.length, "prioridade", "prioridades");
+    document.getElementById("analysesCount").textContent =
+        formatCount(daily.analyses.length, "análise", "análises");
+    document.getElementById("agendaCount").textContent =
+        formatCount(daily.market_agenda.length, "evento", "eventos");
+
+    daily.important_facts.slice(0, 5).forEach((fact) => facts.append(
+        createDailyItem({
+            title: fact.title,
+            eyebrow: fact.category,
+            summary: fact.summary,
+            priority: fact.priority
+        })
+    ));
+    daily.priorities.forEach((item) => priorities.append(
+        createDailyItem({
+            title: item.title,
+            eyebrow: "Prioridade",
+            summary: item.context,
+            priority: item.level
+        })
+    ));
+    daily.analyses.forEach((item) => analyses.append(
+        createDailyItem({
+            title: item.title,
+            eyebrow: item.status,
+            summary: item.reason,
+            metadata: item.related_to ? `Relacionada a: ${item.related_to}` : null
+        })
+    ));
+    daily.global_overview.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "panorama-card";
+        card.append(
+            createTextElement("h3", "", item.topic),
+            createTextElement("p", "daily-item-summary", item.summary),
+            createTextElement("span", "integration-status", item.status)
+        );
+        panorama.append(card);
+    });
+    if (daily.market_agenda.length === 0) {
+        agenda.append(createEmptyState(daily.empty_states.market_agenda));
+    } else {
+        daily.market_agenda.forEach((item) => agenda.append(
+            createDailyItem({
+                title: item.title,
+                eyebrow: item.event_type,
+                summary: item.summary,
+                metadata: item.scheduled_at
+            })
+        ));
+    }
+}
+
+function renderDashboard(data) {
     const institutions = document.getElementById("institutions");
     const consolidated = document.getElementById("consolidated");
     const globalOverview = document.getElementById("globalOverview");
     const executiveCards = document.getElementById("executiveCards");
     const moduleCards = document.getElementById("moduleCards");
-    facts.replaceChildren();
     institutions.replaceChildren();
     consolidated.replaceChildren();
     globalOverview.replaceChildren();
     executiveCards.replaceChildren();
     moduleCards.replaceChildren();
+
+    renderDailyExperience(data.daily);
 
     document.getElementById("currentDate").textContent =
         formatDashboardDate(data.header.current_date);
@@ -694,12 +800,6 @@ function renderDashboard(data) {
     document.getElementById("modulesLabel").textContent = data.labels.modules;
     document.getElementById("modulesTitle").textContent =
         data.labels.modules_title;
-
-    data.important_facts.forEach((fact) => {
-        const item = document.createElement("li");
-        item.textContent = fact;
-        facts.append(item);
-    });
 
     if (data.institutions.length === 0) {
         institutions.append(createMetric(

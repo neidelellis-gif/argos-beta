@@ -37,6 +37,22 @@ def test_empty_dashboard_response():
         "current_date": "2026-07-28",
         "version": "2.2",
     }
+    assert result["daily"]["generated_for"] == "2026-07-28"
+    assert result["daily"]["lookback_hours"] == 24
+    assert result["daily"]["important_facts"][0] == {
+        "id": "portfolio-waiting",
+        "title": "Carteiras aguardam atualização",
+        "category": "Carteiras",
+        "priority": "Alta",
+        "summary": (
+            "Importe as posições para habilitar o contexto patrimonial do dia."
+        ),
+    }
+    assert result["daily"]["contracts"]["priority_levels"] == [
+        "Alta", "Moderada", "Baixa",
+    ]
+    assert len(result["daily"]["global_overview"]) == 5
+    assert result["daily"]["market_agenda"] == []
     assert result["session"] == {
         "last_import_at": None,
         "institution_count": 0,
@@ -100,6 +116,8 @@ def test_dashboard_diagnoses_multiple_institutions():
         "status": "completed",
         "message": "2 instituições analisadas",
     }
+    assert result["daily"]["important_facts"][0]["priority"] == "Moderada"
+    assert result["daily"]["analyses"][0]["related_to"] == "Santander, UBS"
 
 
 def test_dashboard_reports_one_analyzed_institution():
@@ -127,6 +145,7 @@ def test_dashboard_endpoint_returns_single_structure():
         assert response.status == 200
         assert set(payload) == {
             "header",
+            "daily",
             "labels",
             "session",
             "daily_situation",
@@ -149,6 +168,10 @@ def test_frontend_consumes_and_exposes_dashboard_sections():
     assert "renderDashboard(await response.json())" in app
     for element_id in (
         "importantFacts",
+        "dailyPriorities",
+        "dailyAnalyses",
+        "dailyPanorama",
+        "marketAgenda",
         "institutions",
         "consolidated",
         "toggleValues",
