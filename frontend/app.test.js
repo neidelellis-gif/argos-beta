@@ -524,7 +524,7 @@ test("renders null TipRanks values as an em dash", () => {
     assert.equal(body.children[0].children[3].textContent, "");
 });
 
-test("refreshes the operational dashboard after a successful import", async () => {
+test("renders the imported session dashboard after a successful import", async () => {
     const elements = new Map();
     const file = { name: "holdings.csv" };
     const input = {
@@ -552,21 +552,37 @@ test("refreshes the operational dashboard after a successful import", async () =
     context.FormData = class {
         append() {}
     };
-    let dashboardLoads = 0;
-    context.loadDashboard = async () => {
-        dashboardLoads += 1;
+    const importedDashboard = {
+        session: {
+            last_import_at: "2026-07-28T14:35:00Z",
+            institution_count: 1
+        },
+        daily_situation: [{
+            status: "completed",
+            message: "1 instituição analisada"
+        }],
+        modules: [{
+            id: "portfolios",
+            title: "Carteiras",
+            status: "completed",
+            message: "1 instituição analisada"
+        }]
+    };
+    let renderedDashboard = null;
+    context.renderDashboard = (dashboard) => {
+        renderedDashboard = dashboard;
     };
     context.fetch = async () => ({
         ok: true,
         async json() {
-            return { ok: true };
+            return { ok: true, dashboard: importedDashboard };
         }
     });
 
     context.setupPortfolioFilePicker();
     await button.clickListener();
 
-    assert.equal(dashboardLoads, 1);
+    assert.equal(renderedDashboard, importedDashboard);
     assert.equal(elements.get("importProgressBar").value, 100);
     assert.equal(
         elements.get("importProgressText").textContent,
