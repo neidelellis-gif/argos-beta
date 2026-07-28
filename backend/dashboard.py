@@ -12,7 +12,7 @@ from backend.portfolio_diagnostics import (
     diagnose_institution,
 )
 
-DASHBOARD_VERSION = "2.1"
+DASHBOARD_VERSION = "2.2"
 
 
 def _decimal_totals(totals: Dict[str, Decimal]) -> Dict[str, str]:

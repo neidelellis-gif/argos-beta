@@ -62,7 +62,7 @@ test("identifies the real UBS holdings export structure", () => {
             "PERCENT OF PORTFOLIO"
         ]
     );
-    assert.equal(context.identifyFileSource(csvData), "UBS Holdings Export");
+    assert.equal(context.identifyFileSource(csvData), "Exportação de posições UBS");
 });
 
 test("identifies the real Santander Excel export filename", () => {
@@ -70,7 +70,7 @@ test("identifies the real Santander Excel export filename", () => {
         context.identifySantanderExcelSource(
             "your-positions-4005106-38.xlsx"
         ),
-        "Santander Excel Export"
+        "Exportação de posições Santander"
     );
 });
 
@@ -79,7 +79,7 @@ test("identifies the Santander Excel export extension case-insensitively", () =>
         context.identifySantanderExcelSource(
             "YOUR-POSITIONS-4005106-38.XLSX"
         ),
-        "Santander Excel Export"
+        "Exportação de posições Santander"
     );
 });
 
@@ -222,7 +222,7 @@ test("identifies a TipRanks portfolio export from its real headers", () => {
 
     assert.equal(
         context.identifyFileSource(csvData),
-        "TipRanks Portfolio Export"
+        "Exportação de carteira TipRanks"
     );
 });
 
@@ -234,7 +234,7 @@ test("identifies the TipRanks format with Stock and Market Value", () => {
 
     assert.equal(
         context.identifyFileSource(csvData),
-        "TipRanks Portfolio Export"
+        "Exportação de carteira TipRanks"
     );
 });
 
@@ -306,12 +306,12 @@ test("renders the identified source below the file information", () => {
         container,
         1,
         ["Ticker", "Shares", "Smart Score"],
-        "TipRanks Portfolio Export"
+        "Exportação de carteira TipRanks"
     );
 
     assert.equal(
         children.at(-1).textContent,
-        "Origem identificada: TipRanks Portfolio Export"
+        "Origem identificada: Exportação de carteira TipRanks"
     );
 });
 
@@ -325,11 +325,11 @@ test("renders the Santander Excel source identification", () => {
         }
     };
 
-    context.renderIdentifiedFileSource(container, "Santander Excel Export");
+    context.renderIdentifiedFileSource(container, "Exportação de posições Santander");
 
     assert.equal(
         children[0].textContent,
-        "Origem identificada: Santander Excel Export"
+        "Origem identificada: Exportação de posições Santander"
     );
 });
 
@@ -379,7 +379,7 @@ test("shows Santander source and count after selecting its Excel", async () => {
         async json() {
             return {
                 ok: true,
-                source: "Santander Excel Export",
+                source: "Exportação de posições Santander",
                 position_count: 23
             };
         }
@@ -393,7 +393,7 @@ test("shows Santander source and count after selecting its Excel", async () => {
             (child) => child.textContent
         ),
         [
-            "Origem identificada: Santander Excel Export",
+            "Origem identificada: Exportação de posições Santander",
             "Quantidade de posições encontradas: 23"
         ]
     );
@@ -413,12 +413,12 @@ test("renders the UBS holdings source below the file information", () => {
         container,
         1,
         ["DESCRIPTION", "SYMBOL", "CUSIP"],
-        "UBS Holdings Export"
+        "Exportação de posições UBS"
     );
 
     assert.equal(
         children.at(-1).textContent,
-        "Origem identificada: UBS Holdings Export"
+        "Origem identificada: Exportação de posições UBS"
     );
 });
 
@@ -481,9 +481,9 @@ test("renders exactly the internal TipRanks fields for at most 10 positions", ()
     assert.deepEqual(
         head.children[0].children.map((cell) => cell.textContent),
         [
-            "Institution", "Ticker", "Name", "Shares", "Price",
-            "Holding Value", "Smart Score", "Analyst Consensus",
-            "Analyst Price Target", "Analyst Price Target %"
+            "Instituição", "Código", "Nome", "Quantidade", "Preço",
+            "Valor da posição", "Nota", "Consenso dos analistas",
+            "Preço-alvo dos analistas", "Variação até o preço-alvo"
         ]
     );
     assert.equal(body.children.length, 10);
@@ -595,4 +595,15 @@ test("formats the last import date and time returned by the dashboard", () => {
 
     assert.match(formatted, /28\/07\/2026/);
     assert.match(formatted, /14:35/);
+});
+
+test("formats currencies according to the approved official standard", () => {
+    assert.equal(context.formatCurrency("2976187.35", "USD"), "US$ 2,976,187.35");
+    assert.equal(context.formatCurrency("86036.66", "EUR"), "€ 86,036.66");
+    assert.equal(context.formatCurrency("2976187.35", "BRL"), "R$ 2.976.187,35");
+});
+
+test("formats quantities and percentages in Brazilian Portuguese", () => {
+    assert.equal(context.formatQuantity("2976.18735"), "2.976,18735");
+    assert.equal(context.formatPercentage("12.5"), "12,50%");
 });
