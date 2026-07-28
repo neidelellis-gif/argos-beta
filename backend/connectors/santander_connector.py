@@ -1,9 +1,12 @@
 import csv
 import re
 import zipfile
+from decimal import Decimal
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence
 from xml.etree import ElementTree
+
+from backend.models import PortfolioPosition
 
 SUPPORTED_EXTENSIONS = {".xls", ".xlsx"}
 SANTANDER_EXCEL_SOURCE = "Santander Excel Export"
@@ -390,6 +393,33 @@ def _find_block_headers(rows):
     return headers
 
 
+def _to_portfolio_position(position, source_file):
+    """Converte uma posição lida do Santander para o MPU."""
+    identifier = position.get("symbol") or None
+    account = position.get("account") or None
+
+    return PortfolioPosition(
+        institution=position["institution"],
+        account=account,
+        asset_class=position["asset_class"],
+        asset_subclass=None,
+        asset_name=position["name"],
+        identifier=identifier,
+        identifier_type=None,
+        quantity=None,
+        unit_price=None,
+        market_value=Decimal(str(position["value"])),
+        currency=position["currency"],
+        portfolio_weight=(
+            Decimal(str(position["weight"]))
+            if position.get("weight") is not None
+            else None
+        ),
+        reference_date=None,
+        source_file=source_file,
+    )
+
+
 def load_positions(file_path=None):
     path = Path(file_path)
     if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
@@ -447,4 +477,7 @@ def load_positions(file_path=None):
     if not positions:
         raise ValueError("Nenhuma posição Santander foi encontrada no arquivo.")
 
-    return positions
+    return [
+        _to_portfolio_position(position, path.name)
+        for position in positions
+    ]
