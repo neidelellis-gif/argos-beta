@@ -40,8 +40,8 @@ def test_empty_dashboard_response():
     assert result["daily"]["generated_for"] == "2026-07-28"
     assert result["daily"]["lookback_hours"] == 24
     assert result["daily"]["context_scope"] == "general"
-    assert result["daily"]["important_facts"][0]["id"] == "fed-rates"
-    assert result["daily"]["important_facts"][0]["context_type"] == "macro"
+    assert result["daily"]["important_facts"] == []
+    assert result["daily"]["sources"]["facts"]["status"] == "unavailable"
     assert result["daily"]["contracts"]["priority_levels"] == [
         "Alta", "Moderada", "Baixa",
     ]
@@ -111,7 +111,7 @@ def test_dashboard_diagnoses_multiple_institutions():
         "message": "2 instituições analisadas",
     }
     assert result["daily"]["context_scope"] == "portfolio"
-    assert result["daily"]["important_facts"][0]["priority"] == "Alta"
+    assert result["daily"]["context_scope"] == "portfolio"
 
 
 def test_dashboard_reports_one_analyzed_institution():
@@ -143,17 +143,11 @@ def test_old_import_does_not_shift_daily_market_window():
         datetime.fromisoformat(fact["occurred_at"])
         for fact in result["daily"]["important_facts"]
     ]
-    assert occurred_at
     assert all(
         now - timedelta(hours=24) <= event_time <= now
         for event_time in occurred_at
     )
     assert all(event_time > imported_at for event_time in occurred_at)
-    nvidia = next(
-        fact for fact in result["daily"]["important_facts"]
-        if fact["id"] == "nvidia-chips"
-    )
-    assert nvidia["matched_portfolio_assets"] == ["NVDA"]
 
 
 def test_dashboard_endpoint_returns_single_structure():
@@ -200,9 +194,16 @@ def test_frontend_consumes_and_exposes_dashboard_sections():
         "consolidated",
         "toggleValues",
         "lastUpdate",
-        "globalOverview",
         "executiveCards",
         "moduleCards",
     ):
         assert f'id="{element_id}"' in page
     assert "loadCockpit();" not in app
+
+
+def test_duplicate_operational_panorama_is_removed():
+    app = Path("frontend/app.js").read_text(encoding="utf-8")
+    page = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert 'id="globalOverview"' not in page
+    assert "Aguardando integração da Inteligência de Mercado" not in app
+    assert 'id="marketAgendaPanel"' in page

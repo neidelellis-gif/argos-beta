@@ -623,21 +623,6 @@ test("translates and pluralizes portfolio warnings", () => {
     );
 });
 
-test("presents the pending panorama with direct language", () => {
-    assert.deepEqual(
-        JSON.parse(JSON.stringify(context.formatPanorama({
-            title: "Estado da integração de panorama",
-            message: "Aguardando inteligência de mercado",
-            status: "waiting"
-        }))),
-        {
-            title: "Panorama Global",
-            summary: "Aguardando integração da Inteligência de Mercado.",
-            status: "waiting"
-        }
-    );
-});
-
 test("formats currencies according to the approved official standard", () => {
     assert.equal(context.formatCurrency("2976187.35", "USD"), "US$ 2,976,187.35");
     assert.equal(context.formatCurrency("86036.66", "EUR"), "€ 86,036.66");
