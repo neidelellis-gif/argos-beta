@@ -597,10 +597,52 @@ test("formats the last import date and time returned by the dashboard", () => {
     assert.match(formatted, /14:35/);
 });
 
+test("uses a natural empty state when no import has been completed", () => {
+    assert.equal(context.formatUpdatedAt(null), "Nenhuma importação realizada");
+    assert.equal(context.formatUpdatedAt("invalid"), "Nenhuma importação realizada");
+});
+
+test("pluralizes interface counters in Portuguese", () => {
+    assert.equal(context.formatCount(0, "item", "itens"), "0 itens");
+    assert.equal(context.formatCount(1, "item", "itens"), "1 item");
+    assert.equal(context.formatCount(2, "item", "itens"), "2 itens");
+});
+
+test("translates and pluralizes portfolio warnings", () => {
+    assert.equal(
+        context.translateWarning("Santander: 1 duplicated asset(s)"),
+        "Santander: 1 ativo duplicado"
+    );
+    assert.equal(
+        context.translateWarning("UBS: 15 position(s) without symbol"),
+        "UBS: 15 posições sem ticker identificado"
+    );
+    assert.equal(
+        context.translateWarning("1 position(s) without symbol"),
+        "1 posição sem ticker identificado"
+    );
+});
+
+test("presents the pending panorama with direct language", () => {
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.formatPanorama({
+            title: "Estado da integração de panorama",
+            message: "Aguardando inteligência de mercado",
+            status: "waiting"
+        }))),
+        {
+            title: "Panorama Global",
+            summary: "Aguardando integração da Inteligência de Mercado.",
+            status: "waiting"
+        }
+    );
+});
+
 test("formats currencies according to the approved official standard", () => {
     assert.equal(context.formatCurrency("2976187.35", "USD"), "US$ 2,976,187.35");
     assert.equal(context.formatCurrency("86036.66", "EUR"), "€ 86,036.66");
     assert.equal(context.formatCurrency("2976187.35", "BRL"), "R$ 2.976.187,35");
+    assert.equal(context.formatCurrency("invalid", "BRL"), "Valor não informado");
 });
 
 test("formats quantities and percentages in Brazilian Portuguese", () => {
