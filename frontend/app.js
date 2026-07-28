@@ -507,7 +507,10 @@ function getCsvDataRows(rows) {
 
 function renderPortfolioFileSummary(container, rowCount, headers, source) {
     const summary = document.createElement("p");
-    summary.textContent = `${rowCount} linhas · ${headers.length} colunas`;
+    summary.textContent = `${formatCount(rowCount, "linha")} · ${formatCount(
+        headers.length,
+        "coluna"
+    )}`;
 
     const columns = document.createElement("p");
     columns.textContent = `Cabeçalhos: ${headers.join(", ")}`;
@@ -533,13 +536,13 @@ function renderPortfolioFileError(container) {
 
 function formatUpdatedAt(value) {
     if (!value) {
-        return "Não disponível";
+        return "Nenhuma importação realizada";
     }
 
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
-        return "Não disponível";
+        return "Nenhuma importação realizada";
     }
 
     return new Intl.DateTimeFormat("pt-BR", {
@@ -549,6 +552,38 @@ function formatUpdatedAt(value) {
         hour: "2-digit",
         minute: "2-digit"
     }).format(date);
+}
+
+function formatCount(value, singular, plural = `${singular}s`) {
+    return `${value} ${Number(value) === 1 ? singular : plural}`;
+}
+
+function translateWarning(warning) {
+    return warning
+        .replace(
+            /(\d+) duplicated asset\(s\)/gi,
+            (_message, count) => formatCount(count, "ativo duplicado", "ativos duplicados")
+        )
+        .replace(
+            /(\d+) position\(s\) without symbol/gi,
+            (_message, count) => `${formatCount(count, "posição", "posições")} sem ticker identificado`
+        );
+}
+
+function formatPanorama(module) {
+    const waitingMessages = new Set([
+        "Estado da integração de panorama",
+        "Aguardando inteligência de mercado",
+        "Aguardando integração da Inteligência de Mercado."
+    ]);
+
+    return {
+        title: "Panorama Global",
+        summary: waitingMessages.has(module.message)
+            ? "Aguardando integração da Inteligência de Mercado."
+            : module.message,
+        status: module.status
+    };
 }
 
 function formatDashboardDate(value) {
@@ -563,7 +598,7 @@ function formatDashboardDate(value) {
 function formatCurrency(value, currency) {
     const number = Number(value);
     if (!Number.isFinite(number)) {
-        return "Não disponível";
+        return "Valor não informado";
     }
     const locale = currency === "BRL" ? "pt-BR" : "en-US";
     const symbols = { USD: "US$", EUR: "€", BRL: "R$" };
@@ -608,7 +643,7 @@ function createMetric(label, value, sensitive = false) {
 function appendTotals(container, totals) {
     const entries = Object.entries(totals || {});
     if (entries.length === 0) {
-        container.append(createMetric("Totais por moeda", "Não disponível"));
+        container.append(createMetric("Totais por moeda", "Nenhum total informado"));
         return;
     }
     entries.forEach(([currency, total]) => {
@@ -623,7 +658,7 @@ function appendTotals(container, totals) {
 function appendWarnings(container, warnings) {
     container.append(createMetric(
         "Avisos",
-        warnings.length ? warnings.join(" · ") : "Nenhum"
+        warnings.length ? warnings.map(translateWarning).join(" · ") : "Nenhum"
     ));
 }
 
@@ -651,8 +686,7 @@ function renderDashboard(data) {
         data.labels.last_update;
     document.getElementById("overviewLabel").textContent =
         data.labels.overview;
-    document.getElementById("overviewTitle").textContent =
-        data.labels.overview_title;
+    document.getElementById("overviewTitle").textContent = "Panorama Global";
     document.getElementById("situationLabel").textContent =
         data.labels.daily_situation;
     document.getElementById("situationTitle").textContent =
@@ -704,15 +738,11 @@ function renderDashboard(data) {
         executiveCards.appendChild(createExecutiveCard(item, index));
     });
     document.getElementById("executiveCount").textContent =
-        `${data.daily_situation.length} itens`;
+        formatCount(data.daily_situation.length, "item", "itens");
 
     const overview = data.modules.find((module) => module.id === "overview");
     if (overview) {
-        globalOverview.appendChild(createOverviewCard({
-            title: overview.title,
-            summary: overview.message,
-            status: overview.status
-        }));
+        globalOverview.appendChild(createOverviewCard(formatPanorama(overview)));
     }
     data.modules.forEach((module) => {
         moduleCards.appendChild(createModuleCard(module));
