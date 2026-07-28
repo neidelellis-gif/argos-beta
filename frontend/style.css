@@ -474,6 +474,69 @@ h3 {
     color: var(--warning);
 }
 
+.dashboard-section {
+    display: grid;
+    gap: 24px;
+    margin-bottom: 24px;
+    padding: 28px;
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    background: var(--surface);
+}
+
+.dashboard-toolbar,
+.dashboard-block > h2 {
+    margin: 0;
+}
+
+.dashboard-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.dashboard-version {
+    margin: 7px 0 0;
+    color: var(--text-muted);
+}
+
+.values-toggle {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    color: var(--text-primary);
+    background: transparent;
+    cursor: pointer;
+}
+
+.facts-list {
+    margin: 14px 0 0;
+    padding-left: 20px;
+    color: var(--text-secondary);
+}
+
+.institutions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.institution-card,
+.consolidated-card {
+    padding: 18px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--background);
+}
+
+.institution-card h3,
+.institution-card p,
+.consolidated-card p {
+    margin: 0 0 9px;
+}
+
 @media (max-width: 980px) {
     .app-shell {
         grid-template-columns: 1fr;
@@ -517,7 +580,8 @@ h3 {
     }
 
     .executive-grid,
-    .modules-grid {
+    .modules-grid,
+    .institutions-grid {
         grid-template-columns: 1fr;
     }
 
