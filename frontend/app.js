@@ -195,12 +195,20 @@ function setupPortfolioFilePicker() {
     const fileSummary = document.getElementById("portfolioFileSummary");
     const previewSection = document.getElementById("tipRanksPreview");
     const previewContent = document.getElementById("tipRanksPreviewContent");
+    const importButton = document.getElementById("importPortfolios");
+    const progress = document.getElementById("importProgress");
+    const progressBar = document.getElementById("importProgressBar");
+    const progressText = document.getElementById("importProgressText");
 
     fileInput.addEventListener("change", async () => {
         const selectedFile = fileInput.files[0];
-        fileName.textContent = selectedFile
-            ? selectedFile.name
+        const selectedFiles = Array.from(fileInput.files || []);
+        fileName.textContent = selectedFiles.length
+            ? selectedFiles.map((file) => file.name).join(", ")
             : "Nenhum arquivo selecionado";
+        if (importButton) {
+            importButton.disabled = selectedFiles.length === 0;
+        }
         fileSummary.replaceChildren();
         hideTipRanksPreview(previewSection, previewContent);
 
@@ -271,6 +279,36 @@ function setupPortfolioFilePicker() {
             renderPortfolioFileError(fileSummary);
         }
     });
+
+    if (importButton) {
+        importButton.addEventListener("click", async () => {
+            const files = Array.from(fileInput.files || []);
+            const formData = new FormData();
+            files.forEach((file) => formData.append("files", file, file.name));
+            importButton.disabled = true;
+            progress.hidden = false;
+            progressBar.value = 25;
+            progressText.textContent = "Enviando arquivos...";
+            try {
+                const response = await fetch("/api/portfolios/import", {
+                    method: "POST",
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.error || "Falha na importação.");
+                }
+                progressBar.value = 100;
+                progressText.textContent = "Importação concluída.";
+                await loadDashboard();
+            } catch (error) {
+                progressBar.value = 0;
+                progressText.textContent = error.message;
+            } finally {
+                importButton.disabled = files.length === 0;
+            }
+        });
+    }
 }
 
 function readFileAsBase64(file) {

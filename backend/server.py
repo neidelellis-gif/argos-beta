@@ -1,7 +1,10 @@
 import base64
+from email.parser import BytesParser
+from email.policy import default as email_policy
 import http.server
 import json
 import os
+import secrets
 import socketserver
 import sys
 import tempfile
@@ -14,7 +17,8 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(project_root))
 
 from backend.daily.engine import get_daily_status
-from backend.dashboard import load_dashboard
+from backend.dashboard import build_dashboard, load_dashboard
+from backend.portfolio_import import import_portfolios
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -23,6 +27,8 @@ DATA_DIR = PROJECT_ROOT / "data"
 FACTS_FILE = DATA_DIR / "facts.json"
 COCKPIT_FILE = DATA_DIR / "cockpit.json"
 PORT = 8080
+SESSION_COOKIE = "argos_session"
+SESSION_PORTFOLIOS = {}
 
 
 def _decode_file_payload(file_payload: Dict[str, str]) -> bytes:
@@ -231,7 +237,14 @@ class ArgosRequestHandler(
     def do_GET(self):
         if self.path == "/api/dashboard":
             try:
-                self._send_json(load_dashboard(), status=200)
+                session_id = self._session_id()
+                positions = SESSION_PORTFOLIOS.get(session_id)
+                dashboard = (
+                    load_dashboard()
+                    if positions is None
+                    else build_dashboard(positions)
+                )
+                self._send_json(dashboard, status=200)
             except Exception as exc:
                 self._send_json(
                     {"error": str(exc)},
@@ -285,6 +298,10 @@ class ArgosRequestHandler(
         super().do_GET()
 
     def do_POST(self):
+        if self.path == "/api/portfolios/import":
+            self._import_portfolios()
+            return
+
         handlers = {
             "/api/analyze": analyze_request,
             "/api/santander/inspect": inspect_santander_request,
@@ -325,25 +342,75 @@ class ArgosRequestHandler(
 
         try:
             response = handlers[self.path](payload)
-
-            self._send_json(
-                response,
-                status=200
-            )
-
+            self._send_json(response, status=200)
         except Exception as exc:
             self._send_json(
-                {
-                    "ok": False,
-                    "error": str(exc)
-                },
+                {"ok": False, "error": str(exc)},
                 status=400
             )
+
+    def _session_id(self):
+        cookie = self.headers.get("Cookie", "")
+        for item in cookie.split(";"):
+            name, separator, value = item.strip().partition("=")
+            if separator and name == SESSION_COOKIE and value:
+                return value
+        return None
+
+    def _multipart_files(self):
+        content_type = self.headers.get("Content-Type", "")
+        if not content_type.lower().startswith("multipart/form-data;"):
+            raise ValueError("Use multipart/form-data para enviar os arquivos.")
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length <= 0:
+            raise ValueError("Envie ao menos um arquivo para importação.")
+        body = self.rfile.read(content_length)
+        message = BytesParser(policy=email_policy).parsebytes(
+            f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode()
+            + body
+        )
+        return [
+            (part.get_filename(), part.get_payload(decode=True))
+            for part in message.iter_parts()
+            if part.get_content_disposition() == "form-data"
+            and part.get_filename()
+        ]
+
+    def _import_portfolios(self):
+        paths = []
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                for index, (file_name, content) in enumerate(
+                    self._multipart_files()
+                ):
+                    safe_name = Path(file_name).name
+                    upload_directory = Path(directory) / str(index)
+                    upload_directory.mkdir()
+                    path = upload_directory / safe_name
+                    path.write_bytes(content)
+                    paths.append(path)
+
+                result = import_portfolios(paths)
+                session_id = self._session_id() or secrets.token_urlsafe(24)
+                SESSION_PORTFOLIOS[session_id] = result.pop("positions")
+                self._send_json(
+                    {"ok": True, **result},
+                    status=200,
+                    extra_headers={
+                        "Set-Cookie": (
+                            f"{SESSION_COOKIE}={session_id}; Path=/; "
+                            "HttpOnly; SameSite=Strict"
+                        )
+                    },
+                )
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, status=400)
 
     def _send_json(
         self,
         data: Dict,
-        status: int = 200
+        status: int = 200,
+        extra_headers: Optional[Dict[str, str]] = None,
     ) -> None:
         response_body = json.dumps(
             data,
@@ -356,6 +423,9 @@ class ArgosRequestHandler(
             "Content-Type",
             "application/json; charset=utf-8"
         )
+
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
 
         self.send_header(
             "Content-Length",

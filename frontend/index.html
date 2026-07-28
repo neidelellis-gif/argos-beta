@@ -132,13 +132,14 @@
                 <label
                     class="file-picker-button"
                     for="portfolioFile">
-                    Selecionar arquivo
+                        Selecionar arquivos
                 </label>
 
                 <input
                     id="portfolioFile"
                     class="file-picker-input"
                     type="file"
+                    multiple
                     accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
 
                 <div class="file-picker-details">
@@ -155,6 +156,15 @@
                     </div>
                 </div>
 
+                <button id="importPortfolios" class="import-button" type="button" disabled>
+                    Importar
+                </button>
+
+            </div>
+
+            <div id="importProgress" class="import-progress" aria-live="polite" hidden>
+                <progress id="importProgressBar" max="100" value="0"></progress>
+                <span id="importProgressText"></span>
             </div>
 
         </section>
