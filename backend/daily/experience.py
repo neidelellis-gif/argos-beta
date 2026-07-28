@@ -54,9 +54,9 @@ def build_daily_experience(
         topic_fact = next((fact for fact in facts if fact["category"] == topic), None)
         panorama.append({
             "topic": topic,
-            "status": "Atualizado" if topic_fact else "Sem fato nas últimas 24h",
+            "status": "Atualizado" if topic_fact else "Sem fatos relevantes",
             "summary": topic_fact["summary"] if topic_fact else (
-                "Nenhum fato estruturado disponível nesta janela."
+                "Nenhum fato relevante identificado nas últimas 24 horas."
             ),
         })
 
@@ -69,12 +69,16 @@ def build_daily_experience(
         "priorities": priorities,
         "analyses": analyses,
         "global_overview": panorama,
-        "market_agenda": [],
+        "market_agenda": context["agenda"],
+        "sources": context["sources"],
         "empty_states": {
-            "market_agenda": (
-                "Nenhum evento de mercado disponível. A integração de "
-                "calendário será adicionada em etapa futura."
-            )
+            "important_facts": (
+                "Fonte externa indisponível. O último contexto válido será "
+                "reutilizado automaticamente quando existir."
+                if context["sources"]["facts"]["status"] == "unavailable"
+                else "Nenhum fato relevante identificado nas últimas 24 horas."
+            ),
+            "market_agenda": "Nenhum evento relevante previsto.",
         },
         "contracts": {
             "priority_levels": list(PRIORITY_LEVELS),
@@ -84,6 +88,7 @@ def build_daily_experience(
                 "Bancos centrais",
                 "Inflação",
                 "Emprego",
+                "PIB",
                 "Dividendos",
                 "Vencimentos",
             ],

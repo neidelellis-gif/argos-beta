@@ -8,6 +8,7 @@ __pycache__/
 # Ambiente virtual
 .venv/
 venv/
+.env
 
 # VS Code
 .vscode/
@@ -21,6 +22,7 @@ venv/
 # Arquivos temporários
 tmp/
 temp/
+.cache/
 # Dados do ARGOS
 backend/connectors/*.csv
 backend/portfolio/*.csv

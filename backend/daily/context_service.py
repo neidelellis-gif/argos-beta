@@ -1,9 +1,12 @@
-"""Market fact aggregation and portfolio context for the ARGOS daily flow."""
+"""Provider-independent aggregation for the ARGOS daily flow."""
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, Optional, Sequence, Tuple
 
+from backend.daily.providers import ExternalDataResult
+from backend.daily.registry import build_default_registry
+from backend.daily.cache import DailyCache
 from backend.models import PortfolioPosition
 
 PRIORITY_LEVELS = ("Alta", "Moderada", "Baixa")
@@ -12,8 +15,6 @@ _PRIORITY_SCORE = {"Alta": 3, "Moderada": 2, "Baixa": 1}
 
 @dataclass(frozen=True)
 class MarketEvent:
-    """Structured input supplied by a market source."""
-
     identifier: str
     title: str
     category: str
@@ -25,62 +26,37 @@ class MarketEvent:
     macro_impact: bool = False
 
 
-def mock_market_events(now: datetime) -> Tuple[MarketEvent, ...]:
-    """Return deterministic structured mocks relative to the requested instant."""
-    return (
-        MarketEvent(
-            "fed-rates", "Federal Reserve reforça cautela com juros",
-            "Macroeconomia", "Mock Federal Reserve", now - timedelta(hours=2),
-            "Alta", "Sinais de juros altos por mais tempo afetam ativos globais.",
-            macro_impact=True,
-        ),
-        MarketEvent(
-            "nvidia-chips", "NVIDIA amplia demanda por chips de IA",
-            "Tecnologia", "Mock mercado de ações", now - timedelta(hours=4),
-            "Moderada", "Novos pedidos sustentam a atenção sobre o setor de semicondutores.",
-            ("NVDA", "NVIDIA"),
-        ),
-        MarketEvent(
-            "ethereum-network", "Ethereum registra maior atividade na rede",
-            "Criptoativos", "Mock mercado cripto", now - timedelta(hours=6),
-            "Moderada", "O volume de transações do Ethereum avançou nas últimas horas.",
-            ("ETH", "ETHEREUM"),
-        ),
-        MarketEvent(
-            "global-equities", "Bolsas globais operam com volatilidade",
-            "Mercados", "Mock mercados globais", now - timedelta(hours=8),
-            "Baixa", "Índices alternam direção diante do cenário de juros.",
-        ),
-        MarketEvent(
-            "oil-supply", "Petróleo reage a riscos de oferta",
-            "Geopolítica", "Mock mercado de energia", now - timedelta(hours=12),
-            "Baixa", "Tensões em regiões produtoras elevaram a volatilidade do petróleo.",
-            ("OIL", "PETRÓLEO", "PETROLEO"),
-        ),
-    )
+@dataclass(frozen=True)
+class AgendaEvent:
+    identifier: str
+    title: str
+    category: str
+    scheduled_at: datetime
+    source: str
+    importance: str
+    related_assets: Tuple[str, ...] = ()
+    time_explicit: bool = True
 
 
 def _position_terms(position: PortfolioPosition) -> Tuple[str, ...]:
-    return tuple(
-        value.strip().upper()
-        for value in (position.identifier, position.asset_name)
-        if value and value.strip()
-    )
+    values = [position.identifier, position.asset_name]
+    terms = {value.strip().upper() for value in values if value and value.strip()}
+    expanded = set(terms)
+    for term in terms:
+        if term in {"ETH", "ETHB"} or "ETHEREUM" in term:
+            expanded.update({"ETH", "ETHB", "ETHEREUM"})
+        if term == "NVDA" or "NVIDIA" in term:
+            expanded.update({"NVDA", "NVIDIA"})
+    return tuple(expanded)
 
 
-def _matching_assets(
-    event: MarketEvent,
-    positions: Sequence[PortfolioPosition],
-) -> Tuple[str, ...]:
-    event_terms = tuple(asset.upper() for asset in event.related_assets)
+def _matching_assets(related_assets, positions: Sequence[PortfolioPosition]) -> Tuple[str, ...]:
+    event_terms = {asset.strip().upper() for asset in related_assets if asset.strip()}
     matches = []
     for position in positions:
-        terms = _position_terms(position)
-        if any(
-            event_term == term or event_term in term or term in event_term
-            for event_term in event_terms
-            for term in terms
-        ):
+        # Only exact normalized aliases are direct relationships. Substring matching
+        # would incorrectly connect funds and ETFs to their underlying themes.
+        if event_terms.intersection(_position_terms(position)):
             label = position.identifier or position.asset_name
             if label and label not in matches:
                 matches.append(label)
@@ -89,81 +65,109 @@ def _matching_assets(
 
 def _effective_priority(base_priority: str, has_portfolio_match: bool) -> str:
     if base_priority not in _PRIORITY_SCORE:
-        raise ValueError(
-            f"Prioridade inválida: {base_priority}. Use Alta, Moderada ou Baixa."
-        )
+        raise ValueError(f"Prioridade inválida: {base_priority}. Use Alta, Moderada ou Baixa.")
     score = _PRIORITY_SCORE[base_priority] + int(has_portfolio_match)
     return PRIORITY_LEVELS[max(0, 3 - min(score, 3))]
 
 
 class DailyContextService:
-    """Build a single prioritized daily context from structured events."""
+    """Build a prioritized context from normalized external data."""
 
-    def __init__(self, events: Optional[Iterable[MarketEvent]] = None):
-        self._events = tuple(events) if events is not None else None
-
-    def generate(
+    def __init__(
         self,
-        positions: Iterable[PortfolioPosition],
-        now: Optional[datetime] = None,
-    ) -> Dict:
+        events=None,
+        agenda=None,
+        registry=None,
+        cache=None,
+    ):
+        self._events = tuple(events) if events is not None else None
+        self._agenda = tuple(agenda) if agenda is not None else None
+        self._registry = registry
+        self._cache = cache
+
+    def _load(self, kind, positions, reference):
+        explicit = self._events if kind == "facts" else self._agenda
+        if explicit is not None:
+            return ExternalDataResult("available" if explicit else "empty", explicit, False)
+        cache = self._cache or DailyCache()
+        cached = cache.get_fresh(kind, reference)
+        if cached is not None:
+            return cached
+        try:
+            registry = self._registry or build_default_registry()
+            result = getattr(registry, f"fetch_{kind}")(reference, positions)
+        except Exception as exc:
+            result = ExternalDataResult("unavailable", (), False, str(exc))
+        if result.status in {"available", "empty"}:
+            cache.put(kind, result, reference)
+            return result
+        stale = cache.get_last_valid(kind)
+        if stale is not None:
+            return ExternalDataResult("unavailable", stale.items, True, result.error)
+        return result
+
+    def generate(self, positions: Iterable[PortfolioPosition], now: Optional[datetime] = None) -> Dict:
         reference = now or datetime.now(timezone.utc)
         if reference.tzinfo is None:
             reference = reference.replace(tzinfo=timezone.utc)
-        normalized_positions = tuple(positions)
-        events = self._events if self._events is not None else mock_market_events(reference)
+        positions = tuple(positions)
+        facts_result = self._load("facts", positions, reference)
+        agenda_result = self._load("agenda", positions, reference)
         cutoff = reference - timedelta(hours=24)
         facts = []
-
-        for event in events:
+        for event in facts_result.items:
             occurred_at = event.occurred_at
             if occurred_at.tzinfo is None:
                 occurred_at = occurred_at.replace(tzinfo=timezone.utc)
             if not cutoff <= occurred_at <= reference:
                 continue
-            matches = _matching_assets(event, normalized_positions)
+            matches = _matching_assets(event.related_assets, positions)
             priority = _effective_priority(event.priority, bool(matches))
             if matches:
-                context = "Relacionado à carteira: " + ", ".join(matches)
-                context_type = "portfolio"
+                context, context_type = "Relacionado à carteira: " + ", ".join(matches), "portfolio"
             elif event.macro_impact:
-                context = (
-                    "Impacto macro para as carteiras"
-                    if normalized_positions
-                    else "Contexto macro geral de mercado"
-                )
+                context = "Impacto macro para as carteiras" if positions else "Contexto macro geral de mercado"
                 context_type = "macro"
             else:
-                context = "Contexto geral de mercado"
-                context_type = "general"
+                context, context_type = "Contexto geral de mercado", "general"
             facts.append({
-                "id": event.identifier,
-                "title": event.title,
-                "category": event.category,
-                "source": event.source,
-                "occurred_at": occurred_at.isoformat(),
-                "priority": priority,
-                "base_priority": event.priority,
-                "summary": event.summary,
-                "related_assets": list(event.related_assets),
-                "matched_portfolio_assets": list(matches),
-                "context": context,
-                "context_type": context_type,
-                "_occurred_at": occurred_at,
+                "id": event.identifier, "title": event.title, "category": event.category,
+                "source": event.source, "occurred_at": occurred_at.isoformat(),
+                "priority": priority, "base_priority": event.priority, "summary": event.summary,
+                "related_assets": list(event.related_assets), "matched_portfolio_assets": list(matches),
+                "context": context, "context_type": context_type, "_time": occurred_at,
             })
+        facts.sort(key=lambda item: (-_PRIORITY_SCORE[item["priority"]], -item["_time"].timestamp()))
+        for item in facts:
+            item.pop("_time")
+        facts = facts[:5]
 
-        facts.sort(
-            key=lambda fact: (
-                -_PRIORITY_SCORE[fact["priority"]],
-                -fact["_occurred_at"].timestamp(),
-            )
-        )
-        for fact in facts:
-            fact.pop("_occurred_at")
-        selected = facts[:5]
+        agenda = []
+        for event in agenda_result.items:
+            scheduled_at = event.scheduled_at
+            if scheduled_at.tzinfo is None:
+                scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
+            if scheduled_at < reference:
+                continue
+            matches = _matching_assets(event.related_assets, positions)
+            agenda.append({
+                "id": event.identifier, "title": event.title, "event_type": event.category,
+                "category": event.category, "scheduled_at": scheduled_at.isoformat(),
+                "source": event.source, "importance": event.importance,
+                "time_explicit": event.time_explicit,
+                "related_assets": list(event.related_assets), "matched_portfolio_assets": list(matches),
+                "scope": "portfolio" if matches else "general",
+                "summary": ("Relacionado à carteira: " + ", ".join(matches)) if matches else "Evento geral de mercado",
+                "_time": scheduled_at,
+            })
+        agenda.sort(key=lambda item: (not bool(item["matched_portfolio_assets"]), item["_time"]))
+        for item in agenda:
+            item.pop("_time")
         return {
-            "generated_at": reference.isoformat(),
-            "lookback_hours": 24,
-            "has_portfolio_context": bool(normalized_positions),
-            "facts": selected,
+            "generated_at": reference.isoformat(), "lookback_hours": 24,
+            "has_portfolio_context": bool(positions), "facts": facts, "agenda": agenda,
+            "sources": {
+                "facts": {"status": facts_result.status if facts_result.status == "unavailable" or facts else "empty", "cached": facts_result.cached, "error": facts_result.error},
+                "agenda": {"status": agenda_result.status if agenda_result.status == "unavailable" or agenda else "empty", "cached": agenda_result.cached, "error": agenda_result.error},
+            },
         }

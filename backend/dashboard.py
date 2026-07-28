@@ -78,6 +78,23 @@ def build_dashboard(
             {"status": "waiting", "message": portfolio_message}
         ]
 
+    daily = build_daily_experience(
+        positions,
+        current_date=current_date,
+        now=now,
+    )
+    fact_status = daily["sources"]["facts"]["status"]
+    agenda_status = daily["sources"]["agenda"]["status"]
+    overview_module = {
+        "id": "overview",
+        "title": "Panorama",
+        "status": "unavailable" if fact_status == "unavailable" else "completed",
+        "message": (
+            "Indisponível" if fact_status == "unavailable"
+            else "Concluído" if fact_status == "available"
+            else "Sem fatos relevantes"
+        ),
+    }
     modules = [
         {
             "id": "portfolios",
@@ -85,17 +102,14 @@ def build_dashboard(
             "status": "completed" if has_import else "waiting",
             "message": portfolio_message,
         },
-        {
-            "id": "overview",
-            "title": "Panorama",
-            "status": "waiting",
-            "message": "Aguardando inteligência de mercado",
-        },
+        overview_module,
         {
             "id": "agenda",
             "title": "Agenda",
-            "status": "waiting",
-            "message": "Aguardando calendário",
+            "status": "unavailable" if agenda_status == "unavailable" else "completed",
+            "message": "Indisponível" if agenda_status == "unavailable" else (
+                "Concluído" if agenda_status == "available" else "Sem eventos relevantes"
+            ),
         },
         {
             "id": "market",
@@ -110,15 +124,9 @@ def build_dashboard(
             "current_date": (current_date or date.today()).isoformat(),
             "version": DASHBOARD_VERSION,
         },
-        "daily": build_daily_experience(
-            positions,
-            current_date=current_date,
-            now=now,
-        ),
+        "daily": daily,
         "labels": {
             "last_update": "Última importação",
-            "overview": "Panorama",
-            "overview_title": "Estado da integração de panorama",
             "daily_situation": "Situação do Dia",
             "daily_situation_title": "Estado operacional da sessão",
             "modules": "Módulos",
