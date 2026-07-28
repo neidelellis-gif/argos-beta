@@ -74,6 +74,7 @@ const TIPRANKS_PREVIEW_COLUMNS = [
 ];
 
 let importedPortfolioPositions = [];
+let dashboardValuesVisible = false;
 
 function identifySantanderExcelSource(fileName) {
     return /^your-positions-\d+-\d+\.xlsx$/i.test(fileName)
@@ -476,6 +477,128 @@ function formatUpdatedAt(value) {
     }).format(date);
 }
 
+function formatDashboardDate(value) {
+    const date = new Date(`${value}T12:00:00`);
+    return new Intl.DateTimeFormat("pt-BR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+    }).format(date);
+}
+
+function createMetric(label, value, sensitive = false) {
+    const paragraph = document.createElement("p");
+    const title = document.createElement("strong");
+    const content = document.createElement("span");
+    title.textContent = `${label}: `;
+    content.textContent = String(value);
+    if (sensitive) {
+        content.className = "financial-value";
+        content.dataset.value = String(value);
+        if (!dashboardValuesVisible) {
+            content.textContent = "••••";
+        }
+    }
+    paragraph.append(title, content);
+    return paragraph;
+}
+
+function appendTotals(container, totals) {
+    const entries = Object.entries(totals || {});
+    if (entries.length === 0) {
+        container.append(createMetric("Totais por moeda", "Não disponível"));
+        return;
+    }
+    entries.forEach(([currency, total]) => {
+        container.append(createMetric(`Total ${currency}`, total, true));
+    });
+}
+
+function appendWarnings(container, warnings) {
+    container.append(createMetric(
+        "Avisos",
+        warnings.length ? warnings.join(" · ") : "Nenhum"
+    ));
+}
+
+function renderDashboard(data) {
+    const facts = document.getElementById("importantFacts");
+    const institutions = document.getElementById("institutions");
+    const consolidated = document.getElementById("consolidated");
+    facts.replaceChildren();
+    institutions.replaceChildren();
+    consolidated.replaceChildren();
+
+    document.getElementById("currentDate").textContent =
+        formatDashboardDate(data.header.current_date);
+    document.getElementById("dashboardVersion").textContent =
+        `Versão ${data.header.version}`;
+
+    data.important_facts.forEach((fact) => {
+        const item = document.createElement("li");
+        item.textContent = fact;
+        facts.append(item);
+    });
+
+    if (data.institutions.length === 0) {
+        institutions.append(createMetric(
+            "Instituições",
+            "Nenhuma posição disponível"
+        ));
+    }
+    data.institutions.forEach((institution) => {
+        const card = document.createElement("article");
+        card.className = "institution-card";
+        const title = document.createElement("h3");
+        title.textContent = institution.name;
+        card.append(
+            title,
+            createMetric("Posições", institution.position_count),
+            createMetric(
+                "Moedas",
+                institution.currencies.join(", ") || "Nenhuma"
+            )
+        );
+        appendTotals(card, institution.totals_by_currency);
+        appendWarnings(card, institution.warnings);
+        institutions.append(card);
+    });
+
+    consolidated.append(
+        createMetric("Instituições", data.consolidated.institution_count),
+        createMetric("Posições", data.consolidated.position_count),
+        createMetric("Ativos únicos", data.consolidated.unique_asset_count),
+        createMetric("Ativos repetidos", data.consolidated.repeated_asset_count)
+    );
+    appendTotals(consolidated, data.consolidated.totals_by_currency);
+    appendWarnings(consolidated, data.consolidated.warnings);
+}
+
+function toggleDashboardValues() {
+    dashboardValuesVisible = !dashboardValuesVisible;
+    document.querySelectorAll(".financial-value").forEach((element) => {
+        element.textContent = dashboardValuesVisible
+            ? element.dataset.value
+            : "••••";
+    });
+    document.getElementById("toggleValues").textContent =
+        dashboardValuesVisible ? "Ocultar valores" : "Mostrar valores";
+}
+
+async function loadDashboard() {
+    try {
+        const response = await fetch("/api/dashboard", { cache: "no-store" });
+        if (!response.ok) {
+            throw new Error(`Erro HTTP ${response.status}`);
+        }
+        renderDashboard(await response.json());
+    } catch (error) {
+        console.error(error);
+        document.getElementById("institutions").innerHTML =
+            '<p class="error-message">Não foi possível carregar o dashboard.</p>';
+    }
+}
+
 function createExecutiveCard(item, index) {
     const article = document.createElement("article");
     article.className = "executive-card";
@@ -634,4 +757,9 @@ document.addEventListener("DOMContentLoaded", () => {
     setGreeting();
     setupPortfolioFilePicker();
     loadCockpit();
+    document.getElementById("toggleValues").addEventListener(
+        "click",
+        toggleDashboardValues
+    );
+    loadDashboard();
 });

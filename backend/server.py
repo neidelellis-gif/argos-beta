@@ -14,6 +14,7 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(project_root))
 
 from backend.daily.engine import get_daily_status
+from backend.dashboard import load_dashboard
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -228,6 +229,16 @@ class ArgosRequestHandler(
         super().end_headers()
 
     def do_GET(self):
+        if self.path == "/api/dashboard":
+            try:
+                self._send_json(load_dashboard(), status=200)
+            except Exception as exc:
+                self._send_json(
+                    {"error": str(exc)},
+                    status=500
+                )
+            return
+
         if self.path == "/api/cockpit":
             try:
                 response = load_cockpit()
@@ -368,7 +379,7 @@ if __name__ == "__main__":
         )
 
         print(
-            "Serving frontend, "
+            "Serving frontend, /api/dashboard, "
             "/api/cockpit, /api/facts and /api/analyze"
         )
 
