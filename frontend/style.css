@@ -323,6 +323,20 @@ h3 {
     opacity: 0.5;
 }
 
+.clear-button {
+    padding: 10px 14px;
+    border: 1px solid var(--warning);
+    border-radius: 11px;
+    background: transparent;
+    color: var(--warning);
+    cursor: pointer;
+}
+
+.clear-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 .import-progress {
     display: flex;
     align-items: center;

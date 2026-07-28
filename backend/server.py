@@ -199,7 +199,7 @@ def inspect_santander_request(data: Dict) -> Dict:
         positions = load_positions(file_path)
         return {
             "ok": True,
-            "source": "Santander Excel Export",
+            "source": "Exportação de posições Santander",
             "position_count": len(positions),
         }
     finally:
@@ -359,6 +359,16 @@ class ArgosRequestHandler(
                 status=400
             )
 
+    def do_DELETE(self):
+        if self.path != "/api/portfolios":
+            self.send_error(404, "Endpoint não encontrado")
+            return
+
+        session_id = self._session_id()
+        if session_id:
+            SESSION_PORTFOLIOS.pop(session_id, None)
+        self._send_json({"ok": True, "dashboard": build_dashboard(())})
+
     def _session_id(self):
         cookie = self.headers.get("Cookie", "")
         for item in cookie.split(";"):
@@ -403,8 +413,18 @@ class ArgosRequestHandler(
                 result = import_portfolios(paths)
                 session_id = self._session_id() or secrets.token_urlsafe(24)
                 imported_at = datetime.now(timezone.utc)
+                imported_positions = result.pop("positions")
+                imported_institutions = {
+                    position.institution for position in imported_positions
+                }
+                current_session = SESSION_PORTFOLIOS.get(session_id, {})
+                current_positions = current_session.get("positions", ())
+                preserved_positions = tuple(
+                    position for position in current_positions
+                    if position.institution not in imported_institutions
+                )
                 SESSION_PORTFOLIOS[session_id] = {
-                    "positions": result.pop("positions"),
+                    "positions": preserved_positions + imported_positions,
                     "last_import_at": imported_at,
                 }
                 result["dashboard"] = build_dashboard(

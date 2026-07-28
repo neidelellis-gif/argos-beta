@@ -10,7 +10,7 @@ const STATUS_LABELS = {
 
 const FILE_SOURCE_IDENTIFIERS = [
     {
-        source: "UBS Holdings Export",
+        source: "Exportação de posições UBS",
         matches({ headers }) {
             const normalizedHeaders = new Set(headers.map(normalizeCsvHeader));
             const ubsHeaders = [
@@ -31,7 +31,7 @@ const FILE_SOURCE_IDENTIFIERS = [
         }
     },
     {
-        source: "TipRanks Portfolio Export",
+        source: "Exportação de carteira TipRanks",
         matches({ headers }) {
             const normalizedHeaders = new Set(headers.map(normalizeCsvHeader));
             const hasAssetIdentifier = ["ticker", "symbol", "stock"].some(
@@ -63,16 +63,16 @@ const FILE_SOURCE_IDENTIFIERS = [
 ];
 
 const TIPRANKS_PREVIEW_COLUMNS = [
-    ["Institution", "institution"],
-    ["Ticker", "ticker"],
-    ["Name", "name"],
-    ["Shares", "shares"],
-    ["Price", "price"],
-    ["Holding Value", "holdingValue"],
-    ["Smart Score", "smartScore"],
-    ["Analyst Consensus", "analystConsensus"],
-    ["Analyst Price Target", "analystPriceTarget"],
-    ["Analyst Price Target %", "analystPriceTargetPercent"]
+    ["Instituição", "institution"],
+    ["Código", "ticker"],
+    ["Nome", "name"],
+    ["Quantidade", "shares"],
+    ["Preço", "price"],
+    ["Valor da posição", "holdingValue"],
+    ["Nota", "smartScore"],
+    ["Consenso dos analistas", "analystConsensus"],
+    ["Preço-alvo dos analistas", "analystPriceTarget"],
+    ["Variação até o preço-alvo", "analystPriceTargetPercent"]
 ];
 
 let importedPortfolioPositions = [];
@@ -80,7 +80,7 @@ let dashboardValuesVisible = false;
 
 function identifySantanderExcelSource(fileName) {
     return /^your-positions-\d+-\d+\.xlsx$/i.test(fileName)
-        ? "Santander Excel Export"
+        ? "Exportação de posições Santander"
         : null;
 }
 
@@ -201,6 +201,7 @@ function setupPortfolioFilePicker() {
     const progress = document.getElementById("importProgress");
     const progressBar = document.getElementById("importProgressBar");
     const progressText = document.getElementById("importProgressText");
+    const clearButton = document.getElementById("clearPortfolios");
 
     fileInput.addEventListener("change", async () => {
         const selectedFile = fileInput.files[0];
@@ -235,7 +236,7 @@ function setupPortfolioFilePicker() {
                 });
                 const result = await response.json();
                 if (!response.ok || !result.ok) {
-                    throw new Error(result.error || "Invalid Santander Excel");
+                    throw new Error(result.error || "Arquivo Santander inválido.");
                 }
                 renderSantanderPositionCount(
                     fileSummary,
@@ -259,7 +260,7 @@ function setupPortfolioFilePicker() {
 
             const source = identifyFileSource({ headers, dataRows });
 
-            if (source === "TipRanks Portfolio Export") {
+            if (source === "Exportação de carteira TipRanks") {
                 importedPortfolioPositions = transformTipRanksPortfolio({
                     headers,
                     dataRows
@@ -308,6 +309,39 @@ function setupPortfolioFilePicker() {
                 progressText.textContent = error.message;
             } finally {
                 importButton.disabled = files.length === 0;
+            }
+        });
+    }
+
+
+    if (clearButton) {
+        clearButton.addEventListener("click", async () => {
+            clearButton.disabled = true;
+            progress.hidden = false;
+            progressBar.value = 25;
+            progressText.textContent = "Limpando carteiras...";
+            try {
+                const response = await fetch("/api/portfolios", {
+                    method: "DELETE"
+                });
+                const result = await response.json();
+                if (!response.ok || !result.ok) {
+                    throw new Error("Não foi possível limpar as carteiras.");
+                }
+                fileInput.value = "";
+                fileName.textContent = "Nenhum arquivo selecionado";
+                fileSummary.replaceChildren();
+                hideTipRanksPreview(previewSection, previewContent);
+                importButton.disabled = true;
+                progressBar.value = 100;
+                progressText.textContent = "Todas as carteiras foram removidas.";
+                renderDashboard(result.dashboard);
+            } catch (error) {
+                console.error(error);
+                progressBar.value = 0;
+                progressText.textContent = "Não foi possível limpar as carteiras.";
+            } finally {
+                clearButton.disabled = false;
             }
         });
     }
@@ -526,6 +560,34 @@ function formatDashboardDate(value) {
     }).format(date);
 }
 
+function formatCurrency(value, currency) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) {
+        return "Não disponível";
+    }
+    const locale = currency === "BRL" ? "pt-BR" : "en-US";
+    const symbols = { USD: "US$", EUR: "€", BRL: "R$" };
+    const formattedNumber = new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(Math.abs(number));
+    const sign = number < 0 ? "-" : "";
+    return `${sign}${symbols[currency] || currency} ${formattedNumber}`;
+}
+
+function formatQuantity(value) {
+    return new Intl.NumberFormat("pt-BR", {
+        maximumFractionDigits: 8
+    }).format(Number(value));
+}
+
+function formatPercentage(value) {
+    return `${new Intl.NumberFormat("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(Number(value))}%`;
+}
+
 function createMetric(label, value, sensitive = false) {
     const paragraph = document.createElement("p");
     const title = document.createElement("strong");
@@ -550,7 +612,11 @@ function appendTotals(container, totals) {
         return;
     }
     entries.forEach(([currency, total]) => {
-        container.append(createMetric(`Total ${currency}`, total, true));
+        container.append(createMetric(
+            `Total ${currency}`,
+            formatCurrency(total, currency),
+            true
+        ));
     });
 }
 

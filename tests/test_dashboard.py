@@ -35,7 +35,7 @@ def test_empty_dashboard_response():
 
     assert result["header"] == {
         "current_date": "2026-07-28",
-        "version": "2.1",
+        "version": "2.2",
     }
     assert result["session"] == {
         "last_import_at": None,
