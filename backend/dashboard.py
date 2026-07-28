@@ -40,6 +40,7 @@ def build_dashboard(
     positions: Iterable[PortfolioPosition],
     current_date: Optional[date] = None,
     last_import_at: Optional[datetime] = None,
+    now: Optional[datetime] = None,
 ) -> Dict:
     """Build one dashboard response from positions already normalized to MPU."""
     positions = tuple(positions)
@@ -112,7 +113,7 @@ def build_dashboard(
         "daily": build_daily_experience(
             positions,
             current_date=current_date,
-            last_import_at=last_import_at,
+            now=now,
         ),
         "labels": {
             "last_update": "Última importação",

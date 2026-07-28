@@ -157,7 +157,17 @@ def test_dashboard_uses_current_session_after_import(server):
     connection.close()
 
     assert response.status == 200
-    assert dashboard == imported["dashboard"]
+    assert dashboard["session"] == imported["dashboard"]["session"]
+    assert dashboard["institutions"] == imported["dashboard"]["institutions"]
+    assert dashboard["consolidated"] == imported["dashboard"]["consolidated"]
+    assert [fact["id"] for fact in dashboard["daily"]["important_facts"]] == [
+        fact["id"]
+        for fact in imported["dashboard"]["daily"]["important_facts"]
+    ]
+    assert (
+        dashboard["daily"]["generated_at"]
+        >= imported["dashboard"]["daily"]["generated_at"]
+    )
     assert dashboard["institutions"][0]["name"] == "UBS"
     assert dashboard["consolidated"]["position_count"] == 28
 

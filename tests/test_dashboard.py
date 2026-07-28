@@ -1,6 +1,6 @@
 import json
 import threading
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -39,15 +39,9 @@ def test_empty_dashboard_response():
     }
     assert result["daily"]["generated_for"] == "2026-07-28"
     assert result["daily"]["lookback_hours"] == 24
-    assert result["daily"]["important_facts"][0] == {
-        "id": "portfolio-waiting",
-        "title": "Carteiras aguardam atualização",
-        "category": "Carteiras",
-        "priority": "Alta",
-        "summary": (
-            "Importe as posições para habilitar o contexto patrimonial do dia."
-        ),
-    }
+    assert result["daily"]["context_scope"] == "general"
+    assert result["daily"]["important_facts"][0]["id"] == "fed-rates"
+    assert result["daily"]["important_facts"][0]["context_type"] == "macro"
     assert result["daily"]["contracts"]["priority_levels"] == [
         "Alta", "Moderada", "Baixa",
     ]
@@ -116,8 +110,8 @@ def test_dashboard_diagnoses_multiple_institutions():
         "status": "completed",
         "message": "2 instituições analisadas",
     }
-    assert result["daily"]["important_facts"][0]["priority"] == "Moderada"
-    assert result["daily"]["analyses"][0]["related_to"] == "Santander, UBS"
+    assert result["daily"]["context_scope"] == "portfolio"
+    assert result["daily"]["important_facts"][0]["priority"] == "Alta"
 
 
 def test_dashboard_reports_one_analyzed_institution():
@@ -130,6 +124,36 @@ def test_dashboard_reports_one_analyzed_institution():
     assert result["session"]["position_count"] == 1
     assert result["session"]["analyzed_institutions"] == ["UBS"]
     assert result["modules"][0]["message"] == "1 instituição analisada"
+
+
+def test_old_import_does_not_shift_daily_market_window():
+    imported_at = datetime(2026, 7, 20, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 7, 28, 15, 0, tzinfo=timezone.utc)
+
+    result = build_dashboard(
+        [position("UBS", "NVDA", "100")],
+        current_date=now.date(),
+        last_import_at=imported_at,
+        now=now,
+    )
+
+    assert result["session"]["last_import_at"] == imported_at.isoformat()
+    assert result["daily"]["generated_at"] == now.isoformat()
+    occurred_at = [
+        datetime.fromisoformat(fact["occurred_at"])
+        for fact in result["daily"]["important_facts"]
+    ]
+    assert occurred_at
+    assert all(
+        now - timedelta(hours=24) <= event_time <= now
+        for event_time in occurred_at
+    )
+    assert all(event_time > imported_at for event_time in occurred_at)
+    nvidia = next(
+        fact for fact in result["daily"]["important_facts"]
+        if fact["id"] == "nvidia-chips"
+    )
+    assert nvidia["matched_portfolio_assets"] == ["NVDA"]
 
 
 def test_dashboard_endpoint_returns_single_structure():

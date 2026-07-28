@@ -725,7 +725,13 @@ function renderDailyExperience(daily) {
             title: fact.title,
             eyebrow: fact.category,
             summary: fact.summary,
-            priority: fact.priority
+            priority: fact.priority,
+            metadata: `${fact.context} · ${fact.source} · ${
+                new Intl.DateTimeFormat("pt-BR", {
+                    dateStyle: "short",
+                    timeStyle: "short"
+                }).format(new Date(fact.occurred_at))
+            }`
         })
     ));
     daily.priorities.forEach((item) => priorities.append(
