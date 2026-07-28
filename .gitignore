@@ -21,6 +21,7 @@ venv/
 # Arquivos temporários
 tmp/
 temp/
+.cache/
 # Dados do ARGOS
 backend/connectors/*.csv
 backend/portfolio/*.csv

@@ -451,6 +451,11 @@ h3 {
     color: #276647;
 }
 
+.status-unavailable {
+    color: #8b2f2f;
+    background: #fbeaea;
+}
+
 .analysis-link {
     color: var(--text-muted);
     font-size: 0.78rem;

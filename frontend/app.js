@@ -3,6 +3,7 @@
 const STATUS_LABELS = {
     waiting: "Aguardando",
     completed: "Concluído",
+    unavailable: "Indisponível",
     pendente: "Pendente",
     em_construcao: "Em construção",
     pronto: "Pronto"
@@ -576,22 +577,6 @@ function translateWarning(warning) {
         );
 }
 
-function formatPanorama(module) {
-    const waitingMessages = new Set([
-        "Estado da integração de panorama",
-        "Aguardando inteligência de mercado",
-        "Aguardando integração da Inteligência de Mercado."
-    ]);
-
-    return {
-        title: "Panorama Global",
-        summary: waitingMessages.has(module.message)
-            ? "Aguardando integração da Inteligência de Mercado."
-            : module.message,
-        status: module.status
-    };
-}
-
 function formatDashboardDate(value) {
     const date = new Date(`${value}T12:00:00`);
     return new Intl.DateTimeFormat("pt-BR", {
@@ -705,6 +690,7 @@ function renderDailyExperience(daily) {
     const analyses = document.getElementById("dailyAnalyses");
     const panorama = document.getElementById("dailyPanorama");
     const agenda = document.getElementById("marketAgenda");
+    const agendaPanel = document.getElementById("marketAgendaPanel");
     [facts, priorities, analyses, panorama, agenda].forEach(
         (container) => container.replaceChildren()
     );
@@ -720,6 +706,9 @@ function renderDailyExperience(daily) {
     document.getElementById("agendaCount").textContent =
         formatCount(daily.market_agenda.length, "evento", "eventos");
 
+    if (daily.important_facts.length === 0) {
+        facts.append(createEmptyState(daily.empty_states.important_facts));
+    }
     daily.important_facts.slice(0, 5).forEach((fact) => facts.append(
         createDailyItem({
             title: fact.title,
@@ -760,15 +749,18 @@ function renderDailyExperience(daily) {
         );
         panorama.append(card);
     });
-    if (daily.market_agenda.length === 0) {
-        agenda.append(createEmptyState(daily.empty_states.market_agenda));
-    } else {
+    agendaPanel.hidden = daily.market_agenda.length === 0;
+    if (daily.market_agenda.length > 0) {
         daily.market_agenda.forEach((item) => agenda.append(
             createDailyItem({
                 title: item.title,
                 eyebrow: item.event_type,
                 summary: item.summary,
-                metadata: item.scheduled_at
+                metadata: `${item.source} · ${new Intl.DateTimeFormat("pt-BR",
+                    item.time_explicit
+                        ? { dateStyle: "short", timeStyle: "short" }
+                        : { dateStyle: "short" }
+                ).format(new Date(item.scheduled_at))}`
             })
         ));
     }
@@ -777,12 +769,10 @@ function renderDailyExperience(daily) {
 function renderDashboard(data) {
     const institutions = document.getElementById("institutions");
     const consolidated = document.getElementById("consolidated");
-    const globalOverview = document.getElementById("globalOverview");
     const executiveCards = document.getElementById("executiveCards");
     const moduleCards = document.getElementById("moduleCards");
     institutions.replaceChildren();
     consolidated.replaceChildren();
-    globalOverview.replaceChildren();
     executiveCards.replaceChildren();
     moduleCards.replaceChildren();
 
@@ -796,9 +786,6 @@ function renderDashboard(data) {
         formatUpdatedAt(data.session.last_import_at);
     document.getElementById("lastUpdateLabel").textContent =
         data.labels.last_update;
-    document.getElementById("overviewLabel").textContent =
-        data.labels.overview;
-    document.getElementById("overviewTitle").textContent = "Panorama Global";
     document.getElementById("situationLabel").textContent =
         data.labels.daily_situation;
     document.getElementById("situationTitle").textContent =
@@ -846,10 +833,6 @@ function renderDashboard(data) {
     document.getElementById("executiveCount").textContent =
         formatCount(data.daily_situation.length, "item", "itens");
 
-    const overview = data.modules.find((module) => module.id === "overview");
-    if (overview) {
-        globalOverview.appendChild(createOverviewCard(formatPanorama(overview)));
-    }
     data.modules.forEach((module) => {
         moduleCards.appendChild(createModuleCard(module));
     });
