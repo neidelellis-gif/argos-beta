@@ -11,16 +11,16 @@ class PortfolioPosition:
     """Universal representation of a portfolio position in ARGOS."""
 
     institution: str
-    account: str
-    asset_class: str
+    account: Optional[str]
+    asset_class: Optional[str]
     asset_subclass: Optional[str]
-    asset_name: str
+    asset_name: Optional[str]
     identifier: Optional[str]
     identifier_type: Optional[str]
     quantity: Optional[Decimal]
     unit_price: Optional[Decimal]
-    market_value: Decimal
-    currency: str
+    market_value: Optional[Decimal]
+    currency: Optional[str]
     portfolio_weight: Optional[Decimal]
-    reference_date: date
+    reference_date: Optional[date]
     source_file: str
