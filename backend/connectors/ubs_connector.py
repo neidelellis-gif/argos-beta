@@ -1,6 +1,9 @@
 import csv
+from decimal import Decimal
 from pathlib import Path
 from typing import Iterable, List, Sequence
+
+from backend.models import PortfolioPosition
 
 DEFAULT_FILE_PATH = Path(__file__).with_name("UBS_Holdings_08_07_2026.csv")
 SUPPORTED_EXTENSIONS = {".csv", ".xls", ".xlsx"}
@@ -120,6 +123,34 @@ def _find_header_row(rows):
     )
 
 
+def _to_portfolio_position(position, source_file):
+    """Converte uma posição lida da UBS para o MPU."""
+    identifier = position.get("symbol")
+    if not identifier or identifier == "N/A":
+        identifier = None
+
+    return PortfolioPosition(
+        institution=position["institution"],
+        account=position.get("account") or None,
+        asset_class=position["asset_class"],
+        asset_subclass=None,
+        asset_name=position["name"],
+        identifier=identifier,
+        identifier_type=None,
+        quantity=None,
+        unit_price=None,
+        market_value=Decimal(str(position["value"])),
+        currency=position["currency"],
+        portfolio_weight=(
+            Decimal(str(position["weight"]))
+            if position.get("weight") is not None
+            else None
+        ),
+        reference_date=None,
+        source_file=source_file,
+    )
+
+
 def load_positions(file_path=None):
     path = Path(file_path) if file_path else DEFAULT_FILE_PATH
     extension = path.suffix.lower()
@@ -175,4 +206,7 @@ def load_positions(file_path=None):
     if not positions:
         raise ValueError("Nenhuma posição UBS foi encontrada no arquivo.")
 
-    return positions
+    return [
+        _to_portfolio_position(position, path.name)
+        for position in positions
+    ]
