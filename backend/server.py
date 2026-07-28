@@ -178,7 +178,7 @@ def analyze_request(data: Dict) -> Dict:
 
 
 def inspect_santander_request(data: Dict) -> Dict:
-    from backend.connectors.santander_connector import inspect_excel_export
+    from backend.connectors.santander_connector import load_positions
 
     file_payload = data.get("file")
     file_name = file_payload.get("name", "santander.xlsx") \
@@ -188,7 +188,12 @@ def inspect_santander_request(data: Dict) -> Dict:
         suffix=Path(file_name).suffix,
     )
     try:
-        return {"ok": True, **inspect_excel_export(file_path)}
+        positions = load_positions(file_path)
+        return {
+            "ok": True,
+            "source": "Santander Excel Export",
+            "position_count": len(positions),
+        }
     finally:
         try:
             file_path.unlink()
