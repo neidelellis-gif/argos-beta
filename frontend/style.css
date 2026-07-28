@@ -427,6 +427,16 @@ h3 {
     background: rgba(85, 214, 158, 0.12);
 }
 
+.status-waiting {
+    background: #f2eee5;
+    color: #765f2b;
+}
+
+.status-completed {
+    background: #e3f2ea;
+    color: #276647;
+}
+
 .analysis-link {
     color: var(--text-muted);
     font-size: 0.78rem;

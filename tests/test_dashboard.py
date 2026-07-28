@@ -1,6 +1,6 @@
 import json
 import threading
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -35,8 +35,19 @@ def test_empty_dashboard_response():
 
     assert result["header"] == {
         "current_date": "2026-07-28",
-        "version": "1.0",
+        "version": "2.1",
     }
+    assert result["session"] == {
+        "last_import_at": None,
+        "institution_count": 0,
+        "position_count": 0,
+        "analyzed_institutions": [],
+        "status": "waiting_import",
+    }
+    assert result["daily_situation"] == [{
+        "status": "waiting",
+        "message": "Nenhuma carteira carregada",
+    }]
     assert result["institutions"] == []
     assert result["consolidated"] == {
         "institution_count": 0,
@@ -49,6 +60,7 @@ def test_empty_dashboard_response():
 
 
 def test_dashboard_diagnoses_multiple_institutions():
+    imported_at = datetime(2026, 7, 28, 14, 35, tzinfo=timezone.utc)
     result = build_dashboard(
         [
             position("UBS", "AAA", "100"),
@@ -56,6 +68,7 @@ def test_dashboard_diagnoses_multiple_institutions():
             position("Santander", "AAA", "50"),
         ],
         current_date=date(2026, 7, 28),
+        last_import_at=imported_at,
     )
 
     assert [item["name"] for item in result["institutions"]] == [
@@ -71,6 +84,34 @@ def test_dashboard_diagnoses_multiple_institutions():
         "EUR": "20",
         "USD": "150",
     }
+    assert result["session"] == {
+        "last_import_at": "2026-07-28T14:35:00+00:00",
+        "institution_count": 2,
+        "position_count": 3,
+        "analyzed_institutions": ["Santander", "UBS"],
+        "status": "active",
+    }
+    assert result["daily_situation"][0]["message"] == (
+        "2 instituições analisadas"
+    )
+    assert result["modules"][0] == {
+        "id": "portfolios",
+        "title": "Carteiras",
+        "status": "completed",
+        "message": "2 instituições analisadas",
+    }
+
+
+def test_dashboard_reports_one_analyzed_institution():
+    result = build_dashboard(
+        [position("UBS", "AAA", "100")],
+        last_import_at=datetime(2026, 7, 28, 15, 0, tzinfo=timezone.utc),
+    )
+
+    assert result["session"]["institution_count"] == 1
+    assert result["session"]["position_count"] == 1
+    assert result["session"]["analyzed_institutions"] == ["UBS"]
+    assert result["modules"][0]["message"] == "1 instituição analisada"
 
 
 def test_dashboard_endpoint_returns_single_structure():
@@ -86,6 +127,10 @@ def test_dashboard_endpoint_returns_single_structure():
         assert response.status == 200
         assert set(payload) == {
             "header",
+            "labels",
+            "session",
+            "daily_situation",
+            "modules",
             "important_facts",
             "institutions",
             "consolidated",
@@ -107,5 +152,10 @@ def test_frontend_consumes_and_exposes_dashboard_sections():
         "institutions",
         "consolidated",
         "toggleValues",
+        "lastUpdate",
+        "globalOverview",
+        "executiveCards",
+        "moduleCards",
     ):
         assert f'id="{element_id}"' in page
+    assert "loadCockpit();" not in app

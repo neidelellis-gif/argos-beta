@@ -8,6 +8,7 @@ import secrets
 import socketserver
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -238,11 +239,20 @@ class ArgosRequestHandler(
         if self.path == "/api/dashboard":
             try:
                 session_id = self._session_id()
-                positions = SESSION_PORTFOLIOS.get(session_id)
+                session = SESSION_PORTFOLIOS.get(session_id)
+                positions = session.get("positions") if isinstance(
+                    session, dict
+                ) else session
+                last_import_at = session.get("last_import_at") if isinstance(
+                    session, dict
+                ) else None
                 dashboard = (
                     load_dashboard()
                     if positions is None
-                    else build_dashboard(positions)
+                    else build_dashboard(
+                        positions,
+                        last_import_at=last_import_at,
+                    )
                 )
                 self._send_json(dashboard, status=200)
             except Exception as exc:
@@ -392,7 +402,15 @@ class ArgosRequestHandler(
 
                 result = import_portfolios(paths)
                 session_id = self._session_id() or secrets.token_urlsafe(24)
-                SESSION_PORTFOLIOS[session_id] = result.pop("positions")
+                imported_at = datetime.now(timezone.utc)
+                SESSION_PORTFOLIOS[session_id] = {
+                    "positions": result.pop("positions"),
+                    "last_import_at": imported_at,
+                }
+                result["dashboard"] = build_dashboard(
+                    SESSION_PORTFOLIOS[session_id]["positions"],
+                    last_import_at=imported_at,
+                )
                 self._send_json(
                     {"ok": True, **result},
                     status=200,
