@@ -523,3 +523,53 @@ test("renders null TipRanks values as an em dash", () => {
     assert.equal(body.children[0].children[2].textContent, "—");
     assert.equal(body.children[0].children[3].textContent, "");
 });
+
+test("refreshes the operational dashboard after a successful import", async () => {
+    const elements = new Map();
+    const file = { name: "holdings.csv" };
+    const input = {
+        files: [file],
+        addEventListener(_event, listener) {
+            this.changeListener = listener;
+        }
+    };
+    const button = {
+        disabled: true,
+        addEventListener(_event, listener) {
+            this.clickListener = listener;
+        }
+    };
+    elements.set("portfolioFile", input);
+    elements.set("portfolioFileName", { textContent: "" });
+    elements.set("portfolioFileSummary", createElement("div"));
+    elements.set("tipRanksPreview", { hidden: true });
+    elements.set("tipRanksPreviewContent", createElement("div"));
+    elements.set("importPortfolios", button);
+    elements.set("importProgress", { hidden: true });
+    elements.set("importProgressBar", { value: 0 });
+    elements.set("importProgressText", { textContent: "" });
+    context.document.getElementById = (id) => elements.get(id);
+    context.FormData = class {
+        append() {}
+    };
+    let dashboardLoads = 0;
+    context.loadDashboard = async () => {
+        dashboardLoads += 1;
+    };
+    context.fetch = async () => ({
+        ok: true,
+        async json() {
+            return { ok: true };
+        }
+    });
+
+    context.setupPortfolioFilePicker();
+    await button.clickListener();
+
+    assert.equal(dashboardLoads, 1);
+    assert.equal(elements.get("importProgressBar").value, 100);
+    assert.equal(
+        elements.get("importProgressText").textContent,
+        "Importação concluída."
+    );
+});
