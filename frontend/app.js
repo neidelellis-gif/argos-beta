@@ -302,7 +302,7 @@ function setupPortfolioFilePicker() {
                 }
                 progressBar.value = 100;
                 progressText.textContent = "Importação concluída.";
-                await loadDashboard();
+                renderDashboard(result.dashboard);
             } catch (error) {
                 progressBar.value = 0;
                 progressText.textContent = error.message;
