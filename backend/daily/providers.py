@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
-import os
 from typing import Any, Iterable, Optional, Tuple
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
+from backend.config.settings import get_setting
 from backend.models import PortfolioPosition
 
 
@@ -49,7 +49,7 @@ class FinnhubDailyProvider(ExternalDailyProvider):
     base_url = "https://finnhub.io/api/v1"
 
     def __init__(self, api_key=None, opener=None):
-        self.api_key = api_key if api_key is not None else os.getenv("FINNHUB_API_KEY")
+        self.api_key = api_key if api_key is not None else get_setting("FINNHUB_API_KEY")
         self._opener = opener or urlopen
 
     def _get(self, path, **params):
