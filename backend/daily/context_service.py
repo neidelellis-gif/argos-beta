@@ -11,6 +11,7 @@ from backend.models import PortfolioPosition
 
 PRIORITY_LEVELS = ("Alta", "Moderada", "Baixa")
 _PRIORITY_SCORE = {"Alta": 3, "Moderada": 2, "Baixa": 1}
+DAILY_LOOKBACK_HOURS = 48
 
 
 @dataclass(frozen=True)
@@ -113,7 +114,7 @@ class DailyContextService:
         positions = tuple(positions)
         facts_result = self._load("facts", positions, reference)
         agenda_result = self._load("agenda", positions, reference)
-        cutoff = reference - timedelta(hours=24)
+        cutoff = reference - timedelta(hours=DAILY_LOOKBACK_HOURS)
         facts = []
         for event in facts_result.items:
             occurred_at = event.occurred_at
@@ -164,7 +165,8 @@ class DailyContextService:
         for item in agenda:
             item.pop("_time")
         return {
-            "generated_at": reference.isoformat(), "lookback_hours": 24,
+            "generated_at": reference.isoformat(),
+            "lookback_hours": DAILY_LOOKBACK_HOURS,
             "has_portfolio_context": bool(positions), "facts": facts, "agenda": agenda,
             "sources": {
                 "facts": {"status": facts_result.status if facts_result.status == "unavailable" or facts else "empty", "cached": facts_result.cached, "error": facts_result.error},

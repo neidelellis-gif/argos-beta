@@ -9,6 +9,7 @@ from urllib.request import urlopen
 import backend.dashboard as dashboard_module
 import backend.daily.experience as experience_module
 from backend.daily.experience import build_daily_experience
+from backend.daily.context_service import DAILY_LOOKBACK_HOURS
 from backend.dashboard import build_dashboard
 from backend.models import PortfolioPosition
 from backend.server import ArgosRequestHandler
@@ -96,7 +97,7 @@ def test_empty_dashboard_response():
         "version": "2.2",
     }
     assert result["daily"]["generated_for"] == "2026-07-28"
-    assert result["daily"]["lookback_hours"] == 24
+    assert result["daily"]["lookback_hours"] == DAILY_LOOKBACK_HOURS
     assert result["daily"]["context_scope"] == "general"
     assert result["daily"]["important_facts"] == []
     assert result["daily"]["sources"]["facts"]["status"] == "unavailable"
@@ -202,7 +203,7 @@ def test_old_import_does_not_shift_daily_market_window():
         for fact in result["daily"]["important_facts"]
     ]
     assert all(
-        now - timedelta(hours=24) <= event_time <= now
+        now - timedelta(hours=DAILY_LOOKBACK_HOURS) <= event_time <= now
         for event_time in occurred_at
     )
     assert all(event_time > imported_at for event_time in occurred_at)
