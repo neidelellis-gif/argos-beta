@@ -11,11 +11,11 @@ from backend.portfolio_diagnostics import (
 
 
 def position(
-    institution="UBS",
-    symbol="AAA",
-    value="100",
-    currency="USD",
-    weight="0.5",
+    institution: str = "UBS",
+    symbol: str | None = "AAA",
+    value: str | None = "100",
+    currency: str = "USD",
+    weight: str | None = "0.5",
 ):
     return PortfolioPosition(
         institution=institution,

@@ -1,7 +1,7 @@
 """Helpers for reading backend settings from the environment."""
 
 import os
-from typing import TypeVar
+from typing import TypeVar, overload
 
 
 class MissingSettingError(RuntimeError):
@@ -11,7 +11,15 @@ class MissingSettingError(RuntimeError):
 _Default = TypeVar("_Default")
 
 
-def get_setting(name: str, default: _Default = None) -> str | _Default:
+@overload
+def get_setting(name: str) -> str | None: ...
+
+
+@overload
+def get_setting(name: str, default: _Default) -> str | _Default: ...
+
+
+def get_setting(name: str, default: _Default | None = None) -> str | _Default | None:
     """Return an environment variable or ``default`` when it is absent."""
 
     return os.environ.get(name, default)

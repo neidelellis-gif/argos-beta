@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,7 @@ class Quote:
             error=error,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, object]:
         data = asdict(self)
         data["timestamp"] = self.timestamp.isoformat()
         return data
@@ -50,7 +50,7 @@ class MarketIntelligence:
     quality_status: str
     decision_note: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, object]:
         return {
             "quote": self.quote.to_dict(),
             "confidence": self.confidence,

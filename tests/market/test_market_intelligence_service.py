@@ -1,13 +1,15 @@
 import unittest
+from datetime import datetime, timezone
 
 from backend.market import (
     MarketConnector,
     MarketIntelligence,
     MarketIntelligenceService,
+    MarketProvider,
 )
 
 
-class DummyProvider:
+class DummyProvider(MarketProvider):
     name = "dummy"
 
     def get_quote(self, ticker):
@@ -18,6 +20,8 @@ class DummyProvider:
             price=100.0,
             currency="USD",
             provider=self.name,
+            timestamp=datetime.now(timezone.utc),
+            status="available",
         )
 
 

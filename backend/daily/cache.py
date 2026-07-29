@@ -1,11 +1,10 @@
 """Small file cache for normalized daily provider results."""
 
-from datetime import datetime, timezone
 from pathlib import Path
 import pickle
 
 from backend.config.settings import get_setting
-from backend.daily.providers import ExternalDataResult
+from backend.daily.models import ExternalDataResult
 
 
 class DailyCache:

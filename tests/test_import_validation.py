@@ -1,11 +1,19 @@
 from dataclasses import replace
 from decimal import Decimal
+import operator
+from collections.abc import MutableMapping
+from typing import cast
 
 import pytest
 
 from backend.connectors import bradesco_connector, santander_connector, ubs_connector
 from backend.import_validation import ImportValidationEngine, ImportValidationStatus
 from backend.models import PortfolioOwner, PortfolioPosition
+
+
+def _set_read_only_mapping(mapping: object, key: object, value: object) -> None:
+    """Exercise MappingProxyType without declaring a mutable contract."""
+    operator.setitem(cast(MutableMapping[object, object], mapping), key, value)
 
 
 def _position(institution="UBS", owner=PortfolioOwner.JOLIKA, **changes):
@@ -108,3 +116,12 @@ def test_rejects_an_empty_position_without_mutating_it():
     assert report.status is ImportValidationStatus.REJECTED
     assert "Position 1 is empty" in report.errors
     assert position.asset_name is None
+
+
+def test_report_statistics_are_deeply_immutable():
+    report = ImportValidationEngine().validate((_position(),))
+
+    with pytest.raises(TypeError):
+        _set_read_only_mapping(report.statistics.positions_by_class, "Mutated", 1)
+    with pytest.raises(TypeError):
+        _set_read_only_mapping(report.statistics.positions_by_category, "Mutated", 1)

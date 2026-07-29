@@ -4,7 +4,7 @@ import zipfile
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from backend.connectors.santander_connector import inspect_excel_export
+from backend.connectors.santander_connector import inspect_excel_export, load_positions, recognize
 
 
 class SantanderExcelInspectionTests(unittest.TestCase):
@@ -93,6 +93,25 @@ class SantanderExcelInspectionTests(unittest.TestCase):
         ])])
 
         self.assertEqual(inspect_excel_export(path)["position_count"], 1)
+
+    def test_official_connector_reads_xlsx_with_its_internal_parser(self):
+        path = self.create_workbook([("Posições", [
+            ["RESUMO DE ATIVOS"],
+            [
+                "NOME DO ATIVO",
+                "ISIN",
+                "SALDO MOEDA REFERÊNCIA",
+                "PESO DA CONTA (%)",
+                "MOEDA",
+            ],
+            ["Ativo sintético", "US0000000001", 250.25, 100, "USD"],
+            ["TOTAL", None, 250.25, 100, "USD"],
+        ])])
+
+        self.assertTrue(recognize(path))
+        positions = load_positions(path)
+        self.assertEqual(len(positions), 1)
+        self.assertEqual(positions[0].asset_name, "Ativo sintético")
 
     def test_rejects_workbook_without_asset_summary(self):
         path = self.create_workbook([("Export", [["OUTRA SEÇÃO"]])])

@@ -1,9 +1,17 @@
 # Hipóteses do gestor — não são dados de mercado nem projeções do ARGOS.
 # Os valores de retorno são hipóteses de trabalho revisáveis pelo gestor a cada release.
 
+from typing import TypedDict
+
+
+class ContributionAssumption(TypedDict):
+    return_low: float
+    return_high: float
+    function: str
+
 META_BASE = 12.0  # % a.a. — meta-base da JOLIKA (definida em AGENTS.md)
 
-BLOCK_ASSUMPTIONS = {
+BLOCK_ASSUMPTIONS: dict[str, ContributionAssumption] = {
     "Caixa": {
         "return_low": 0.0,
         "return_high": 1.0,

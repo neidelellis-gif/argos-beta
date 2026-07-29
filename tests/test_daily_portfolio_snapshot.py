@@ -1,6 +1,9 @@
 from dataclasses import FrozenInstanceError, replace
 from datetime import date
 from decimal import Decimal
+import operator
+from collections.abc import MutableMapping
+from typing import cast
 
 import pytest
 
@@ -10,6 +13,16 @@ from backend.daily_portfolio_snapshot import (
 )
 from backend.import_validation import ImportValidationEngine, ImportValidationStatus
 from backend.models import PortfolioOwner, PortfolioPosition
+
+
+def _set_frozen_attribute(target: object, name: str, value: object) -> None:
+    """Exercise the runtime guard without a statically invalid assignment."""
+    setattr(target, name, value)
+
+
+def _set_read_only_mapping(mapping: object, key: object, value: object) -> None:
+    """Exercise MappingProxyType without declaring a mutable contract."""
+    operator.setitem(cast(MutableMapping[object, object], mapping), key, value)
 
 
 def position(institution="UBS", identifier="AAA", owner=None, **changes):
@@ -139,9 +152,11 @@ def test_snapshot_is_immutable_and_preserves_original_positions():
     snapshot = DailyPortfolioSnapshotBuilder().build([original])
 
     with pytest.raises(FrozenInstanceError):
-        snapshot.status = DailyPortfolioStatus.BLOCKED
+        _set_frozen_attribute(snapshot, "status", DailyPortfolioStatus.BLOCKED)
     with pytest.raises(TypeError):
-        snapshot.consolidated.gross_value_by_currency["USD"] = Decimal("0")
+        _set_read_only_mapping(
+            snapshot.consolidated.gross_value_by_currency, "USD", Decimal("0")
+        )
     assert original == copy
 
 

@@ -77,7 +77,9 @@ def _friendly_name(name: str) -> str:
                 formatted_rate = _format_rate(rate_match.group(1))
                 parts.append(f"{formatted_rate}%")
 
-            year = year_matches[-1] if year_matches else _KNOWN_BOND_MATURITIES.get((short_name, formatted_rate))
+            year = year_matches[-1] if year_matches else None
+            if year is None and formatted_rate is not None:
+                year = _KNOWN_BOND_MATURITIES.get((short_name, formatted_rate))
             if year:
                 parts.append(year)
             return " ".join(parts)
@@ -430,7 +432,7 @@ def consolidate_positions(ubs_positions: Iterable[Dict], santander_positions: It
     top_symbol = top_positions[0]["symbol"] if top_positions else "N/A"
     top_weight = top_positions[0]["weight"] if top_positions else 0.0
 
-    totals = {"Total consolidado": total_value}
+    totals: Dict[str, float] = {"Total consolidado": total_value}
     totals.update({f"Total {name}": value for name, value in institution_totals.items()})
 
     return {

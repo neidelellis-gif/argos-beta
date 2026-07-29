@@ -10,7 +10,7 @@ from backend.connectors.errors import DuplicateConnectorIdError
 class ConnectorRegistry:
     def __init__(self) -> None:
         self._connectors: Dict[str, PortfolioConnector] = {}
-        self._active_ids = set()
+        self._active_ids: set[str] = set()
 
     def register(self, connector: PortfolioConnector, *, active: bool = True) -> None:
         if connector.connector_id in self._connectors:

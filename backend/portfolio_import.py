@@ -45,8 +45,8 @@ def import_portfolios(file_paths: Iterable[Path]) -> Dict:
     if not paths:
         raise ValueError("Envie ao menos um arquivo para importação.")
 
-    positions_by_institution = {}
-    imported_files = []
+    positions_by_institution: dict[str, list[PortfolioPosition]] = {}
+    imported_files: list[dict[str, str | int]] = []
     for path in paths:
         positions = _load_recognized_file(path)
         institution = positions[0].institution
@@ -58,7 +58,7 @@ def import_portfolios(file_paths: Iterable[Path]) -> Dict:
         })
 
     diagnostics = []
-    all_positions = []
+    all_positions: list[PortfolioPosition] = []
     for institution in sorted(positions_by_institution):
         institution_positions = tuple(positions_by_institution[institution])
         diagnostics.append(diagnose_institution(institution_positions))

@@ -2,7 +2,7 @@ import re
 import zipfile
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence
+from typing import cast
 from xml.etree import ElementTree
 
 from backend.models import PortfolioOwner, PortfolioPosition
@@ -151,9 +151,9 @@ def _xlsx_sheet_rows(path):
                     elif value_node is None:
                         value = None
                     elif cell_type == "s":
-                        value = shared_strings[int(value_node.text)]
+                        value = shared_strings[int(cast(str, value_node.text))]
                     else:
-                        raw_value = value_node.text
+                        raw_value = cast(str, value_node.text)
                         try:
                             value = float(raw_value)
                         except (TypeError, ValueError):
@@ -192,6 +192,8 @@ def inspect_excel_export(file_path):
 
 
 def _read_rows(path: Path):
+    if path.suffix.lower() == ".xlsx":
+        return [row for _sheet_name, rows in _xlsx_sheet_rows(path) for row in rows]
     return read_tabular_rows(
         path, institution=institution, extensions=supported_extensions
     )

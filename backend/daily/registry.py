@@ -3,7 +3,8 @@
 from datetime import timezone
 
 from backend.config.settings import get_setting
-from backend.daily.providers import ExternalDataResult, FinnhubDailyProvider
+from backend.daily.models import ExternalDataResult
+from backend.daily.providers import FinnhubDailyProvider
 
 
 def _normalized_text(value):

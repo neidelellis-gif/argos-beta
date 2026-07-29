@@ -1,10 +1,13 @@
 """Provider-independent aggregation for the ARGOS daily flow."""
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, Optional, Sequence, Tuple
 
-from backend.daily.providers import ExternalDataResult
+from backend.daily.models import (
+    AgendaEvent as AgendaEvent,
+    ExternalDataResult,
+    MarketEvent as MarketEvent,
+)
 from backend.daily.registry import build_default_registry
 from backend.daily.cache import DailyCache
 from backend.models import PortfolioPosition
@@ -12,31 +15,6 @@ from backend.models import PortfolioPosition
 PRIORITY_LEVELS = ("Alta", "Moderada", "Baixa")
 _PRIORITY_SCORE = {"Alta": 3, "Moderada": 2, "Baixa": 1}
 DAILY_LOOKBACK_HOURS = 48
-
-
-@dataclass(frozen=True)
-class MarketEvent:
-    identifier: str
-    title: str
-    category: str
-    source: str
-    occurred_at: datetime
-    priority: str
-    summary: str
-    related_assets: Tuple[str, ...] = ()
-    macro_impact: bool = False
-
-
-@dataclass(frozen=True)
-class AgendaEvent:
-    identifier: str
-    title: str
-    category: str
-    scheduled_at: datetime
-    source: str
-    importance: str
-    related_assets: Tuple[str, ...] = ()
-    time_explicit: bool = True
 
 
 def _position_terms(position: PortfolioPosition) -> Tuple[str, ...]:
