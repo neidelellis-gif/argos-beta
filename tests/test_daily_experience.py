@@ -1,10 +1,13 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from inspect import signature
 
 import backend.daily.experience as experience_module
+import pytest
 from backend.daily.cache import DailyCache
 from backend.daily.context_service import AgendaEvent, DailyContextService, MarketEvent
 from backend.daily.experience import PANORAMA_TOPICS, build_daily_experience
+from backend.daily.orchestrator import DailyOrchestrator
 from backend.daily.providers import ExternalDataResult, FinnhubDailyProvider
 from backend.daily.registry import (
     DailyProviderRegistry,
@@ -17,9 +20,59 @@ from backend.models import PortfolioPosition
 NOW = datetime(2026, 7, 28, 15, 0, tzinfo=timezone.utc)
 
 
-def test_experience_reuses_the_shared_transformations():
-    assert experience_module.build_priorities is build_priorities
-    assert experience_module.build_analyses is build_analyses
+def test_experience_public_signature_is_preserved():
+    parameters = signature(build_daily_experience).parameters
+
+    assert tuple(parameters) == (
+        "positions", "current_date", "now", "context_service",
+    )
+    assert parameters["positions"].default is parameters["positions"].empty
+    assert all(
+        parameters[name].default is None
+        for name in ("current_date", "now", "context_service")
+    )
+
+
+def test_experience_delegates_all_arguments_to_orchestrator(monkeypatch):
+    positions = (object(),)
+    current_date = date(2026, 7, 28)
+    context_service = object()
+    expected = {"official": "daily-contract"}
+    calls = []
+
+    class OrchestratorSpy:
+        def __init__(self, context_service=None):
+            calls.append(("init", context_service))
+
+        def build(self, positions=(), current_date=None, now=None):
+            calls.append(("build", positions, current_date, now))
+            return expected
+
+    monkeypatch.setattr(experience_module, "DailyOrchestrator", OrchestratorSpy)
+
+    result = build_daily_experience(
+        positions, current_date, NOW, context_service,
+    )
+
+    assert result is expected
+    assert calls == [
+        ("init", context_service),
+        ("build", positions, current_date, NOW),
+    ]
+
+
+def test_experience_without_arguments_preserves_public_behavior(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        experience_module,
+        "DailyOrchestrator",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    with pytest.raises(TypeError, match="positions"):
+        build_daily_experience()
+
+    assert calls == []
 
 
 def position(identifier, name=None, institution="UBS"):
@@ -138,27 +191,17 @@ def test_build_analyses_empty_and_independent_between_calls():
     assert first[0] is not second[0]
 
 
-def test_experience_uses_the_official_analyses_transformation(
-    tmp_path, monkeypatch,
-):
-    expected = [{"official": "analyses"}]
-    calls = []
-
-    def official_transformation(received_facts):
-        calls.append(received_facts)
-        return expected
-
-    monkeypatch.setattr(
-        "backend.daily.experience.build_analyses",
-        official_transformation,
-    )
-    daily = build_daily_experience(
+def test_experience_contract_matches_the_official_orchestrator(tmp_path):
+    facts = [fact("macro", 1, macro=True)]
+    wrapper_result = build_daily_experience(
         (), date(2026, 7, 28), NOW,
-        service(tmp_path, Provider([fact("macro", 1, macro=True)])),
+        service(tmp_path / "wrapper", Provider(facts)),
     )
+    orchestrator_result = DailyOrchestrator(
+        service(tmp_path / "orchestrator", Provider(facts)),
+    ).build((), date(2026, 7, 28), NOW)
 
-    assert calls == [daily["important_facts"]]
-    assert daily["analyses"] is expected
+    assert wrapper_result == orchestrator_result
 
 
 def test_direct_nvda_and_ethereum_relationships_without_indirect_etf_match(tmp_path):
