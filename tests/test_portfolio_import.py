@@ -108,6 +108,7 @@ def test_upload_one_file(server):
         "position_count": 28,
     }]
     assert payload["diagnostics"][0]["institution"] == "UBS"
+    assert cookie is not None
     assert cookie.startswith("argos_session=")
 
 
@@ -158,6 +159,7 @@ def test_dashboard_uses_current_session_after_import(server):
     _, imported, set_cookie = post_files(
         server, [(UBS_FIXTURE.name, UBS_FIXTURE.read_bytes())]
     )
+    assert set_cookie is not None
     cookie = set_cookie.split(";", 1)[0]
     connection = http.client.HTTPConnection("127.0.0.1", server.server_port)
     connection.request("GET", "/api/dashboard", headers={"Cookie": cookie})
@@ -194,6 +196,7 @@ def test_sequential_import_replaces_only_the_reimported_institution(server):
 
     with patch("backend.server.import_portfolios", side_effect=fake_import):
         _, first, set_cookie = post_files(server, [("santander.xlsx", b"1")])
+        assert set_cookie is not None
         cookie = set_cookie.split(";", 1)[0]
 
         body, content_type = multipart([("ubs.csv", b"2")])
@@ -239,6 +242,7 @@ def test_clear_all_portfolios_empties_session_and_dashboard(server):
     _, _, set_cookie = post_files(
         server, [(UBS_FIXTURE.name, UBS_FIXTURE.read_bytes())]
     )
+    assert set_cookie is not None
     cookie = set_cookie.split(";", 1)[0]
 
     status, payload = request_with_cookie(

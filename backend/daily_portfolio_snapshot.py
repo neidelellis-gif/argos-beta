@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Iterable, Mapping, Optional, Tuple
+from typing import Iterable, Mapping, Optional, Tuple, TypeVar
 
 from backend.import_validation import (
     ImportValidationEngine,
@@ -87,6 +87,7 @@ class DailyPortfolioSnapshot:
 
 
 ValidationReportKey = Tuple[PortfolioOwner, str, Optional[str]]
+MapValue = TypeVar("MapValue")
 
 
 class DailyPortfolioSnapshotBuilder:
@@ -123,17 +124,19 @@ class DailyPortfolioSnapshotBuilder:
             report = self._report_for(key, group, reports)
             reports_used.append(report)
             institution_consolidation = self._consolidation_engine.consolidate(group)
-            statistics = report.statistics
+            validation_statistics = report.statistics
             institution_snapshots.append(
                 InstitutionPortfolioSnapshot(
                     owner=key[0],
                     institution=key[1],
                     currency=key[2],
-                    position_count=statistics.total_positions,
-                    gross_value=statistics.gross_value,
-                    positions_by_class=self._frozen_map(statistics.positions_by_class),
+                    position_count=validation_statistics.total_positions,
+                    gross_value=validation_statistics.gross_value,
+                    positions_by_class=self._frozen_map(
+                        validation_statistics.positions_by_class
+                    ),
                     positions_by_category=self._frozen_map(
-                        statistics.positions_by_category
+                        validation_statistics.positions_by_category
                     ),
                     unique_assets=institution_consolidation.report.statistics.unique_assets,
                     validation_status=report.status,
@@ -145,22 +148,26 @@ class DailyPortfolioSnapshotBuilder:
         # The global view is deliberately built only after every isolated view.
         consolidated_portfolio = self._consolidation_engine.consolidate(originals)
         consolidation_report = consolidated_portfolio.report
-        statistics = consolidation_report.statistics
+        consolidation_statistics = consolidation_report.statistics
         warnings = tuple(sorted(consolidation_report.alerts))
         duplicate_count = len(consolidation_report.duplicates)
         consolidated = ConsolidatedPortfolioSnapshot(
-            position_count=statistics.original_positions,
-            unique_assets=statistics.unique_assets,
+            position_count=consolidation_statistics.original_positions,
+            unique_assets=consolidation_statistics.unique_assets,
             gross_value_by_currency=self._frozen_map(
-                statistics.consolidated_value_by_currency
+                consolidation_statistics.consolidated_value_by_currency
             ),
-            positions_by_owner=self._frozen_map(statistics.positions_by_owner),
+            positions_by_owner=self._frozen_map(
+                consolidation_statistics.positions_by_owner
+            ),
             positions_by_institution=self._frozen_map(
-                statistics.positions_by_institution
+                consolidation_statistics.positions_by_institution
             ),
-            positions_by_class=self._frozen_map(statistics.positions_by_class),
+            positions_by_class=self._frozen_map(
+                consolidation_statistics.positions_by_class
+            ),
             positions_by_category=self._frozen_map(
-                statistics.positions_by_category
+                consolidation_statistics.positions_by_category
             ),
             duplicate_count=duplicate_count,
             warnings=warnings,
@@ -185,8 +192,8 @@ class DailyPortfolioSnapshotBuilder:
             summary=DailyPortfolioSummary(
                 institution_count=len({(item.owner, item.institution) for item in originals}),
                 owner_count=len({item.owner for item in originals}),
-                original_position_count=statistics.original_positions,
-                consolidated_asset_count=statistics.unique_assets,
+                original_position_count=consolidation_statistics.original_positions,
+                consolidated_asset_count=consolidation_statistics.unique_assets,
                 validation_error_count=error_count,
                 validation_warning_count=warning_count,
                 duplicate_count=duplicate_count,
@@ -199,13 +206,20 @@ class DailyPortfolioSnapshotBuilder:
             raise TypeError("snapshot accepts only PortfolioPosition instances")
 
     @staticmethod
-    def _group_positions(positions):
-        groups = defaultdict(list)
+    def _group_positions(
+        positions: Tuple[PortfolioPosition, ...],
+    ) -> dict[ValidationReportKey, list[PortfolioPosition]]:
+        groups: dict[ValidationReportKey, list[PortfolioPosition]] = defaultdict(list)
         for position in positions:
             groups[(position.owner, position.institution, position.currency)].append(position)
         return groups
 
-    def _report_for(self, key, positions, reports):
+    def _report_for(
+        self,
+        key: ValidationReportKey,
+        positions: Tuple[PortfolioPosition, ...],
+        reports: Mapping[ValidationReportKey, ImportValidationReport],
+    ) -> ImportValidationReport:
         report = reports.get(key)
         if report is None:
             report = reports.get((key[0], key[1], None))
@@ -216,7 +230,11 @@ class DailyPortfolioSnapshotBuilder:
         return report
 
     @staticmethod
-    def _status(positions, reports, consolidation_warnings):
+    def _status(
+        positions: Tuple[PortfolioPosition, ...],
+        reports: Iterable[ImportValidationReport],
+        consolidation_warnings: Tuple[str, ...],
+    ) -> DailyPortfolioStatus:
         if not positions:
             return DailyPortfolioStatus.EMPTY
         if any(report.status is ImportValidationStatus.REJECTED for report in reports):
@@ -229,14 +247,18 @@ class DailyPortfolioSnapshotBuilder:
         return DailyPortfolioStatus.READY
 
     @classmethod
-    def _group_sort_key(cls, key):
+    def _group_sort_key(
+        cls, key: ValidationReportKey
+    ) -> tuple[str, tuple[str, str], tuple[str, str]]:
         owner, institution, currency = key
         return owner.value, cls._text_key(institution), cls._text_key(currency or "")
 
     @staticmethod
-    def _text_key(value):
+    def _text_key(value: object) -> tuple[str, str]:
         return str(value).casefold(), str(value)
 
     @classmethod
-    def _frozen_map(cls, values):
+    def _frozen_map(
+        cls, values: Mapping[str, MapValue]
+    ) -> Mapping[str, MapValue]:
         return MappingProxyType(dict(sorted(values.items(), key=lambda item: cls._text_key(item[0]))))

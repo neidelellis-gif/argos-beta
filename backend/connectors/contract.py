@@ -15,6 +15,8 @@ class PortfolioConnector(Protocol):
 
     def recognize(self, path: Path) -> bool:
         """Inspect file structure without parsing its portfolio positions."""
+        ...
 
-    def load_positions(self, path: Path) -> Tuple[PortfolioPosition, ...]:
+    def load_positions(self, file_path: Path) -> Tuple[PortfolioPosition, ...]:
         """Parse a recognized file into the universal portfolio model."""
+        ...

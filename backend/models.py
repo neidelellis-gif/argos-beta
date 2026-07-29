@@ -39,6 +39,6 @@ class PortfolioPosition:
     reference_date: Optional[date]
     source_file: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not isinstance(self.owner, PortfolioOwner):
             raise ValueError("owner must be JOLIKA or NEI")

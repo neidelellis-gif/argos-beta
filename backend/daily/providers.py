@@ -1,22 +1,12 @@
 """External providers and normalization for market facts and calendars."""
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
-from typing import Any, Iterable, Optional, Tuple
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
 from backend.config.settings import get_setting
-from backend.models import PortfolioPosition
-
-
-@dataclass(frozen=True)
-class ExternalDataResult:
-    status: str
-    items: Tuple[Any, ...]
-    cached: bool = False
-    error: Optional[str] = None
+from backend.daily.models import AgendaEvent, ExternalDataResult, MarketEvent
 
 
 class ExternalDailyProvider:
@@ -61,7 +51,6 @@ class FinnhubDailyProvider(ExternalDailyProvider):
 
     @staticmethod
     def normalize_news(rows):
-        from backend.daily.context_service import MarketEvent
         events = []
         for row in rows or ():
             occurred = _parse_time(row.get("datetime"))
@@ -87,7 +76,6 @@ class FinnhubDailyProvider(ExternalDailyProvider):
 
     @staticmethod
     def normalize_calendar(economic, earnings, dividends=()):
-        from backend.daily.context_service import AgendaEvent
         events = []
         for row in (economic or {}).get("economicCalendar", economic or ()):
             raw_time = row.get("time") or row.get("date")

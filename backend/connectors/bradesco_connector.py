@@ -101,8 +101,8 @@ def _records(text: str):
     """Une somente quebras de linha internas de uma posição impressa."""
     asset_class = None
     subclass = None
-    current = []
-    current_context = (None, None)
+    current: list[str] = []
+    current_context: tuple[str | None, str | None] = (None, None)
 
     def flush():
         nonlocal current

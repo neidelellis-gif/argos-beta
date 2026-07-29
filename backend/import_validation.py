@@ -8,6 +8,7 @@ from collections import Counter
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
+from types import MappingProxyType
 from typing import Iterable, Mapping, Tuple
 
 from backend.models import PortfolioOwner, PortfolioPosition
@@ -57,7 +58,7 @@ class ImportValidationEngine:
         classes: Counter[str] = Counter()
         categories: Counter[str] = Counter()
         gross_value = Decimal("0")
-        duplicate_keys = Counter()
+        duplicate_keys: Counter[tuple[str, str, str]] = Counter()
 
         if not imported:
             errors.append("Import contains no portfolio positions")
@@ -88,10 +89,12 @@ class ImportValidationEngine:
             if self._empty(position):
                 errors.append(f"{prefix} is empty")
 
-            if not self._valid_market_value(position.market_value):
+            market_value = position.market_value
+            if not self._valid_market_value(market_value):
                 errors.append(f"{prefix} has an invalid market value")
             else:
-                gross_value += position.market_value
+                assert market_value is not None
+                gross_value += market_value
 
             duplicate_key = self._duplicate_key(position)
             if duplicate_key is not None:
@@ -110,8 +113,8 @@ class ImportValidationEngine:
         statistics = ImportValidationStatistics(
             total_positions=len(imported),
             gross_value=gross_value,
-            positions_by_class=dict(sorted(classes.items())),
-            positions_by_category=dict(sorted(categories.items())),
+            positions_by_class=MappingProxyType(dict(sorted(classes.items()))),
+            positions_by_category=MappingProxyType(dict(sorted(categories.items()))),
             alert_count=len(warnings),
             error_count=len(errors),
         )
@@ -123,7 +126,7 @@ class ImportValidationEngine:
         )
 
     @staticmethod
-    def _filled(value) -> bool:
+    def _filled(value: object) -> bool:
         return value is not None and bool(str(value).strip())
 
     @classmethod
@@ -139,13 +142,15 @@ class ImportValidationEngine:
         ) and position.quantity is None and position.market_value is None
 
     @staticmethod
-    def _valid_market_value(value) -> bool:
+    def _valid_market_value(value: object) -> bool:
         if not isinstance(value, Decimal) or not value.is_finite():
             return False
         return value >= 0
 
     @classmethod
-    def _duplicate_key(cls, position: PortfolioPosition):
+    def _duplicate_key(
+        cls, position: PortfolioPosition
+    ) -> tuple[str, str, str] | None:
         identity = position.identifier if cls._filled(position.identifier) else position.asset_name
         if not cls._filled(identity):
             return None

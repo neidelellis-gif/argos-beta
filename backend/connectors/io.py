@@ -3,8 +3,13 @@
 import csv
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Iterable, Protocol, cast
 
 from backend.connectors.errors import MissingDependencyError, UnsupportedExtensionError
+
+
+class _WorksheetReader(Protocol):
+    def iter_rows(self, *, values_only: bool) -> Iterable[Iterable[object]]: ...
 
 
 def normalize_header(value) -> str:
@@ -43,25 +48,29 @@ def read_csv_rows(path: Path):
 
 def read_xlsx_rows(path: Path, *, institution: str):
     try:
-        from openpyxl import load_workbook
+        # Runtime dependency is optional and deliberately loaded at the format boundary.
+        from openpyxl import load_workbook  # type: ignore[import-untyped]  # pyright: ignore[reportMissingModuleSource]
     except ImportError as exc:
         raise MissingDependencyError(
             f"Falta a biblioteca openpyxl para ler o Excel da {institution}."
         ) from exc
     workbook = load_workbook(path, data_only=True, read_only=True)
-    worksheet = workbook.active
+    # A loaded workbook exposes its active worksheet; the optional third-party
+    # stub cannot express that postcondition for this call.
+    worksheet = cast(_WorksheetReader, workbook.active)
     return [list(row) for row in worksheet.iter_rows(values_only=True)]
 
 
 def read_xls_rows(path: Path, *, institution: str):
     try:
-        import xlrd
+        # Runtime dependency is optional and deliberately loaded at the format boundary.
+        import xlrd  # type: ignore[import-untyped]  # pyright: ignore[reportMissingModuleSource]
     except ImportError as exc:
         raise MissingDependencyError(
             f"Para ler o arquivo .xls da {institution}, execute uma vez no Terminal: "
             "python3 -m pip install xlrd"
         ) from exc
-    workbook = xlrd.open_workbook(path)
+    workbook = xlrd.open_workbook(str(path))
     worksheet = workbook.sheet_by_index(0)
     return [worksheet.row_values(index) for index in range(worksheet.nrows)]
 

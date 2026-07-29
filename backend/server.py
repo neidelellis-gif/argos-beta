@@ -10,7 +10,9 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, TypedDict, cast
+
+from backend.models import PortfolioPosition
 
 if __package__ in {None, ""}:
     project_root = Path(__file__).resolve().parent.parent
@@ -25,7 +27,13 @@ PROJECT_ROOT = BASE_DIR.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 PORT = 8080
 SESSION_COOKIE = "argos_session"
-SESSION_PORTFOLIOS = {}
+
+class SessionPortfolio(TypedDict):
+    positions: tuple[PortfolioPosition, ...]
+    last_import_at: datetime
+
+
+SESSION_PORTFOLIOS: dict[str, SessionPortfolio] = {}
 
 
 def _decode_file_payload(file_payload: Dict[str, str]) -> bytes:
@@ -124,6 +132,8 @@ def inspect_santander_request(data: Dict) -> Dict:
     from backend.connectors.santander_connector import load_positions
 
     file_payload = data.get("file")
+    if not isinstance(file_payload, dict):
+        raise ValueError("Payload de arquivo inválido.")
     file_name = file_payload.get("name", "santander.xlsx") \
         if isinstance(file_payload, dict) else "santander.xlsx"
     file_path = _save_temp_file(
@@ -284,7 +294,7 @@ class ArgosRequestHandler(
             SESSION_PORTFOLIOS.pop(session_id, None)
         self._send_json({"ok": True, "dashboard": build_dashboard(())})
 
-    def _session_id(self):
+    def _session_id(self) -> str | None:
         cookie = self.headers.get("Cookie", "")
         for item in cookie.split(";"):
             name, separator, value = item.strip().partition("=")
@@ -293,20 +303,17 @@ class ArgosRequestHandler(
         return None
 
     def _dashboard(self):
-        session = SESSION_PORTFOLIOS.get(self._session_id())
-        positions = session.get("positions") if isinstance(
-            session, dict
-        ) else session
-        last_import_at = session.get("last_import_at") if isinstance(
-            session, dict
-        ) else None
+        session_id = self._session_id()
+        session = SESSION_PORTFOLIOS.get(session_id) if session_id is not None else None
+        positions = session.get("positions") if session is not None else None
+        last_import_at = session.get("last_import_at") if session is not None else None
         return (
             load_dashboard()
             if positions is None
             else build_dashboard(positions, last_import_at=last_import_at)
         )
 
-    def _multipart_files(self):
+    def _multipart_files(self) -> list[tuple[str, bytes]]:
         content_type = self.headers.get("Content-Type", "")
         if not content_type.lower().startswith("multipart/form-data;"):
             raise ValueError("Use multipart/form-data para enviar os arquivos.")
@@ -318,12 +325,16 @@ class ArgosRequestHandler(
             f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode()
             + body
         )
-        return [
-            (part.get_filename(), part.get_payload(decode=True))
-            for part in message.iter_parts()
-            if part.get_content_disposition() == "form-data"
-            and part.get_filename()
-        ]
+        files: list[tuple[str, bytes]] = []
+        for part in message.iter_parts():
+            file_name = part.get_filename()
+            if part.get_content_disposition() != "form-data" or not file_name:
+                continue
+            # The email API's overload does not narrow decode=True, although it
+            # returns bytes for the binary multipart payload accepted here.
+            content = cast(bytes, part.get_payload(decode=True))
+            files.append((file_name, content))
+        return files
 
     def _import_portfolios(self):
         paths = []
@@ -342,12 +353,16 @@ class ArgosRequestHandler(
                 result = import_portfolios(paths)
                 session_id = self._session_id() or secrets.token_urlsafe(24)
                 imported_at = datetime.now(timezone.utc)
-                imported_positions = result.pop("positions")
+                imported_positions = cast(
+                    tuple[PortfolioPosition, ...], result.pop("positions")
+                )
                 imported_institutions = {
                     position.institution for position in imported_positions
                 }
-                current_session = SESSION_PORTFOLIOS.get(session_id, {})
-                current_positions = current_session.get("positions", ())
+                current_session = SESSION_PORTFOLIOS.get(session_id)
+                current_positions = (
+                    current_session["positions"] if current_session is not None else ()
+                )
                 preserved_positions = tuple(
                     position for position in current_positions
                     if position.institution not in imported_institutions

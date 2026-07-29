@@ -7,6 +7,7 @@ knows how they were imported nor changes the original positions.
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
+from types import MappingProxyType
 from typing import Iterable, Mapping, Optional, Tuple
 
 from backend.models import PortfolioOwner, PortfolioPosition
@@ -123,10 +124,10 @@ class PortfolioConsolidationEngine:
     def _flatten(
         portfolios: Tuple[Iterable[PortfolioPosition], ...]
     ) -> Tuple[PortfolioPosition, ...]:
-        originals = []
+        originals: list[PortfolioPosition] = []
         for portfolio in portfolios:
             if isinstance(portfolio, PortfolioPosition):
-                candidates = (portfolio,)
+                candidates: Iterable[PortfolioPosition] = (portfolio,)
             else:
                 candidates = portfolio
             for position in candidates:
@@ -136,7 +137,9 @@ class PortfolioConsolidationEngine:
         return tuple(originals)
 
     @classmethod
-    def _economic_key(cls, position: PortfolioPosition) -> tuple:
+    def _economic_key(
+        cls, position: PortfolioPosition
+    ) -> tuple[str, str, str, str, str]:
         identifier = cls._normalized(position.identifier)
         name = cls._normalized(position.asset_name)
         identity_kind = "identifier" if identifier else "name"
@@ -167,11 +170,11 @@ class PortfolioConsolidationEngine:
         ordered = tuple(sorted(positions, key=cls._source_sort_key))
         first = ordered[0]
         quantities = tuple(position.quantity for position in ordered)
-        quantity = (
-            sum(quantities, Decimal("0"))
-            if all(value is not None for value in quantities)
-            else None
-        )
+        quantity: Decimal | None = None
+        if all(value is not None for value in quantities):
+            quantity = sum(
+                (value for value in quantities if value is not None), Decimal("0")
+            )
         market_value = sum(
             (position.market_value or Decimal("0") for position in ordered),
             Decimal("0"),
@@ -202,7 +205,7 @@ class PortfolioConsolidationEngine:
         return min(values, key=lambda value: (value.casefold(), value)) if values else None
 
     @classmethod
-    def _source_sort_key(cls, position: PortfolioPosition) -> tuple:
+    def _source_sort_key(cls, position: PortfolioPosition) -> tuple[str, ...]:
         return (
             position.owner.value,
             cls._normalized(position.institution),
@@ -232,7 +235,11 @@ class PortfolioConsolidationEngine:
         )
 
     @classmethod
-    def _duplicate(cls, positions: Iterable[PortfolioPosition], key: tuple) -> DuplicatePosition:
+    def _duplicate(
+        cls,
+        positions: Iterable[PortfolioPosition],
+        key: tuple[str, str, str, str, str],
+    ) -> DuplicatePosition:
         ordered = tuple(sorted(positions, key=cls._source_sort_key))
         institution_counts = Counter(position.institution for position in ordered)
         institutions = tuple(sorted(institution_counts, key=str.casefold))
@@ -256,16 +263,19 @@ class PortfolioConsolidationEngine:
         categories = Counter(
             position.asset_subclass for position in originals if position.asset_subclass
         )
-        totals = Counter()
+        totals: dict[str, Decimal] = {}
         for position in originals:
             if position.currency and position.market_value is not None:
-                totals[position.currency] += position.market_value
+                totals[position.currency] = (
+                    totals.get(position.currency, Decimal("0"))
+                    + position.market_value
+                )
         return ConsolidationStatistics(
-            consolidated_value_by_currency=dict(sorted(totals.items())),
-            positions_by_institution=dict(sorted(institutions.items())),
-            positions_by_owner=dict(sorted(owners.items())),
-            positions_by_class=dict(sorted(classes.items())),
-            positions_by_category=dict(sorted(categories.items())),
+            consolidated_value_by_currency=MappingProxyType(dict(sorted(totals.items()))),
+            positions_by_institution=MappingProxyType(dict(sorted(institutions.items()))),
+            positions_by_owner=MappingProxyType(dict(sorted(owners.items()))),
+            positions_by_class=MappingProxyType(dict(sorted(classes.items()))),
+            positions_by_category=MappingProxyType(dict(sorted(categories.items()))),
             unique_assets=len(consolidated),
             original_positions=len(originals),
         )
@@ -297,11 +307,13 @@ def consolidate_portfolio_positions(
     """Build the legacy source-position view without changing its contract."""
     original_positions = tuple(positions)
     grouped = defaultdict(list)
-    totals = Counter()
+    totals: dict[str, Decimal] = {}
     for position in original_positions:
         grouped[position.institution].append(position)
         if position.currency is not None and position.market_value is not None:
-            totals[position.currency] += position.market_value
+            totals[position.currency] = (
+                totals.get(position.currency, Decimal("0")) + position.market_value
+            )
     return PortfolioConsolidation(
         positions_by_institution={key: tuple(value) for key, value in grouped.items()},
         consolidated_positions=original_positions,

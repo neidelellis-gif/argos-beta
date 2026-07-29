@@ -1,10 +1,14 @@
 from datetime import date, datetime, timezone
 from inspect import getsource, signature
+from collections.abc import Iterable
+from typing import cast
 
 import backend.daily.orchestrator as orchestrator_module
 from backend.daily.context_service import DAILY_LOOKBACK_HOURS, PRIORITY_LEVELS
 from backend.daily.experience import PANORAMA_TOPICS, build_daily_experience
 from backend.daily.orchestrator import DailyOrchestrator
+from backend.daily.context_service import DailyContextService
+from backend.models import PortfolioPosition
 from backend.daily.transformations import build_analyses, build_priorities
 
 
@@ -79,7 +83,9 @@ def test_build_forwards_positions_current_date_and_now():
     positions = (object(),)
     service = StubContextService([fact()])
 
-    daily = DailyOrchestrator(service).build(positions, CURRENT_DATE, NOW)
+    daily = DailyOrchestrator(cast(DailyContextService, service)).build(
+        cast(Iterable[PortfolioPosition], positions), CURRENT_DATE, NOW
+    )
 
     assert service.calls == [(positions, NOW)]
     assert daily["generated_for"] == CURRENT_DATE.isoformat()
@@ -129,10 +135,13 @@ def test_build_matches_build_daily_experience_for_the_same_input():
     experience_service = StubContextService([fact()], [agenda()])
 
     orchestrated = DailyOrchestrator(orchestrator_service).build(
-        positions, CURRENT_DATE, NOW
+        cast(Iterable[PortfolioPosition], positions), CURRENT_DATE, NOW
     )
     existing = build_daily_experience(
-        positions, CURRENT_DATE, NOW, experience_service
+        cast(Iterable[PortfolioPosition], positions),
+        CURRENT_DATE,
+        NOW,
+        cast(DailyContextService, experience_service),
     )
 
     assert orchestrated == existing

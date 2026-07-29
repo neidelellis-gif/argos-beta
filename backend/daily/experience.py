@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Dict, Iterable, Optional
 
 from backend.daily.context_service import DailyContextService
-from backend.daily.orchestrator import DailyOrchestrator, PANORAMA_TOPICS
+from backend.daily.orchestrator import DailyOrchestrator, PANORAMA_TOPICS as PANORAMA_TOPICS
 from backend.models import PortfolioPosition
 
 

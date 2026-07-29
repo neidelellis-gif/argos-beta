@@ -1,8 +1,16 @@
 from dataclasses import fields
+from collections.abc import Callable
+from typing import cast
 
 import pytest
 
 from backend.models import PortfolioOwner, PortfolioPosition
+
+
+def _unchecked_position(**position_fields: object) -> PortfolioPosition:
+    """Call the constructor with intentionally invalid runtime arguments."""
+    constructor = cast(Callable[..., PortfolioPosition], PortfolioPosition)
+    return constructor(**position_fields)
 
 
 def test_portfolio_position_has_only_mpu_v1_fields():
@@ -31,7 +39,7 @@ def test_portfolio_owner_has_only_the_official_owners():
 
 def test_portfolio_position_requires_owner():
     with pytest.raises(TypeError, match="owner"):
-        PortfolioPosition(
+        _unchecked_position(
             institution="UBS",
             account=None,
             asset_class=None,
@@ -51,7 +59,7 @@ def test_portfolio_position_requires_owner():
 
 def test_portfolio_position_rejects_an_invalid_owner():
     with pytest.raises(ValueError, match="owner must be JOLIKA or NEI"):
-        PortfolioPosition(
+        _unchecked_position(
             institution="UBS",
             owner=None,
             account=None,

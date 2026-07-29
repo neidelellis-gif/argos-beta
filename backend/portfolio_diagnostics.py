@@ -132,8 +132,8 @@ def diagnose_consolidated(
         )
     )
     totals: Dict[str, Decimal] = {}
-    institutions_by_asset: Dict[str, set] = {}
-    warnings = []
+    institutions_by_asset: Dict[str, set[Optional[str]]] = {}
+    warnings: list[str] = []
 
     for diagnostic in institution_diagnostics:
         for currency, value in diagnostic.market_value_by_currency.items():

@@ -1,6 +1,5 @@
 from decimal import Decimal
 from pathlib import Path
-from typing import Iterable, List, Sequence
 
 from backend.models import PortfolioOwner, PortfolioPosition
 from backend.connectors.errors import (

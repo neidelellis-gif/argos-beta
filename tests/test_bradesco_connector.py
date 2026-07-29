@@ -6,14 +6,20 @@ import pytest
 
 from backend.connectors import bradesco_connector
 from backend.connectors.errors import UnsupportedExtensionError
-from backend.models import PortfolioOwner
+from backend.models import PortfolioOwner, PortfolioPosition
 
 
 FIXTURE = Path("tests/fixtures/bradesco_private_fixture_oficial_marco_8_2b.txt")
 
 
-def _by_name(positions, prefix):
-    return next(item for item in positions if item.asset_name.startswith(prefix))
+def _by_name(
+    positions: tuple[PortfolioPosition, ...], prefix: str
+) -> PortfolioPosition:
+    return next(
+        item
+        for item in positions
+        if item.asset_name is not None and item.asset_name.startswith(prefix)
+    )
 
 
 def test_recognizes_only_the_official_bradesco_text_layout(tmp_path):
@@ -68,8 +74,14 @@ def test_preserves_wrapped_names_and_parenthesized_values():
 def test_does_not_parse_totals_headers_or_previdencia_as_positions():
     positions = bradesco_connector.load_positions(FIXTURE)
     assert positions
-    assert all(not item.asset_name.startswith("Total") for item in positions)
-    assert all("Código da Carteira" not in item.asset_name for item in positions)
+    assert all(
+        item.asset_name is not None and not item.asset_name.startswith("Total")
+        for item in positions
+    )
+    assert all(
+        item.asset_name is not None and "Código da Carteira" not in item.asset_name
+        for item in positions
+    )
 
 
 def test_reconciles_official_position_counts_and_gross_value():
@@ -86,4 +98,8 @@ def test_reconciles_official_position_counts_and_gross_value():
         "Private Equity": 27,
     }
     assert len(positions) == 50
-    assert sum(item.market_value for item in positions) == Decimal("734375.98")
+    assert all(item.market_value is not None for item in positions)
+    assert sum(
+        (item.market_value for item in positions if item.market_value is not None),
+        Decimal("0"),
+    ) == Decimal("734375.98")

@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from inspect import signature
+from collections.abc import Callable, Iterable
+from typing import cast
 
 import backend.daily.experience as experience_module
 import pytest
@@ -56,7 +58,10 @@ def test_experience_delegates_all_arguments_to_orchestrator(monkeypatch):
     monkeypatch.setattr(experience_module, "DailyOrchestrator", OrchestratorSpy)
 
     result = build_daily_experience(
-        positions, current_date, NOW, context_service,
+        cast(Iterable[PortfolioPosition], positions),
+        current_date,
+        NOW,
+        cast(DailyContextService, context_service),
     )
 
     assert result is expected
@@ -75,7 +80,7 @@ def test_experience_without_arguments_preserves_public_behavior(monkeypatch):
     )
 
     with pytest.raises(TypeError, match="positions"):
-        build_daily_experience()
+        cast(Callable[..., dict], build_daily_experience)()
 
     assert calls == []
 

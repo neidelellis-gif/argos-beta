@@ -1,5 +1,8 @@
 from dataclasses import replace
 from decimal import Decimal
+import operator
+from collections.abc import MutableMapping
+from typing import cast
 
 import pytest
 
@@ -8,6 +11,11 @@ from backend.portfolio_consolidation import (
     PortfolioConsolidationEngine,
     consolidate_portfolio_positions,
 )
+
+
+def _set_read_only_mapping(mapping: object, key: object, value: object) -> None:
+    """Exercise MappingProxyType without declaring a mutable contract."""
+    operator.setitem(cast(MutableMapping[object, object], mapping), key, value)
 
 
 def position(institution, identifier, value="100", owner=None, **changes):
@@ -193,3 +201,18 @@ def test_legacy_consolidation_contract_remains_compatible():
     assert result.positions_by_institution["UBS"] == (positions[0],)
     assert result.consolidated_positions == tuple(positions)
     assert result.totals_by_currency == {"USD": Decimal("50")}
+
+
+def test_official_consolidation_statistics_are_deeply_immutable():
+    result = PortfolioConsolidationEngine().consolidate([position("UBS", "AAA")])
+
+    mappings = (
+        result.report.statistics.consolidated_value_by_currency,
+        result.report.statistics.positions_by_institution,
+        result.report.statistics.positions_by_owner,
+        result.report.statistics.positions_by_class,
+        result.report.statistics.positions_by_category,
+    )
+    for mapping in mappings:
+        with pytest.raises(TypeError):
+            _set_read_only_mapping(mapping, "Mutated", 1)
