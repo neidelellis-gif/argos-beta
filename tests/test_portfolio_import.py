@@ -129,10 +129,18 @@ def test_upload_multiple_files(server):
 
 
 def test_invalid_file(server):
-    status, payload, cookie = post_files(server, [("notes.txt", b"hello")])
+    status, payload, cookie = post_files(server, [("notes.pdf", b"hello")])
 
     assert status == 400
     assert "Arquivo inválido" in payload["error"]
+    assert cookie is None
+
+
+def test_unrecognized_text_file(server):
+    status, payload, cookie = post_files(server, [("notes.txt", b"hello")])
+
+    assert status == 400
+    assert "Instituição não reconhecida" in payload["error"]
     assert cookie is None
 
 
