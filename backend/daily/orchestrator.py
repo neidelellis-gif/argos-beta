@@ -42,7 +42,8 @@ class DailyOrchestrator:
                 "topic": topic,
                 "status": "Atualizado" if topic_fact else "Sem fatos relevantes",
                 "summary": topic_fact["summary"] if topic_fact else (
-                    "Nenhum fato relevante identificado nas últimas 24 horas."
+                    "Nenhum fato relevante identificado nas últimas "
+                    f"{context['lookback_hours']} horas."
                 ),
             })
 
@@ -64,7 +65,8 @@ class DailyOrchestrator:
                     "Fonte externa indisponível. O último contexto válido será "
                     "reutilizado automaticamente quando existir."
                     if context["sources"]["facts"]["status"] == "unavailable"
-                    else "Nenhum fato relevante identificado nas últimas 24 horas."
+                    else "Nenhum fato relevante identificado nas últimas "
+                    f"{context['lookback_hours']} horas."
                 ),
                 "market_agenda": "Nenhum evento relevante previsto.",
             },

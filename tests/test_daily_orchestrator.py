@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 from inspect import getsource, signature
 
 import backend.daily.orchestrator as orchestrator_module
-from backend.daily.context_service import PRIORITY_LEVELS
+from backend.daily.context_service import DAILY_LOOKBACK_HOURS, PRIORITY_LEVELS
 from backend.daily.experience import PANORAMA_TOPICS, build_daily_experience
 from backend.daily.orchestrator import DailyOrchestrator
 from backend.daily.transformations import build_analyses, build_priorities
@@ -43,7 +43,7 @@ class StubContextService:
         self.calls.append((positions, now))
         return {
             "generated_at": (now or NOW).isoformat(),
-            "lookback_hours": 24,
+            "lookback_hours": DAILY_LOOKBACK_HOURS,
             "has_portfolio_context": bool(positions),
             "facts": [dict(item) for item in self.facts],
             "agenda": [dict(item) for item in self.agenda],

@@ -5,7 +5,12 @@ from inspect import signature
 import backend.daily.experience as experience_module
 import pytest
 from backend.daily.cache import DailyCache
-from backend.daily.context_service import AgendaEvent, DailyContextService, MarketEvent
+from backend.daily.context_service import (
+    DAILY_LOOKBACK_HOURS,
+    AgendaEvent,
+    DailyContextService,
+    MarketEvent,
+)
 from backend.daily.experience import PANORAMA_TOPICS, build_daily_experience
 from backend.daily.orchestrator import DailyOrchestrator
 from backend.daily.providers import ExternalDataResult, FinnhubDailyProvider
@@ -120,13 +125,34 @@ def registry_service(tmp_path, *providers):
 
 
 def test_window_limit_priority_order_and_expired_facts(tmp_path):
-    facts = [fact("old", 25, "Alta"), fact("low", 1), fact("high-old", 8, "Alta"),
-             fact("high-new", 2, "Alta"), fact("moderate", 1, "Moderada"),
-             fact("extra-1", 3), fact("extra-2", 4)]
+    facts = [
+        fact("old", 49, "Alta"),
+        fact("eligible", 25, "Alta"),
+        fact("low", 1),
+        fact("high-old", 8, "Alta"),
+        fact("high-new", 2, "Alta"),
+        fact("moderate", 1, "Moderada"),
+        fact("extra-1", 3),
+        fact("extra-2", 4),
+    ]
     result = service(tmp_path, Provider(facts)).generate((), now=NOW)
     assert len(result["facts"]) == 5
-    assert [item["id"] for item in result["facts"][:3]] == ["high-new", "high-old", "moderate"]
+    assert [item["id"] for item in result["facts"][:3]] == [
+        "high-new", "high-old", "eligible",
+    ]
+    assert "eligible" in {item["id"] for item in result["facts"]}
     assert "old" not in {item["id"] for item in result["facts"]}
+
+
+def test_official_lookback_configures_cutoff_and_payload(tmp_path):
+    result = service(tmp_path, Provider([
+        fact("at-cutoff", DAILY_LOOKBACK_HOURS),
+        fact("past-cutoff", DAILY_LOOKBACK_HOURS + 1),
+    ])).generate((), now=NOW)
+
+    assert DAILY_LOOKBACK_HOURS == 48
+    assert result["lookback_hours"] == DAILY_LOOKBACK_HOURS
+    assert [item["id"] for item in result["facts"]] == ["at-cutoff"]
 
 
 def test_experience_uses_the_official_priorities_transformation(tmp_path):
@@ -386,7 +412,9 @@ def test_experience_neutral_panorama_and_empty_agenda(tmp_path):
         service(tmp_path, Provider([fact("market", 1)])))
     assert tuple(item["topic"] for item in daily["global_overview"]) == PANORAMA_TOPICS
     assert daily["market_agenda"] == []
-    assert daily["global_overview"][0]["summary"] == "Nenhum fato relevante identificado nas últimas 24 horas."
+    assert daily["global_overview"][0]["summary"] == (
+        f"Nenhum fato relevante identificado nas últimas {DAILY_LOOKBACK_HOURS} horas."
+    )
     assert "etapa futura" not in str(daily)
 
 
