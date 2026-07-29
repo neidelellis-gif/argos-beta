@@ -15,6 +15,19 @@ PANORAMA_TOPICS = (
 )
 
 
+def build_priorities(facts):
+    """Project the first prioritized facts onto the existing Daily contract."""
+    return [
+        {
+            "id": fact["id"],
+            "title": fact["title"],
+            "level": fact["priority"],
+            "context": fact["context"],
+        }
+        for fact in facts[:3]
+    ]
+
+
 def build_daily_experience(
     positions: Iterable[PortfolioPosition],
     current_date: Optional[date] = None,
@@ -28,15 +41,7 @@ def build_daily_experience(
         now=now,
     )
     facts = context["facts"]
-    priorities = [
-        {
-            "id": fact["id"],
-            "title": fact["title"],
-            "level": fact["priority"],
-            "context": fact["context"],
-        }
-        for fact in facts[:3]
-    ]
+    priorities = build_priorities(facts)
     analyses = [
         {
             "id": fact["id"],

@@ -3,7 +3,11 @@ from decimal import Decimal
 
 from backend.daily.cache import DailyCache
 from backend.daily.context_service import AgendaEvent, DailyContextService, MarketEvent
-from backend.daily.experience import PANORAMA_TOPICS, build_daily_experience
+from backend.daily.experience import (
+    PANORAMA_TOPICS,
+    build_priorities,
+    build_daily_experience,
+)
 from backend.daily.providers import ExternalDataResult, FinnhubDailyProvider
 from backend.daily.registry import (
     DailyProviderRegistry,
@@ -67,6 +71,22 @@ def test_window_limit_priority_order_and_expired_facts(tmp_path):
     assert len(result["facts"]) == 5
     assert [item["id"] for item in result["facts"][:3]] == ["high-new", "high-old", "moderate"]
     assert "old" not in {item["id"] for item in result["facts"]}
+
+
+def test_experience_uses_the_official_priorities_transformation(tmp_path):
+    daily = build_daily_experience(
+        (),
+        date(2026, 7, 28),
+        NOW,
+        service(tmp_path, Provider([
+            fact("first", 1, "Alta"),
+            fact("second", 2, "Moderada"),
+            fact("third", 3, "Baixa"),
+            fact("fourth", 4, "Baixa"),
+        ])),
+    )
+
+    assert daily["priorities"] == build_priorities(daily["important_facts"])
 
 
 def test_direct_nvda_and_ethereum_relationships_without_indirect_etf_match(tmp_path):
