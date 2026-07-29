@@ -17,16 +17,12 @@ if __package__ in {None, ""}:
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
-from backend.daily.engine import get_daily_status
 from backend.dashboard import build_dashboard, load_dashboard
 from backend.portfolio_import import import_portfolios
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
-DATA_DIR = PROJECT_ROOT / "data"
-FACTS_FILE = DATA_DIR / "facts.json"
-COCKPIT_FILE = DATA_DIR / "cockpit.json"
 PORT = 8080
 SESSION_COOKIE = "argos_session"
 SESSION_PORTFOLIOS = {}
@@ -57,63 +53,17 @@ def _save_temp_file(content: bytes, suffix: str) -> Path:
     return Path(file_obj.name)
 
 
-def load_facts() -> Dict:
-    if not FACTS_FILE.exists():
-        raise FileNotFoundError(
-            "O arquivo data/facts.json não foi encontrado."
-        )
-
-    with FACTS_FILE.open(
-        "r",
-        encoding="utf-8"
-    ) as file_obj:
-        facts = json.load(file_obj)
-
-    if not isinstance(facts, list):
-        raise ValueError(
-            "O arquivo facts.json deve conter uma lista."
-        )
-
-    return {
-        "ok": True,
-        "facts": facts
-    }
+def legacy_facts_response(dashboard: Dict) -> Dict:
+    """Adapt the official dashboard to the retained legacy HTTP contract."""
+    return {"ok": True, "facts": dashboard["daily"]["important_facts"]}
 
 
-def load_cockpit() -> Dict:
-    if not COCKPIT_FILE.exists():
-        raise FileNotFoundError(
-            "O arquivo data/cockpit.json não foi encontrado."
-        )
-
-    with COCKPIT_FILE.open(
-        "r",
-        encoding="utf-8"
-    ) as file_obj:
-        cockpit = json.load(file_obj)
-
-    if not isinstance(cockpit, dict):
-        raise ValueError(
-            "O arquivo cockpit.json deve conter um objeto."
-        )
-
-    cockpit["daily"] = get_daily_status()
-
-    return {
-        "ok": True,
-        "cockpit": cockpit
-    }
+def legacy_cockpit_response(dashboard: Dict) -> Dict:
+    """Adapt the official dashboard to the retained legacy HTTP contract."""
+    return {"ok": True, "cockpit": dashboard}
 
 
 def analyze_request(data: Dict) -> Dict:
-    from backend.connectors.ubs_connector import (
-        load_positions as load_ubs_positions
-    )
-    from backend.connectors.santander_connector import (
-        load_positions as load_santander_positions
-    )
-    from backend.consolidation import consolidate_positions
-
     portfolio = data.get("portfolio")
 
     if portfolio != "JOLIKA":
@@ -156,23 +106,8 @@ def analyze_request(data: Dict) -> Dict:
     )
 
     try:
-        ubs_positions = load_ubs_positions(
-            str(ubs_path)
-        )
-
-        santander_positions = load_santander_positions(
-            str(santander_path)
-        )
-
-        result = consolidate_positions(
-            ubs_positions,
-            santander_positions
-        )
-
-        return {
-            "ok": True,
-            "result": result
-        }
+        imported = import_portfolios((ubs_path, santander_path))
+        return {"ok": True, "result": imported["dashboard"]}
 
     finally:
         for path in (
@@ -236,25 +171,12 @@ class ArgosRequestHandler(
         super().end_headers()
 
     def do_GET(self):
+        # Official flow:
+        # Dashboard -> DailyOrchestrator -> DailyContextService.
+        # Cockpit and facts are compatibility-only projections of Dashboard.
         if self.path == "/api/dashboard":
             try:
-                session_id = self._session_id()
-                session = SESSION_PORTFOLIOS.get(session_id)
-                positions = session.get("positions") if isinstance(
-                    session, dict
-                ) else session
-                last_import_at = session.get("last_import_at") if isinstance(
-                    session, dict
-                ) else None
-                dashboard = (
-                    load_dashboard()
-                    if positions is None
-                    else build_dashboard(
-                        positions,
-                        last_import_at=last_import_at,
-                    )
-                )
-                self._send_json(dashboard, status=200)
+                self._send_json(self._dashboard(), status=200)
             except Exception as exc:
                 self._send_json(
                     {"error": str(exc)},
@@ -264,11 +186,7 @@ class ArgosRequestHandler(
 
         if self.path == "/api/cockpit":
             try:
-                response = load_cockpit()
-                self._send_json(
-                    response,
-                    status=200
-                )
+                self._send_json(legacy_cockpit_response(self._dashboard()))
             except Exception as exc:
                 self._send_json(
                     {
@@ -282,11 +200,7 @@ class ArgosRequestHandler(
 
         if self.path == "/api/facts":
             try:
-                response = load_facts()
-                self._send_json(
-                    response,
-                    status=200
-                )
+                self._send_json(legacy_facts_response(self._dashboard()))
             except Exception as exc:
                 self._send_json(
                     {
@@ -313,6 +227,7 @@ class ArgosRequestHandler(
             return
 
         handlers = {
+            # Compatibility only: delegates to the official import/dashboard flow.
             "/api/analyze": analyze_request,
             "/api/santander/inspect": inspect_santander_request,
         }
@@ -376,6 +291,20 @@ class ArgosRequestHandler(
             if separator and name == SESSION_COOKIE and value:
                 return value
         return None
+
+    def _dashboard(self):
+        session = SESSION_PORTFOLIOS.get(self._session_id())
+        positions = session.get("positions") if isinstance(
+            session, dict
+        ) else session
+        last_import_at = session.get("last_import_at") if isinstance(
+            session, dict
+        ) else None
+        return (
+            load_dashboard()
+            if positions is None
+            else build_dashboard(positions, last_import_at=last_import_at)
+        )
 
     def _multipart_files(self):
         content_type = self.headers.get("Content-Type", "")
