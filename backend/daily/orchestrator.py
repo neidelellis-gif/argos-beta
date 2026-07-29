@@ -19,5 +19,5 @@ class DailyOrchestrator:
             "facts": list(context["facts"]),
             "priorities": build_priorities(context["facts"]),
             "analyses": [],
-            "agenda": [],
+            "agenda": list(context["agenda"]),
         }

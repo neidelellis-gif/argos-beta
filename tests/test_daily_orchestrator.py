@@ -3,13 +3,14 @@ from backend.daily.orchestrator import DailyOrchestrator
 
 
 class StubContextService:
-    def __init__(self, facts):
+    def __init__(self, facts, agenda=()):
         self.facts = facts
+        self.agenda = agenda
         self.calls = []
 
     def generate(self, positions):
         self.calls.append(positions)
-        return {"facts": self.facts}
+        return {"facts": self.facts, "agenda": self.agenda}
 
 
 def fact(identifier, priority="Alta", context="Contexto geral"):
@@ -21,9 +22,16 @@ def fact(identifier, priority="Alta", context="Contexto geral"):
     }
 
 
+def agenda(identifier):
+    return {"id": identifier, "title": f"Official agenda {identifier}"}
+
+
 def test_build_creates_the_daily_structure():
     official_fact = fact("official-fact")
-    daily = DailyOrchestrator(StubContextService([official_fact])).build()
+    official_agenda = agenda("official-agenda")
+    daily = DailyOrchestrator(
+        StubContextService([official_fact], [official_agenda])
+    ).build()
 
     assert daily == {
         "facts": [official_fact],
@@ -34,7 +42,7 @@ def test_build_creates_the_daily_structure():
             "context": "Contexto geral",
         }],
         "analyses": [],
-        "agenda": [],
+        "agenda": [official_agenda],
     }
 
 
@@ -47,10 +55,14 @@ def test_build_returns_all_four_blocks_as_lists():
 
 def test_build_returns_consistent_independent_structures():
     official_fact = fact("official-fact")
-    orchestrator = DailyOrchestrator(StubContextService([official_fact]))
+    official_agenda = agenda("official-agenda")
+    orchestrator = DailyOrchestrator(
+        StubContextService([official_fact], [official_agenda])
+    )
 
     first = orchestrator.build()
     first["facts"].append("temporary fact")
+    first["agenda"].append("temporary agenda")
     second = orchestrator.build()
 
     assert second == {
@@ -62,7 +74,7 @@ def test_build_returns_consistent_independent_structures():
             "context": "Contexto geral",
         }],
         "analyses": [],
-        "agenda": [],
+        "agenda": [official_agenda],
     }
     assert first is not second
     assert all(first[name] is not second[name] for name in second)
@@ -76,6 +88,16 @@ def test_build_uses_the_official_facts_service():
     assert service.calls == [()]
     assert daily["facts"] == service.facts
     assert daily["facts"] is not service.facts
+
+
+def test_build_uses_official_agenda_and_preserves_received_order():
+    official_agenda = [agenda("portfolio-first"), agenda("general-second")]
+    service = StubContextService([], official_agenda)
+
+    daily = DailyOrchestrator(service).build()
+
+    assert daily["agenda"] == official_agenda
+    assert daily["agenda"] is not official_agenda
 
 
 def test_build_uses_the_official_priorities_transformation(monkeypatch):
