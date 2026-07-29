@@ -28,6 +28,22 @@ def build_priorities(facts):
     ]
 
 
+def build_analyses(facts):
+    """Project relevant facts onto the existing analyses contract."""
+    return [
+        {
+            "id": fact["id"],
+            "title": fact["title"],
+            "reason": fact["summary"],
+            "related_to": ", ".join(fact["matched_portfolio_assets"]) or None,
+            "status": fact["context"],
+            "updated_at": fact["occurred_at"],
+        }
+        for fact in facts
+        if fact["context_type"] in {"portfolio", "macro"}
+    ][:2]
+
+
 def build_daily_experience(
     positions: Iterable[PortfolioPosition],
     current_date: Optional[date] = None,
@@ -42,18 +58,7 @@ def build_daily_experience(
     )
     facts = context["facts"]
     priorities = build_priorities(facts)
-    analyses = [
-        {
-            "id": fact["id"],
-            "title": fact["title"],
-            "reason": fact["summary"],
-            "related_to": ", ".join(fact["matched_portfolio_assets"]) or None,
-            "status": fact["context"],
-            "updated_at": fact["occurred_at"],
-        }
-        for fact in facts
-        if fact["context_type"] in {"portfolio", "macro"}
-    ][:3]
+    analyses = build_analyses(facts)
     panorama = []
     for topic in PANORAMA_TOPICS:
         topic_fact = next((fact for fact in facts if fact["category"] == topic), None)

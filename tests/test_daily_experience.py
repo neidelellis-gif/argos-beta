@@ -5,6 +5,7 @@ from backend.daily.cache import DailyCache
 from backend.daily.context_service import AgendaEvent, DailyContextService, MarketEvent
 from backend.daily.experience import (
     PANORAMA_TOPICS,
+    build_analyses,
     build_priorities,
     build_daily_experience,
 )
@@ -87,6 +88,75 @@ def test_experience_uses_the_official_priorities_transformation(tmp_path):
     )
 
     assert daily["priorities"] == build_priorities(daily["important_facts"])
+
+
+def test_build_analyses_preserves_order_limit_and_contract(tmp_path):
+    facts = service(tmp_path, Provider([
+        fact("portfolio-first", 1, assets=("NVDA",)),
+        fact("general", 2),
+        fact("macro-second", 3, macro=True),
+        fact("macro-limited", 4, macro=True),
+    ])).generate([position("NVDA")], NOW)["facts"]
+
+    analyses = build_analyses(facts)
+
+    assert [item["id"] for item in analyses] == [
+        "portfolio-first", "macro-second",
+    ]
+    assert set(analyses[0]) == {
+        "id", "title", "reason", "related_to", "status", "updated_at",
+    }
+    assert analyses[0] == {
+        "id": "portfolio-first",
+        "title": "Fato portfolio-first",
+        "reason": "Resumo portfolio-first",
+        "related_to": "NVDA",
+        "status": "Relacionado à carteira: NVDA",
+        "updated_at": (NOW - timedelta(hours=1)).isoformat(),
+    }
+
+
+def test_build_analyses_empty_and_independent_between_calls():
+    assert build_analyses([]) == []
+
+    fact_payload = {
+        "id": "macro",
+        "title": "Fato macro",
+        "summary": "Resumo macro",
+        "matched_portfolio_assets": [],
+        "context": "Contexto macro geral de mercado",
+        "occurred_at": NOW.isoformat(),
+        "context_type": "macro",
+    }
+    first = build_analyses([fact_payload])
+    second = build_analyses([fact_payload])
+
+    assert first == second
+    assert first is not second
+    assert first[0] is not second[0]
+
+
+def test_experience_uses_the_official_analyses_transformation(
+    tmp_path, monkeypatch,
+):
+    expected = [{"official": "analyses"}]
+    calls = []
+
+    def official_transformation(received_facts):
+        calls.append(received_facts)
+        return expected
+
+    monkeypatch.setattr(
+        "backend.daily.experience.build_analyses",
+        official_transformation,
+    )
+    daily = build_daily_experience(
+        (), date(2026, 7, 28), NOW,
+        service(tmp_path, Provider([fact("macro", 1, macro=True)])),
+    )
+
+    assert calls == [daily["important_facts"]]
+    assert daily["analyses"] is expected
 
 
 def test_direct_nvda_and_ethereum_relationships_without_indirect_etf_match(tmp_path):

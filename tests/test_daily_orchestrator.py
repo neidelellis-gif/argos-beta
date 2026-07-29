@@ -13,12 +13,21 @@ class StubContextService:
         return {"facts": self.facts, "agenda": self.agenda}
 
 
-def fact(identifier, priority="Alta", context="Contexto geral"):
+def fact(
+    identifier,
+    priority="Alta",
+    context="Contexto geral",
+    context_type="macro",
+):
     return {
         "id": identifier,
         "title": f"Official fact {identifier}",
         "priority": priority,
         "context": context,
+        "summary": f"Official summary {identifier}",
+        "matched_portfolio_assets": [],
+        "occurred_at": "2026-07-28T10:00:00+00:00",
+        "context_type": context_type,
     }
 
 
@@ -41,7 +50,14 @@ def test_build_creates_the_daily_structure():
             "level": "Alta",
             "context": "Contexto geral",
         }],
-        "analyses": [],
+        "analyses": [{
+            "id": "official-fact",
+            "title": "Official fact official-fact",
+            "reason": "Official summary official-fact",
+            "related_to": None,
+            "status": "Contexto geral",
+            "updated_at": "2026-07-28T10:00:00+00:00",
+        }],
         "agenda": [official_agenda],
     }
 
@@ -73,7 +89,14 @@ def test_build_returns_consistent_independent_structures():
             "level": "Alta",
             "context": "Contexto geral",
         }],
-        "analyses": [],
+        "analyses": [{
+            "id": "official-fact",
+            "title": "Official fact official-fact",
+            "reason": "Official summary official-fact",
+            "related_to": None,
+            "status": "Contexto geral",
+            "updated_at": "2026-07-28T10:00:00+00:00",
+        }],
         "agenda": [official_agenda],
     }
     assert first is not second
@@ -119,6 +142,38 @@ def test_build_uses_the_official_priorities_transformation(monkeypatch):
 
     assert calls == [facts]
     assert daily["priorities"] is expected
+
+
+def test_build_uses_the_official_analyses_transformation(monkeypatch):
+    facts = [fact("first"), fact("second")]
+    expected = [{"official": "analyses"}]
+    calls = []
+
+    def official_transformation(received_facts):
+        calls.append(received_facts)
+        return expected
+
+    monkeypatch.setattr(
+        orchestrator_module,
+        "build_analyses",
+        official_transformation,
+    )
+
+    daily = DailyOrchestrator(StubContextService(facts)).build()
+
+    assert calls == [facts]
+    assert daily["analyses"] is expected
+
+
+def test_build_analyses_preserves_order_and_limits_to_two_items():
+    facts = [fact("first"), fact("second"), fact("third")]
+
+    analyses = DailyOrchestrator(StubContextService(facts)).build()["analyses"]
+
+    assert [item["id"] for item in analyses] == ["first", "second"]
+    assert all(set(item) == {
+        "id", "title", "reason", "related_to", "status", "updated_at",
+    } for item in analyses)
 
 
 def test_build_preserves_priority_order_and_first_three_items():
