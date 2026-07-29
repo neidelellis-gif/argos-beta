@@ -6,6 +6,9 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import urlopen
 
+import backend.dashboard as dashboard_module
+import backend.daily.experience as experience_module
+from backend.daily.experience import build_daily_experience
 from backend.dashboard import build_dashboard
 from backend.models import PortfolioPosition
 from backend.server import ArgosRequestHandler
@@ -28,6 +31,61 @@ def position(institution, symbol, value, currency="USD"):
         reference_date=None,
         source_file=f"{institution}.csv",
     )
+
+
+def test_dashboard_uses_daily_orchestrator_with_exact_inputs(monkeypatch):
+    positions = [position("UBS", "AAA", "100")]
+    expected_positions = tuple(positions)
+    current_date = date(2026, 7, 28)
+    now = datetime(2026, 7, 28, 15, 0, tzinfo=timezone.utc)
+    expected_daily = build_daily_experience(expected_positions, current_date, now)
+    calls = []
+
+    class RecordingOrchestrator:
+        def build(self, received_positions, current_date=None, now=None):
+            calls.append((received_positions, current_date, now))
+            return expected_daily
+
+    monkeypatch.setattr(dashboard_module, "DailyOrchestrator", RecordingOrchestrator)
+
+    result = build_dashboard(positions, current_date=current_date, now=now)
+
+    assert calls == [(expected_positions, current_date, now)]
+    assert result["daily"] is expected_daily
+
+
+def test_dashboard_does_not_call_build_daily_experience(monkeypatch):
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("build_daily_experience must not be called")
+
+    monkeypatch.setattr(
+        experience_module,
+        "build_daily_experience",
+        fail_if_called,
+    )
+
+    result = build_dashboard([], current_date=date(2026, 7, 28))
+
+    assert result["daily"]["generated_for"] == "2026-07-28"
+
+
+def test_orchestrated_daily_payload_matches_legacy_contract():
+    positions = [position("UBS", "NVDA", "100")]
+    current_date = date(2026, 7, 28)
+    now = datetime(2026, 7, 28, 15, 0, tzinfo=timezone.utc)
+
+    expected = build_daily_experience(positions, current_date, now)
+    actual = build_dashboard(
+        positions,
+        current_date=current_date,
+        now=now,
+    )["daily"]
+
+    assert actual == expected
+    assert actual["sources"] == expected["sources"]
+    assert actual["global_overview"] == expected["global_overview"]
+    assert actual["market_agenda"] == expected["market_agenda"]
+    assert actual["important_facts"] == expected["important_facts"]
 
 
 def test_empty_dashboard_response():

@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Dict, Iterable, Optional
 
-from backend.daily.experience import build_daily_experience
+from backend.daily.orchestrator import DailyOrchestrator
 from backend.models import PortfolioPosition
 from backend.portfolio_consolidation import consolidate_portfolio_positions
 from backend.portfolio_diagnostics import (
@@ -78,7 +78,7 @@ def build_dashboard(
             {"status": "waiting", "message": portfolio_message}
         ]
 
-    daily = build_daily_experience(
+    daily = DailyOrchestrator().build(
         positions,
         current_date=current_date,
         now=now,
