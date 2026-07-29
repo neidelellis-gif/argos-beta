@@ -1,4 +1,3 @@
-import csv
 import re
 import zipfile
 from decimal import Decimal
@@ -7,54 +6,30 @@ from typing import Dict, Iterable, List, Sequence
 from xml.etree import ElementTree
 
 from backend.models import PortfolioOwner, PortfolioPosition
+from backend.connectors.errors import (
+    ConnectorFileNotFoundError,
+    EmptyPortfolioError,
+    UnsupportedExtensionError,
+    UnrecognizedFileError,
+)
+from backend.connectors.io import normalize_header, parse_decimal, read_tabular_rows
 
-SUPPORTED_EXTENSIONS = {".xls", ".xlsx"}
+connector_id = "santander"
+institution = "Santander"
+owner = PortfolioOwner.JOLIKA
+supported_extensions = frozenset({".xls", ".xlsx"})
+SUPPORTED_EXTENSIONS = supported_extensions
 SANTANDER_EXCEL_SOURCE = "Santander Excel Export"
 ASSET_SUMMARY_TITLE = "RESUMO DE ATIVOS"
 
 
 def _normalize_header(value):
-    return str(value or "").strip().upper()
+    return normalize_header(value)
 
 
 def _parse_number(value):
-    if value is None or value == "":
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-
-    text = (
-        str(value)
-        .replace("$", "")
-        .replace(",", "")
-        .replace("%", "")
-        .replace('"', "")
-        .strip()
-    )
-    if not text:
-        return None
-    try:
-        return float(text)
-    except ValueError:
-        return None
-
-
-def _csv_rows(path: Path):
-    with path.open(encoding="utf-8-sig", newline="") as file:
-        return list(csv.reader(file))
-
-
-def _xlsx_rows(path: Path):
-    try:
-        from openpyxl import load_workbook
-    except ImportError as exc:
-        raise ValueError(
-            "Falta a biblioteca openpyxl para ler o Excel do Santander."
-        ) from exc
-
-    workbook = load_workbook(path, data_only=True, read_only=True)
-    worksheet = workbook.active
-    return [list(row) for row in worksheet.iter_rows(values_only=True)]
+    number = parse_decimal(value)
+    return float(number) if number is not None else None
 
 
 def _row_contains(row, expected):
@@ -216,26 +191,10 @@ def inspect_excel_export(file_path):
     raise ValueError("Não encontrei a seção RESUMO DE ATIVOS no arquivo Santander.")
 
 
-def _xls_rows(path: Path):
-    try:
-        import xlrd
-    except ImportError as exc:
-        raise ValueError(
-            "Para ler o arquivo .xls do Santander, execute uma vez no Terminal: python3 -m pip install xlrd"
-        ) from exc
-
-    workbook = xlrd.open_workbook(path)
-    worksheet = workbook.sheet_by_index(0)
-    return [worksheet.row_values(index) for index in range(worksheet.nrows)]
-
-
 def _read_rows(path: Path):
-    extension = path.suffix.lower()
-    if extension == ".xlsx":
-        return _xlsx_rows(path)
-    if extension == ".xls":
-        return _xls_rows(path)
-    raise ValueError("Formato Santander não suportado. Use XLS ou XLSX.")
+    return read_tabular_rows(
+        path, institution=institution, extensions=supported_extensions
+    )
 
 
 def _has_header_markers(row):
@@ -399,8 +358,8 @@ def _to_portfolio_position(position, source_file):
     account = position.get("account") or None
 
     return PortfolioPosition(
-        institution=position["institution"],
-        owner=PortfolioOwner.JOLIKA,
+        institution=institution,
+        owner=owner,
         account=account,
         asset_class=position["asset_class"],
         asset_subclass=None,
@@ -421,17 +380,23 @@ def _to_portfolio_position(position, source_file):
     )
 
 
-def load_positions(file_path=None):
+def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
     path = Path(file_path)
     if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-        raise ValueError("O arquivo Santander deve estar em XLS ou XLSX.")
+        raise UnsupportedExtensionError(
+            "O arquivo Santander deve estar em XLS ou XLSX."
+        )
     if not path.exists():
-        raise ValueError(f"Arquivo Santander não encontrado: {path.name}")
+        raise ConnectorFileNotFoundError(
+            f"Arquivo Santander não encontrado: {path.name}"
+        )
 
     rows = _read_rows(path)
     block_headers = _find_block_headers(rows)
     if not block_headers:
-        raise ValueError("Não encontrei blocos Santander com cabeçalhos esperados.")
+        raise UnrecognizedFileError(
+            "Não encontrei blocos Santander com cabeçalhos esperados."
+        )
 
     positions = []
     for header_index in block_headers:
@@ -476,9 +441,21 @@ def load_positions(file_path=None):
             })
 
     if not positions:
-        raise ValueError("Nenhuma posição Santander foi encontrada no arquivo.")
+        raise EmptyPortfolioError(
+            "Nenhuma posição Santander foi encontrada no arquivo."
+        )
 
-    return [
+    return tuple(
         _to_portfolio_position(position, path.name)
         for position in positions
-    ]
+    )
+
+
+def recognize(path: Path) -> bool:
+    path = Path(path)
+    if path.suffix.lower() not in supported_extensions or not path.exists():
+        return False
+    try:
+        return bool(_find_block_headers(_read_rows(path)))
+    except (OSError, ValueError):
+        return False

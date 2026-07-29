@@ -1,10 +1,20 @@
 """Connector for TipRanks portfolio CSV exports."""
 
 import csv
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from backend.models import PortfolioOwner, PortfolioPosition
+from backend.connectors.errors import (
+    ConnectorFileNotFoundError,
+    EmptyPortfolioError,
+    UnsupportedExtensionError,
+)
+from backend.connectors.io import parse_decimal
+
+connector_id = "tipranks"
+institution = "TipRanks"
+owner = PortfolioOwner.JOLIKA
+supported_extensions = frozenset({".csv"})
 
 
 def _normalize_header(value):
@@ -18,14 +28,7 @@ def _parse_number(value):
     text = str(value or "").strip()
     if not text or text == "-":
         return None
-
-    negative = text.startswith("(") and text.endswith(")")
-    normalized = "".join(character for character in text if character not in "$,%() ")
-    try:
-        number = Decimal(normalized)
-    except InvalidOperation:
-        return None
-    return -number if negative else number
+    return parse_decimal(text.replace(" ", ""))
 
 
 def _parse_text(value):
@@ -80,8 +83,8 @@ def _read_positions(path):
 def _to_portfolio_position(position, source_file):
     """Convert one parsed TipRanks position to the universal portfolio model."""
     return PortfolioPosition(
-        institution=position["institution"],
-        owner=PortfolioOwner.JOLIKA,
+        institution=institution,
+        owner=owner,
         account=None,
         asset_class=None,
         asset_subclass=None,
@@ -98,14 +101,34 @@ def _to_portfolio_position(position, source_file):
     )
 
 
-def load_positions(file_path):
+def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
     path = Path(file_path)
     if path.suffix.lower() != ".csv":
-        raise ValueError("O arquivo TipRanks deve estar em CSV.")
+        raise UnsupportedExtensionError("O arquivo TipRanks deve estar em CSV.")
     if not path.exists():
-        raise ValueError(f"Arquivo TipRanks não encontrado: {path.name}")
+        raise ConnectorFileNotFoundError(
+            f"Arquivo TipRanks não encontrado: {path.name}"
+        )
 
-    return [
+    positions = tuple(
         _to_portfolio_position(position, path.name)
         for position in _read_positions(path)
-    ]
+    )
+    if not positions:
+        raise EmptyPortfolioError("Nenhuma posição TipRanks foi encontrada no arquivo.")
+    return positions
+
+
+def recognize(path: Path) -> bool:
+    path = Path(path)
+    if path.suffix.lower() not in supported_extensions or not path.exists():
+        return False
+    try:
+        with path.open(encoding="utf-8-sig", newline="") as file:
+            headers = next(csv.reader(file), [])
+    except OSError:
+        return False
+    normalized = {_normalize_header(header) for header in headers}
+    return bool(normalized & {"ticker", "symbol", "stock"}) and bool(
+        normalized & {"shares", "quantity", "no of shares"}
+    )
