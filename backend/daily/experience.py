@@ -1,19 +1,11 @@
-"""Assembly of the ARGOS daily experience from market context."""
+"""Compatibility entry point for building the ARGOS Daily experience."""
 
 from datetime import date, datetime
 from typing import Dict, Iterable, Optional
 
-from backend.daily.context_service import DailyContextService, PRIORITY_LEVELS
-from backend.daily.transformations import build_analyses, build_priorities
+from backend.daily.context_service import DailyContextService
+from backend.daily.orchestrator import DailyOrchestrator, PANORAMA_TOPICS
 from backend.models import PortfolioPosition
-
-PANORAMA_TOPICS = (
-    "Macroeconomia",
-    "Mercados",
-    "Geopolítica",
-    "Tecnologia",
-    "Criptoativos",
-)
 
 
 def build_daily_experience(
@@ -22,57 +14,9 @@ def build_daily_experience(
     now: Optional[datetime] = None,
     context_service: Optional[DailyContextService] = None,
 ) -> Dict:
-    """Build the existing UI contract from prioritized market facts."""
-    normalized_positions = tuple(positions)
-    context = (context_service or DailyContextService()).generate(
-        normalized_positions,
+    """Build the Daily contract through the official orchestrator."""
+    return DailyOrchestrator(context_service=context_service).build(
+        positions=positions,
+        current_date=current_date,
         now=now,
     )
-    facts = context["facts"]
-    priorities = build_priorities(facts)
-    analyses = build_analyses(facts)
-    panorama = []
-    for topic in PANORAMA_TOPICS:
-        topic_fact = next((fact for fact in facts if fact["category"] == topic), None)
-        panorama.append({
-            "topic": topic,
-            "status": "Atualizado" if topic_fact else "Sem fatos relevantes",
-            "summary": topic_fact["summary"] if topic_fact else (
-                "Nenhum fato relevante identificado nas últimas 24 horas."
-            ),
-        })
-
-    return {
-        "generated_for": (current_date or date.today()).isoformat(),
-        "generated_at": context["generated_at"],
-        "lookback_hours": context["lookback_hours"],
-        "context_scope": "portfolio" if context["has_portfolio_context"] else "general",
-        "important_facts": facts,
-        "priorities": priorities,
-        "analyses": analyses,
-        "global_overview": panorama,
-        "market_agenda": context["agenda"],
-        "sources": context["sources"],
-        "empty_states": {
-            "important_facts": (
-                "Fonte externa indisponível. O último contexto válido será "
-                "reutilizado automaticamente quando existir."
-                if context["sources"]["facts"]["status"] == "unavailable"
-                else "Nenhum fato relevante identificado nas últimas 24 horas."
-            ),
-            "market_agenda": "Nenhum evento relevante previsto.",
-        },
-        "contracts": {
-            "priority_levels": list(PRIORITY_LEVELS),
-            "panorama_topics": list(PANORAMA_TOPICS),
-            "agenda_event_types": [
-                "Resultados",
-                "Bancos centrais",
-                "Inflação",
-                "Emprego",
-                "PIB",
-                "Dividendos",
-                "Vencimentos",
-            ],
-        },
-    }
