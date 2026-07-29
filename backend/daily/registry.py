@@ -1,8 +1,8 @@
 """Ordered registry and fallback orchestration for daily-data providers."""
 
 from datetime import timezone
-import os
 
+from backend.config.settings import get_setting
 from backend.daily.providers import ExternalDataResult, FinnhubDailyProvider
 
 
@@ -99,7 +99,7 @@ def register_daily_provider(name, factory):
 
 def build_default_registry(order=None):
     """Build the registry without exposing concrete providers to the service."""
-    configured = order or os.getenv("ARGOS_DAILY_PROVIDERS", "finnhub")
+    configured = order or get_setting("ARGOS_DAILY_PROVIDERS", "finnhub")
     names = (
         configured.split(",")
         if isinstance(configured, str)
