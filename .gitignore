@@ -8,6 +8,7 @@ __pycache__/
 # Ambiente virtual
 .venv/
 venv/
+.env
 
 # VS Code
 .vscode/
