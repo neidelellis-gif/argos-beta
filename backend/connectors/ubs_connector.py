@@ -3,7 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 
 DEFAULT_FILE_PATH = Path(__file__).with_name("UBS_Holdings_08_07_2026.csv")
 SUPPORTED_EXTENSIONS = {".csv", ".xls", ".xlsx"}
@@ -131,6 +131,7 @@ def _to_portfolio_position(position, source_file):
 
     return PortfolioPosition(
         institution=position["institution"],
+        owner=PortfolioOwner.JOLIKA,
         account=position.get("account") or None,
         asset_class=position["asset_class"],
         asset_subclass=None,

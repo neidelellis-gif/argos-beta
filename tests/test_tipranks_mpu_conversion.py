@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from backend.connectors import tipranks_connector
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 
 
 def test_converts_all_available_tipranks_fields_to_mpu():
@@ -19,6 +19,7 @@ def test_converts_all_available_tipranks_fields_to_mpu():
 
     assert position == PortfolioPosition(
         institution="TipRanks",
+        owner=PortfolioOwner.JOLIKA,
         account=None,
         asset_class=None,
         asset_subclass=None,

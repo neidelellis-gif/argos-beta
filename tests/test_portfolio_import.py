@@ -13,7 +13,7 @@ from backend.server import (
     ArgosRequestHandler,
     SESSION_PORTFOLIOS,
 )
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 
 
 UBS_FIXTURE = Path("frontend/test/fixtures/UBS_Holdings_27_07_2026.csv")
@@ -69,6 +69,7 @@ def post_files(server, files):
 def session_position(institution, identifier, value):
     return PortfolioPosition(
         institution=institution,
+        owner=PortfolioOwner.JOLIKA,
         account=None,
         asset_class=None,
         asset_subclass=None,

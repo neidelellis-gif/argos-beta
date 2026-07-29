@@ -20,7 +20,7 @@ from backend.daily.registry import (
     register_daily_provider,
 )
 from backend.daily.transformations import build_analyses, build_priorities
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 
 NOW = datetime(2026, 7, 28, 15, 0, tzinfo=timezone.utc)
 
@@ -81,7 +81,7 @@ def test_experience_without_arguments_preserves_public_behavior(monkeypatch):
 
 
 def position(identifier, name=None, institution="UBS"):
-    return PortfolioPosition(institution, None, None, None, name or identifier, identifier,
+    return PortfolioPosition(institution, PortfolioOwner.JOLIKA, None, None, None, name or identifier, identifier,
         "ticker", None, None, Decimal("100"), "USD", None, None, f"{institution}.csv")
 
 
