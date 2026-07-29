@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from backend.connectors import santander_connector
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 
 
 def test_converts_santander_position_to_mpu():
@@ -22,6 +22,7 @@ def test_converts_santander_position_to_mpu():
 
     assert position == PortfolioPosition(
         institution="Santander",
+        owner=PortfolioOwner.JOLIKA,
         account="12345",
         asset_class="Renda Fixa",
         asset_subclass=None,
@@ -89,3 +90,4 @@ def test_load_positions_returns_mpu_positions(monkeypatch, tmp_path):
     assert positions[0].identifier == "US0000000001"
     assert positions[0].market_value == Decimal("250.25")
     assert positions[0].source_file == "santander.xlsx"
+    assert positions[0].owner is PortfolioOwner.JOLIKA

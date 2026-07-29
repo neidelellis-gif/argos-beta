@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 from backend.portfolio_diagnostics import (
     diagnose_consolidated,
     diagnose_institution,
@@ -19,6 +19,7 @@ def position(
 ):
     return PortfolioPosition(
         institution=institution,
+        owner=PortfolioOwner.JOLIKA,
         account=None,
         asset_class=None,
         asset_subclass=None,

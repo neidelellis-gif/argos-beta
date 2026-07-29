@@ -1,13 +1,14 @@
 from dataclasses import replace
 from decimal import Decimal
 
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 from backend.portfolio_consolidation import consolidate_portfolio_positions
 
 
 def position(institution, value, currency="USD"):
     return PortfolioPosition(
         institution=institution,
+        owner=PortfolioOwner.JOLIKA,
         account=None,
         asset_class=None,
         asset_subclass=None,
@@ -47,6 +48,10 @@ def test_keeps_consolidated_positions_in_a_separate_view():
     result = consolidate_portfolio_positions(positions)
 
     assert result.consolidated_positions == tuple(positions)
+    assert all(
+        position.owner is PortfolioOwner.JOLIKA
+        for position in result.consolidated_positions
+    )
     assert (
         result.consolidated_positions
         is not result.positions_by_institution["UBS"]

@@ -11,13 +11,14 @@ import backend.daily.experience as experience_module
 from backend.daily.experience import build_daily_experience
 from backend.daily.context_service import DAILY_LOOKBACK_HOURS
 from backend.dashboard import build_dashboard
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 from backend.server import ArgosRequestHandler
 
 
 def position(institution, symbol, value, currency="USD"):
     return PortfolioPosition(
         institution=institution,
+        owner=PortfolioOwner.JOLIKA,
         account=None,
         asset_class=None,
         asset_subclass=None,

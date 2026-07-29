@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Sequence
 from xml.etree import ElementTree
 
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 
 SUPPORTED_EXTENSIONS = {".xls", ".xlsx"}
 SANTANDER_EXCEL_SOURCE = "Santander Excel Export"
@@ -400,6 +400,7 @@ def _to_portfolio_position(position, source_file):
 
     return PortfolioPosition(
         institution=position["institution"],
+        owner=PortfolioOwner.JOLIKA,
         account=account,
         asset_class=position["asset_class"],
         asset_subclass=None,

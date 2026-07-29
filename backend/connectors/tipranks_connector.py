@@ -4,7 +4,7 @@ import csv
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 
 
 def _normalize_header(value):
@@ -81,6 +81,7 @@ def _to_portfolio_position(position, source_file):
     """Convert one parsed TipRanks position to the universal portfolio model."""
     return PortfolioPosition(
         institution=position["institution"],
+        owner=PortfolioOwner.JOLIKA,
         account=None,
         asset_class=None,
         asset_subclass=None,
