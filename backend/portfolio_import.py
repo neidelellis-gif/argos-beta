@@ -3,15 +3,17 @@
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
-from backend.connectors.santander_connector import load_positions as load_santander
-from backend.connectors.ubs_connector import load_positions as load_ubs
+from backend.connectors import registry
 from backend.dashboard import build_dashboard
 from backend.models import PortfolioPosition
 from backend.portfolio_diagnostics import diagnose_institution
 
 
-CONNECTORS = (load_ubs, load_santander)
-SUPPORTED_EXTENSIONS = {".csv", ".xls", ".xlsx"}
+SUPPORTED_EXTENSIONS = frozenset(
+    extension
+    for connector in registry.active()
+    for extension in connector.supported_extensions
+)
 
 
 def _load_recognized_file(file_path: Path) -> Tuple[PortfolioPosition, ...]:
@@ -22,9 +24,11 @@ def _load_recognized_file(file_path: Path) -> Tuple[PortfolioPosition, ...]:
         )
 
     matches = []
-    for connector in CONNECTORS:
+    for connector in registry.for_extension(file_path, active_only=True):
         try:
-            positions = tuple(connector(file_path))
+            if not connector.recognize(file_path):
+                continue
+            positions = connector.load_positions(file_path)
         except (OSError, ValueError):
             continue
         if positions:

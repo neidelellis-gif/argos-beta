@@ -1,12 +1,22 @@
-import csv
 from decimal import Decimal
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
 from backend.models import PortfolioOwner, PortfolioPosition
+from backend.connectors.errors import (
+    ConnectorFileNotFoundError,
+    EmptyPortfolioError,
+    UnsupportedExtensionError,
+    UnrecognizedFileError,
+)
+from backend.connectors.io import normalize_header, parse_decimal, read_tabular_rows
 
 DEFAULT_FILE_PATH = Path(__file__).with_name("UBS_Holdings_08_07_2026.csv")
-SUPPORTED_EXTENSIONS = {".csv", ".xls", ".xlsx"}
+connector_id = "ubs"
+institution = "UBS"
+owner = PortfolioOwner.JOLIKA
+supported_extensions = frozenset({".csv", ".xls", ".xlsx"})
+SUPPORTED_EXTENSIONS = supported_extensions
 
 
 def classify_asset(symbol, description):
@@ -30,74 +40,16 @@ def get_display_name(symbol, description):
 
 
 def _normalize_header(value):
-    return str(value or "").strip().upper()
+    return normalize_header(value)
 
 
 def _parse_number(value):
-    if value is None or value == "":
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-
-    text = (
-        str(value)
-        .replace("$", "")
-        .replace(",", "")
-        .replace('"', "")
-        .strip()
-    )
-    if not text:
-        return None
-    try:
-        return float(text)
-    except ValueError:
-        return None
-
-
-def _csv_rows(path: Path):
-    with path.open(encoding="utf-8-sig", newline="") as file:
-        rows = list(csv.reader(file))
-    return rows
-
-
-def _xlsx_rows(path: Path):
-    try:
-        from openpyxl import load_workbook
-    except ImportError as exc:
-        raise ValueError(
-            "Falta a biblioteca openpyxl para ler o Excel da UBS."
-        ) from exc
-
-    workbook = load_workbook(path, data_only=True, read_only=True)
-    worksheet = workbook.active
-    return [list(row) for row in worksheet.iter_rows(values_only=True)]
-
-
-def _xls_rows(path: Path):
-    try:
-        import xlrd
-    except ImportError as exc:
-        raise ValueError(
-            "Para ler o arquivo .xls da UBS, execute uma vez no Terminal: "
-            "python3 -m pip install xlrd"
-        ) from exc
-
-    workbook = xlrd.open_workbook(path)
-    worksheet = workbook.sheet_by_index(0)
-    return [worksheet.row_values(index) for index in range(worksheet.nrows)]
+    number = parse_decimal(value)
+    return float(number) if number is not None else None
 
 
 def _read_rows(path: Path):
-    extension = path.suffix.lower()
-    if extension == ".csv":
-        return _csv_rows(path)
-    if extension == ".xlsx":
-        return _xlsx_rows(path)
-    if extension == ".xls":
-        return _xls_rows(path)
-    raise ValueError(
-        "Formato UBS não suportado. Use CSV, XLS ou XLSX."
-    )
+    return read_tabular_rows(path, institution=institution, extensions=supported_extensions)
 
 
 def _find_header_row(rows):
@@ -118,7 +70,7 @@ def _find_header_row(rows):
                 if candidate in normalized:
                     return index
 
-    raise ValueError(
+    raise UnrecognizedFileError(
         "Não encontrei os cabeçalhos esperados no arquivo UBS."
     )
 
@@ -130,8 +82,8 @@ def _to_portfolio_position(position, source_file):
         identifier = None
 
     return PortfolioPosition(
-        institution=position["institution"],
-        owner=PortfolioOwner.JOLIKA,
+        institution=institution,
+        owner=owner,
         account=position.get("account") or None,
         asset_class=position["asset_class"],
         asset_subclass=None,
@@ -152,14 +104,29 @@ def _to_portfolio_position(position, source_file):
     )
 
 
-def load_positions(file_path=None):
-    path = Path(file_path) if file_path else DEFAULT_FILE_PATH
+def recognize(path: Path) -> bool:
+    path = Path(path)
+    if path.suffix.lower() not in supported_extensions or not path.exists():
+        return False
+    try:
+        _find_header_row(_read_rows(path))
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
+    path = Path(file_path)
     extension = path.suffix.lower()
 
     if extension not in SUPPORTED_EXTENSIONS:
-        raise ValueError("O arquivo UBS deve estar em CSV, XLS ou XLSX.")
+        raise UnsupportedExtensionError(
+            "O arquivo UBS deve estar em CSV, XLS ou XLSX."
+        )
     if not path.exists():
-        raise ValueError(f"Arquivo UBS não encontrado: {path.name}")
+        raise ConnectorFileNotFoundError(
+            f"Arquivo UBS não encontrado: {path.name}"
+        )
 
     rows = _read_rows(path)
     header_index = _find_header_row(rows)
@@ -205,9 +172,9 @@ def load_positions(file_path=None):
         })
 
     if not positions:
-        raise ValueError("Nenhuma posição UBS foi encontrada no arquivo.")
+        raise EmptyPortfolioError("Nenhuma posição UBS foi encontrada no arquivo.")
 
-    return [
+    return tuple(
         _to_portfolio_position(position, path.name)
         for position in positions
-    ]
+    )
