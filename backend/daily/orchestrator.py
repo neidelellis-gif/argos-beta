@@ -3,6 +3,7 @@
 from typing import Dict, List
 
 from backend.daily.context_service import DailyContextService
+from backend.daily.experience import build_priorities
 
 
 class DailyOrchestrator:
@@ -16,7 +17,7 @@ class DailyOrchestrator:
         context = self._context_service.generate(())
         return {
             "facts": list(context["facts"]),
-            "priorities": [],
+            "priorities": build_priorities(context["facts"]),
             "analyses": [],
             "agenda": [],
         }
