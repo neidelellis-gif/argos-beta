@@ -1,23 +1,25 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
+import backend.daily.experience as experience_module
 from backend.daily.cache import DailyCache
 from backend.daily.context_service import AgendaEvent, DailyContextService, MarketEvent
-from backend.daily.experience import (
-    PANORAMA_TOPICS,
-    build_analyses,
-    build_priorities,
-    build_daily_experience,
-)
+from backend.daily.experience import PANORAMA_TOPICS, build_daily_experience
 from backend.daily.providers import ExternalDataResult, FinnhubDailyProvider
 from backend.daily.registry import (
     DailyProviderRegistry,
     build_default_registry,
     register_daily_provider,
 )
+from backend.daily.transformations import build_analyses, build_priorities
 from backend.models import PortfolioPosition
 
 NOW = datetime(2026, 7, 28, 15, 0, tzinfo=timezone.utc)
+
+
+def test_experience_reuses_the_shared_transformations():
+    assert experience_module.build_priorities is build_priorities
+    assert experience_module.build_analyses is build_analyses
 
 
 def position(identifier, name=None, institution="UBS"):

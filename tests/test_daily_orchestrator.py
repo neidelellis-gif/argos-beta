@@ -1,5 +1,6 @@
 import backend.daily.orchestrator as orchestrator_module
 from backend.daily.orchestrator import DailyOrchestrator
+from backend.daily.transformations import build_analyses, build_priorities
 
 
 class StubContextService:
@@ -11,6 +12,11 @@ class StubContextService:
     def generate(self, positions):
         self.calls.append(positions)
         return {"facts": self.facts, "agenda": self.agenda}
+
+
+def test_orchestrator_reuses_the_shared_transformations():
+    assert orchestrator_module.build_priorities is build_priorities
+    assert orchestrator_module.build_analyses is build_analyses
 
 
 def fact(
