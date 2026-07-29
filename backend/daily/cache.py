@@ -1,17 +1,17 @@
 """Small file cache for normalized daily provider results."""
 
 from datetime import datetime, timezone
-import os
 from pathlib import Path
 import pickle
 
+from backend.config.settings import get_setting
 from backend.daily.providers import ExternalDataResult
 
 
 class DailyCache:
     def __init__(self, directory=None, ttl_seconds=None):
-        self.directory = Path(directory or os.getenv("ARGOS_DAILY_CACHE_DIR", ".cache/daily"))
-        self.ttl_seconds = int(ttl_seconds or os.getenv("ARGOS_DAILY_CACHE_TTL_SECONDS", "900"))
+        self.directory = Path(directory or get_setting("ARGOS_DAILY_CACHE_DIR", ".cache/daily"))
+        self.ttl_seconds = int(ttl_seconds or get_setting("ARGOS_DAILY_CACHE_TTL_SECONDS", "900"))
 
     def _path(self, kind):
         return self.directory / f"{kind}.pickle"
