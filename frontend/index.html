@@ -84,7 +84,7 @@
         <section class="daily-experience" aria-label="Resumo executivo diário">
             <div class="daily-lead">
                 <p class="eyebrow">EM POUCOS SEGUNDOS</p>
-                <h2>O que merece sua atenção hoje</h2>
+                <h2 id="dailyMessageTitle">O que merece sua atenção hoje</h2>
                 <p id="dailyWindow" class="section-description"></p>
             </div>
 
@@ -113,15 +113,22 @@
                     <div id="dailyAnalyses" class="daily-list"></div>
                 </article>
 
-                <article class="daily-panel daily-panel-wide" aria-labelledby="panoramaTitle">
+                <article id="dailySummaryPanel" class="daily-panel daily-panel-wide" aria-labelledby="summaryTitle">
+                    <div class="panel-heading">
+                        <h2 id="summaryTitle">Resumo</h2>
+                        <span id="summaryStatus" class="section-count"></span>
+                    </div>
+                    <div id="dailySummary" class="daily-list"></div>
+                </article>
+
+                <article class="daily-panel daily-panel-wide" aria-labelledby="panoramaTitle" hidden>
                     <div class="panel-heading">
                         <h2 id="panoramaTitle">Panorama global</h2>
-                        <span class="section-count">5 frentes monitoradas</span>
                     </div>
                     <div id="dailyPanorama" class="panorama-grid"></div>
                 </article>
 
-                <article id="marketAgendaPanel" class="daily-panel daily-panel-wide" aria-labelledby="agendaTitle">
+                <article id="marketAgendaPanel" class="daily-panel daily-panel-wide" aria-labelledby="agendaTitle" hidden>
                     <div class="panel-heading">
                         <h2 id="agendaTitle">Agenda de mercado</h2>
                         <span id="agendaCount" class="section-count"></span>
@@ -290,6 +297,7 @@
 
 </div>
 
+<script src="daily_client.js"></script>
 <script src="app.js"></script>
 
 </body>
