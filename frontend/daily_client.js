@@ -1,7 +1,8 @@
 "use strict";
 
 const DailyApiContract = Object.freeze({
-    version: "1.0",
+    version: "1.1",
+    compatibleVersions: Object.freeze(["1.0", "1.1"]),
     statuses: Object.freeze(["SUCCESS", "ERROR"]),
     experienceStatuses: Object.freeze([
         "READY", "NO_ACTION_REQUIRED", "ATTENTION_REQUIRED", "DECISION_REQUIRED"
@@ -19,7 +20,7 @@ const DailyApiContract = Object.freeze({
                 || !this.requiredResponseFields.every((field) => (
                     Object.prototype.hasOwnProperty.call(payload, field)
                 ))
-                || payload.contract_version !== this.version
+                || !this.compatibleVersions.includes(payload.contract_version)
                 || !this.statuses.includes(payload.status)) {
             return false;
         }
@@ -32,6 +33,7 @@ const DailyApiContract = Object.freeze({
             && payload.message !== null && typeof payload.message === "object"
             && [payload.facts, payload.priorities, payload.analyses, payload.blocks]
                 .every(Array.isArray)
+            && (payload.contract_version === "1.0" || Array.isArray(payload.market_agenda))
             && payload.facts.every((fact) => fact && typeof fact === "object"
                 && this.priorityLevels.includes(fact.importance))
             && payload.priorities.every((priority) => (

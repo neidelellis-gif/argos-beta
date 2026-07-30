@@ -847,6 +847,10 @@ function dailyDom() {
         element.hidden = true;
         elements.set(id, element);
     });
+    const agendaPanel = createElement("article");
+    agendaPanel.hidden = true;
+    elements.set("marketAgendaPanel", agendaPanel);
+    elements.set("marketAgenda", createElement("div"));
     context.document.createElement = createElement;
     context.document.getElementById = (id) => elements.get(id);
     return elements;

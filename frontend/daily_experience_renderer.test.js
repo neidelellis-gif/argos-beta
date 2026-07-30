@@ -27,6 +27,9 @@ function setup() {
         elements.set(panelId, section);
         elements.set(listId, node("div"));
     });
+    const agendaPanel = node("article");
+    agendaPanel.hidden = true;
+    elements.set("marketAgendaPanel", agendaPanel);
     ["daily-error", "daily-loading"].forEach((id) => {
         const value = node("p");
         value.hidden = true;
@@ -153,6 +156,41 @@ test("keeps agenda hidden whether absent, empty, or unsupported by contract 1.0"
         renderer.render(response(agenda === undefined ? {} : { market_agenda: agenda }));
         assert.equal(elements.get("market-agenda").hidden, true);
     }
+});
+
+test("renders contract 1.1 agenda safely with translations and original timezone", () => {
+    const { elements, renderer } = setup();
+    const event = {
+        id: "agenda-secret", event_type: "CENTRAL_BANK", importance: "HIGH",
+        title: "<Decisão>", summary: "Política monetária", event_date: "2026-07-30",
+        event_time: "14:00", timezone: "America/New_York", all_day: false,
+        affected_assets: ["USD", "NVDA"], source_name: "Federal Reserve",
+        source_reference: "never-render"
+    };
+    renderer.render(response({ contract_version: "1.1", market_agenda: [event] }));
+    const rendered = JSON.stringify(elements.get("marketAgenda"));
+    assert.equal(elements.get("marketAgendaPanel").hidden, false);
+    assert.equal(elements.get("marketAgenda").children.length, 1);
+    assert.match(rendered, /Bancos centrais/);
+    assert.match(rendered, /Alta/);
+    assert.match(rendered, /14:00 — America\/New_York/);
+    assert.match(rendered, /Fonte: Federal Reserve/);
+    assert.doesNotMatch(rendered, /agenda-secret|never-render/);
+});
+
+test("renders all-day events, limits ten, and hides after an empty response", () => {
+    const { elements, renderer } = setup();
+    const events = Array.from({ length: 12 }, (_, index) => ({
+        id: `id-${index}`, event_type: "EARNINGS", importance: "MEDIUM",
+        title: `Evento ${index}`, summary: "Resumo", event_date: "2026-07-30",
+        event_time: null, timezone: null, all_day: true, affected_assets: [], source_name: "RI"
+    }));
+    renderer.render(response({ contract_version: "1.1", market_agenda: events }));
+    assert.equal(elements.get("marketAgenda").children.length, 10);
+    assert.match(JSON.stringify(elements.get("marketAgenda")), /Dia inteiro/);
+    renderer.render(response({ contract_version: "1.1", market_agenda: [] }));
+    assert.equal(elements.get("marketAgendaPanel").hidden, true);
+    assert.equal(elements.get("marketAgenda").children.length, 0);
 });
 
 test("rejects invalid responses and controls loading and error states", () => {

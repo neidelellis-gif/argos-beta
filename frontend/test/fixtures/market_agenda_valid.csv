@@ -1,0 +1,2 @@
+event_id,event_type,title,event_date,event_time,timezone,all_day,institution,asset_identifiers,asset_names,asset_classes,sectors,currencies,markets,country,importance,source_name,source_reference,description
+TEST-nvda-2026-07-31,EARNINGS,Evento de teste — resultado trimestral,2026-07-31,16:00,America/New_York,false,NVIDIA,NVDA,NVIDIA,EQUITY,SEMICONDUCTORS,USD,UNITED_STATES,US,HIGH,Fonte oficial de teste,fixture-only,Dado sintético usado exclusivamente em testes.

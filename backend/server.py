@@ -23,6 +23,8 @@ from backend.dashboard import build_dashboard, load_dashboard
 from backend.canonical_portfolio import serialize_portfolio_positions
 from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
 from backend.portfolio_import import import_portfolios
+from backend.market_agenda import MarketAgendaEvent, import_market_agenda
+from backend.market_agenda_serializer import serialize_market_agenda
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -36,6 +38,7 @@ class SessionPortfolio(TypedDict):
 
 
 SESSION_PORTFOLIOS: dict[str, SessionPortfolio] = {}
+SESSION_MARKET_AGENDA: dict[str, tuple[MarketAgendaEvent, ...]] = {}
 DAILY_HTTP_ADAPTER = DailyHttpAdapter()
 
 
@@ -184,6 +187,10 @@ class ArgosRequestHandler(
         super().end_headers()
 
     def do_GET(self):
+        if self.path == "/api/market-agenda":
+            events = SESSION_MARKET_AGENDA.get(self._session_id() or "", ())
+            self._send_json({"ok": True, "events": serialize_market_agenda(events), "count": len(events)})
+            return
         if self.path == "/api/daily-experience":
             self._daily_experience()
             return
@@ -238,6 +245,9 @@ class ArgosRequestHandler(
         super().do_GET()
 
     def do_POST(self):
+        if self.path == "/api/market-agenda/import":
+            self._import_market_agenda()
+            return
         if self.path == "/api/daily-experience":
             self._daily_experience()
             return
@@ -307,18 +317,19 @@ class ArgosRequestHandler(
             content_length = -1
         if content_length < 0:
             response = DAILY_HTTP_ADAPTER.handle(
-                self.command, dict(self.headers), b""
+                self.command, dict(self.headers), b"", self._session_agenda()
             )
         elif content_length > MAX_DAILY_REQUEST_BYTES:
             response = DAILY_HTTP_ADAPTER.handle(
                 self.command,
                 dict(self.headers),
                 b" " * (MAX_DAILY_REQUEST_BYTES + 1),
+                self._session_agenda(),
             )
         else:
             body = self.rfile.read(content_length)
             response = DAILY_HTTP_ADAPTER.handle(
-                self.command, dict(self.headers), body
+                self.command, dict(self.headers), body, self._session_agenda()
             )
         self.send_response(response.status_code)
         for name, value in response.headers.items():
@@ -328,6 +339,12 @@ class ArgosRequestHandler(
         self.wfile.write(response.body)
 
     def do_DELETE(self):
+        if self.path == "/api/market-agenda":
+            session_id = self._session_id()
+            if session_id:
+                SESSION_MARKET_AGENDA.pop(session_id, None)
+            self._send_json({"ok": True, "events": [], "count": 0})
+            return
         if self.path != "/api/portfolios":
             self.send_error(404, "Endpoint não encontrado")
             return
@@ -348,6 +365,9 @@ class ArgosRequestHandler(
             if separator and name == SESSION_COOKIE and value:
                 return value
         return None
+
+    def _session_agenda(self) -> tuple[MarketAgendaEvent, ...]:
+        return SESSION_MARKET_AGENDA.get(self._session_id() or "", ())
 
     def _dashboard(self, include_positions: bool = True):
         session_id = self._session_id()
@@ -440,6 +460,24 @@ class ArgosRequestHandler(
                 )
             except Exception as exc:
                 self._send_json({"ok": False, "error": str(exc)}, status=400)
+
+    def _import_market_agenda(self) -> None:
+        try:
+            files = self._multipart_files()
+            if len(files) != 1:
+                raise ValueError("Envie exatamente um arquivo de agenda.")
+            events = import_market_agenda(*files[0])
+            session_id = self._session_id() or secrets.token_urlsafe(24)
+            SESSION_MARKET_AGENDA[session_id] = events
+            self._send_json(
+                {"ok": True, "events": serialize_market_agenda(events),
+                 "count": len(events), "diagnostics": []},
+                extra_headers={"Set-Cookie": (
+                    f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
+                )},
+            )
+        except Exception as exc:
+            self._send_json({"ok": False, "error": str(exc)}, status=400)
 
     def _send_json(
         self,

@@ -1,6 +1,6 @@
 """Stable public facade for the official ARGOS daily experience."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime, timezone
 
 from backend.daily_contract import (
@@ -12,6 +12,7 @@ from backend.daily_contract import (
     DailyApiFact,
     DailyApiHeader,
     DailyApiMessage,
+    DailyApiMarketAgendaEvent,
     DailyApiPriority,
     DailyApiRequest,
     DailyApiResponse,
@@ -34,6 +35,7 @@ from backend.daily_portfolio_snapshot import DailyPortfolioSnapshotBuilder
 from backend.daily_priority import DailyPriorityEngine
 from backend.important_facts import ImportantFactsEngine
 from backend.portfolio_impact import PortfolioImpactEngine
+from backend.market_agenda_engine import MarketAgendaEngine
 
 
 def _utc_now() -> datetime:
@@ -51,6 +53,10 @@ def _aware_utc(value: datetime) -> datetime:
 _INVALID_CLOCK_TIME = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
+def _iterable(value: object) -> Iterable[object]:
+    return value if isinstance(value, (list, tuple)) else ()
+
+
 class DailyApiFacade:
     """Coordinate official daily services and protect the public boundary."""
 
@@ -62,6 +68,7 @@ class DailyApiFacade:
         facts_engine: DailyFactsEngine | None = None,
         analysis_engine: DailyAnalysisEngine | None = None,
         priority_engine: AnalysisPriorityEngine | None = None,
+        market_agenda_engine: MarketAgendaEngine | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -74,6 +81,7 @@ class DailyApiFacade:
         self._facts_engine = facts_engine if facts_engine is not None else DailyFactsEngine()
         self._analysis_engine = analysis_engine if analysis_engine is not None else DailyAnalysisEngine()
         self._priority_engine = priority_engine if priority_engine is not None else AnalysisPriorityEngine()
+        self._market_agenda_engine = market_agenda_engine if market_agenda_engine is not None else MarketAgendaEngine()
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -111,7 +119,10 @@ class DailyApiFacade:
                 validation_reports=request.validation_reports,
             )
             experience = self._composer.compose_priorities(orchestration, priorities)
-            return self._success_response(generated_at, experience)
+            agenda = self._market_agenda_engine.generate(
+                request.agenda_events, request.positions, request.reference_date
+            )
+            return self._success_response(generated_at, experience, agenda)
         except DailyOrchestrationError as error:
             return self._error_response(
                 generated_at,
@@ -136,7 +147,8 @@ class DailyApiFacade:
 
     @staticmethod
     def _success_response(
-        generated_at: datetime, experience: DailyExperienceResult
+        generated_at: datetime, experience: DailyExperienceResult,
+        agenda: tuple[dict[str, object], ...] = (),
     ) -> DailyApiResponse:
         facts = tuple(
             DailyApiFact(item.fact_id, item.category, item.title, item.priority)
@@ -204,6 +216,16 @@ class DailyApiFacade:
             blocks=blocks,
             summary=summary,
             error=None,
+            market_agenda=tuple(DailyApiMarketAgendaEvent(
+                id=str(item["id"]), event_type=str(item["event_type"]),
+                importance=str(item["importance"]), title=str(item["title"]),
+                summary=str(item["description"]), event_date=str(item["event_date"]),
+                event_time=item["event_time"] if isinstance(item["event_time"], str) else None,
+                timezone=item["timezone"] if isinstance(item["timezone"], str) else None,
+                all_day=bool(item["all_day"]),
+                affected_assets=tuple(str(value) for value in _iterable(item["affected_assets"])),
+                source_name=str(item["source_name"]),
+            ) for item in agenda),
         )
 
     @staticmethod
@@ -269,6 +291,12 @@ def daily_api_response_to_dict(response: DailyApiResponse) -> dict[str, object]:
         "priorities": [_priority_to_dict(item) for item in response.priorities],
         "analyses": [_analysis_to_dict(item) for item in response.analyses],
         "blocks": [_block_to_dict(item) for item in response.blocks],
+        "market_agenda": [{
+            "id": item.id, "event_type": item.event_type, "importance": item.importance,
+            "title": item.title, "summary": item.summary, "event_date": item.event_date,
+            "event_time": item.event_time, "timezone": item.timezone, "all_day": item.all_day,
+            "affected_assets": list(item.affected_assets), "source_name": item.source_name,
+        } for item in response.market_agenda],
         "summary": summary,
         "error": error,
     }
