@@ -1,0 +1,15 @@
+{
+  "portfolio_id": "JOLIKA-UBS-20260730",
+  "portfolio_name": "Jolika — UBS",
+  "portfolio_type": "COMPANY",
+  "base_currency": "USD",
+  "institution": "UBS",
+  "reference_date": "2026-07-30",
+  "origin": "Carteira oficial Jolika",
+  "positions": [{
+    "account": "Jolika", "asset_class": "Fixed Income", "asset_subclass": "Treasury",
+    "asset_name": "US Treasury", "identifier": "UST-10Y", "identifier_type": "INTERNAL",
+    "quantity": "1", "unit_price": "10000", "market_value": "10000", "currency": "USD",
+    "portfolio_weight": "1"
+  }]
+}

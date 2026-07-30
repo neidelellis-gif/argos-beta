@@ -1,6 +1,6 @@
 """Operational dashboard assembled from normalized portfolio diagnostics."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Dict, Iterable, Optional
 
@@ -163,4 +163,11 @@ def build_dashboard(
 
 def load_dashboard() -> Dict:
     """Return the dashboard for currently available normalized positions."""
-    return build_dashboard(())
+    from backend.official_portfolios import OfficialPortfolioLoader
+
+    positions = OfficialPortfolioLoader().load_positions()
+    reference = max(position.reference_date for position in positions if position.reference_date)
+    return build_dashboard(
+        positions,
+        last_import_at=datetime.combine(reference, datetime.min.time(), timezone.utc),
+    )

@@ -1,0 +1,15 @@
+{
+  "portfolio_id": "NEI-BRADESCO-20260730",
+  "portfolio_name": "Pessoa Física — Bradesco",
+  "portfolio_type": "PERSONAL",
+  "base_currency": "BRL",
+  "institution": "Bradesco",
+  "reference_date": "2026-07-30",
+  "origin": "Carteira oficial Pessoa Física",
+  "positions": [{
+    "account": "Ágora", "asset_class": "Renda Fixa", "asset_subclass": "Pós-fixado",
+    "asset_name": "Tesouro Selic", "identifier": "LFT-2029", "identifier_type": "INTERNAL",
+    "quantity": "1", "unit_price": "10000", "market_value": "10000", "currency": "BRL",
+    "portfolio_weight": "1"
+  }]
+}

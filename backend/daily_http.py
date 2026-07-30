@@ -100,6 +100,7 @@ class DailyHttpAdapter:
         body: bytes,
         agenda_events: tuple[MarketAgendaEvent, ...] = (),
         decision_profile: DecisionProfile | None = None,
+        official_positions: tuple[PortfolioPosition, ...] | None = None,
     ) -> DailyHttpResponse:
         try:
             if method != "POST":
@@ -121,7 +122,11 @@ class DailyHttpAdapter:
                     "UNSUPPORTED_MEDIA_TYPE",
                     "O conteúdo deve ser enviado em formato JSON.",
                 )
-            request = replace(self._request(body), agenda_events=agenda_events, decision_profile=decision_profile)
+            parsed_request = self._request(body)
+            request = replace(
+                parsed_request, agenda_events=agenda_events, decision_profile=decision_profile,
+                positions=official_positions if official_positions is not None else parsed_request.positions,
+            )
             response = self._facade.execute(request)
             return self._facade_response(response)
         except DailyHttpRequestError as error:
