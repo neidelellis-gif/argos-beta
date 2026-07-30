@@ -77,8 +77,17 @@ const TIPRANKS_PREVIEW_COLUMNS = [
 ];
 
 let importedPortfolioPositions = [];
+let canonicalPortfolioPositions = [];
 let dashboardValuesVisible = false;
 let dailyExperienceLoading = false;
+
+function storeCanonicalPortfolioPositions(positions) {
+    canonicalPortfolioPositions = positions.map((position) => ({ ...position }));
+}
+
+function getCanonicalPortfolioPositions() {
+    return canonicalPortfolioPositions.map((position) => ({ ...position }));
+}
 
 function identifySantanderExcelSource(fileName) {
     return /^your-positions-\d+-\d+\.xlsx$/i.test(fileName)
@@ -283,6 +292,7 @@ function setupPortfolioFilePicker() {
                 }
                 progressBar.value = 100;
                 progressText.textContent = "Importação concluída.";
+                storeCanonicalPortfolioPositions(result.positions);
                 renderDashboard(result.dashboard);
             } catch (error) {
                 progressBar.value = 0;
@@ -315,6 +325,7 @@ function setupPortfolioFilePicker() {
                 importButton.disabled = true;
                 progressBar.value = 100;
                 progressText.textContent = "Todas as carteiras foram removidas.";
+                storeCanonicalPortfolioPositions(result.positions);
                 renderDashboard(result.dashboard);
             } catch (error) {
                 console.error(error);
@@ -855,7 +866,9 @@ async function loadDashboard() {
         if (!response.ok) {
             throw new Error(`Erro HTTP ${response.status}`);
         }
-        renderDashboard(await response.json());
+        const result = await response.json();
+        storeCanonicalPortfolioPositions(result.positions);
+        renderDashboard(result);
     } catch (error) {
         console.error(error);
         document.getElementById("institutions").replaceChildren(

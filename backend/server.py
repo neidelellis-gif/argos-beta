@@ -20,6 +20,7 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(project_root))
 
 from backend.dashboard import build_dashboard, load_dashboard
+from backend.canonical_portfolio import serialize_portfolio_positions
 from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
 from backend.portfolio_import import import_portfolios
 
@@ -201,7 +202,7 @@ class ArgosRequestHandler(
 
         if self.path == "/api/cockpit":
             try:
-                self._send_json(legacy_cockpit_response(self._dashboard()))
+                self._send_json(legacy_cockpit_response(self._dashboard(False)))
             except Exception as exc:
                 self._send_json(
                     {
@@ -215,7 +216,7 @@ class ArgosRequestHandler(
 
         if self.path == "/api/facts":
             try:
-                self._send_json(legacy_facts_response(self._dashboard()))
+                self._send_json(legacy_facts_response(self._dashboard(False)))
             except Exception as exc:
                 self._send_json(
                     {
@@ -334,7 +335,11 @@ class ArgosRequestHandler(
         session_id = self._session_id()
         if session_id:
             SESSION_PORTFOLIOS.pop(session_id, None)
-        self._send_json({"ok": True, "dashboard": build_dashboard(())})
+        self._send_json({
+            "ok": True,
+            "dashboard": build_dashboard(()),
+            "positions": [],
+        })
 
     def _session_id(self) -> str | None:
         cookie = self.headers.get("Cookie", "")
@@ -344,16 +349,19 @@ class ArgosRequestHandler(
                 return value
         return None
 
-    def _dashboard(self):
+    def _dashboard(self, include_positions: bool = True):
         session_id = self._session_id()
         session = SESSION_PORTFOLIOS.get(session_id) if session_id is not None else None
         positions = session.get("positions") if session is not None else None
         last_import_at = session.get("last_import_at") if session is not None else None
-        return (
+        dashboard = (
             load_dashboard()
             if positions is None
             else build_dashboard(positions, last_import_at=last_import_at)
         )
+        if include_positions:
+            dashboard["positions"] = serialize_portfolio_positions(positions or ())
+        return dashboard
 
     def _multipart_files(self) -> list[tuple[str, bytes]]:
         content_type = self.headers.get("Content-Type", "")
@@ -416,6 +424,9 @@ class ArgosRequestHandler(
                 result["dashboard"] = build_dashboard(
                     SESSION_PORTFOLIOS[session_id]["positions"],
                     last_import_at=imported_at,
+                )
+                result["positions"] = serialize_portfolio_positions(
+                    SESSION_PORTFOLIOS[session_id]["positions"]
                 )
                 self._send_json(
                     {"ok": True, **result},

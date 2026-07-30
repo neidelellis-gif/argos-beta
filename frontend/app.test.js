@@ -21,6 +21,13 @@ function readCsv(content) {
     return context.getCsvDataRows(context.parseCsv(content));
 }
 
+test("initial canonical portfolio state is empty", () => {
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.getCanonicalPortfolioPositions())),
+        []
+    );
+});
+
 const UBS_FIXTURE_PATH =
     "frontend/test/fixtures/UBS_Holdings_27_07_2026.csv";
 
@@ -570,6 +577,11 @@ test("renders the imported session dashboard after a successful import", async (
             message: "1 instituição analisada"
         }]
     };
+    const canonicalPositions = [{
+        institution: "UBS",
+        owner: "JOLIKA",
+        market_value: "152.4300"
+    }];
     let renderedDashboard = null;
     context.renderDashboard = (dashboard) => {
         renderedDashboard = dashboard;
@@ -577,7 +589,11 @@ test("renders the imported session dashboard after a successful import", async (
     context.fetch = async () => ({
         ok: true,
         async json() {
-            return { ok: true, dashboard: importedDashboard };
+            return {
+                ok: true,
+                dashboard: importedDashboard,
+                positions: canonicalPositions
+            };
         }
     });
 
@@ -585,10 +601,91 @@ test("renders the imported session dashboard after a successful import", async (
     await button.clickListener();
 
     assert.equal(renderedDashboard, importedDashboard);
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.getCanonicalPortfolioPositions())),
+        canonicalPositions
+    );
     assert.equal(elements.get("importProgressBar").value, 100);
     assert.equal(
         elements.get("importProgressText").textContent,
         "Importação concluída."
+    );
+});
+
+test("stores official positions as immutable frontend copies", () => {
+    const payload = [{
+        institution: "UBS",
+        owner: "JOLIKA",
+        market_value: "152.4300"
+    }, {
+        institution: "Santander",
+        owner: "NEI",
+        market_value: "20.00"
+    }];
+    context.storeCanonicalPortfolioPositions(payload);
+    payload[0].market_value = "changed";
+    const firstRead = context.getCanonicalPortfolioPositions();
+    firstRead[0].institution = "changed";
+    const stored = JSON.parse(JSON.stringify(
+        context.getCanonicalPortfolioPositions()
+    ));
+
+    assert.deepEqual(stored, [{
+        institution: "UBS",
+        owner: "JOLIKA",
+        market_value: "152.4300"
+    }, {
+        institution: "Santander",
+        owner: "NEI",
+        market_value: "20.00"
+    }]);
+});
+
+test("keeps canonical positions separate from the TipRanks preview", () => {
+    context.storeCanonicalPortfolioPositions([{
+        institution: "UBS", owner: "JOLIKA", market_value: "1.00"
+    }]);
+    context.transformTipRanksPortfolio({
+        headers: ["Ticker", "Shares", "Smart Score"],
+        dataRows: [["TIP", "1", "8"]]
+    });
+
+    assert.equal(
+        context.getCanonicalPortfolioPositions()[0].institution,
+        "UBS"
+    );
+});
+
+test("starts canonical portfolio state empty", () => {
+    context.storeCanonicalPortfolioPositions([]);
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.getCanonicalPortfolioPositions())),
+        []
+    );
+});
+
+test("restores canonical positions while loading the existing dashboard", async () => {
+    const dashboard = {
+        positions: [{
+            institution: "Santander",
+            owner: "JOLIKA",
+            market_value: "99.9900"
+        }]
+    };
+    let rendered = null;
+    context.fetch = async (url, options) => {
+        assert.equal(url, "/api/dashboard");
+        assert.equal(options.cache, "no-store");
+        return { ok: true, async json() { return dashboard; } };
+    };
+    context.renderDashboard = (payload) => { rendered = payload; };
+
+    await context.loadDashboard();
+
+    assert.equal(rendered, dashboard);
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.getCanonicalPortfolioPositions())),
+        dashboard.positions
     );
 });
 

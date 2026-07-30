@@ -231,6 +231,7 @@ def test_dashboard_endpoint_returns_single_structure():
             "important_facts",
             "institutions",
             "consolidated",
+            "positions",
         }
     finally:
         server.shutdown()
@@ -243,7 +244,8 @@ def test_frontend_consumes_and_exposes_dashboard_sections():
     page = Path("frontend/index.html").read_text(encoding="utf-8")
 
     assert 'fetch("/api/dashboard"' in app
-    assert "renderDashboard(await response.json())" in app
+    assert "storeCanonicalPortfolioPositions(result.positions)" in app
+    assert "renderDashboard(result)" in app
     for element_id in (
         "importantFacts",
         "dailyPriorities",
