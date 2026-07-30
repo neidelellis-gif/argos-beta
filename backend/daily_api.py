@@ -26,6 +26,7 @@ from backend.daily_experience import (
     DailyExperienceError,
     DailyExperienceResult,
 )
+from backend.daily_facts_engine import DailyFactsEngine
 from backend.daily_orchestrator import DailyOrchestrationError, DailyOrchestrator
 from backend.daily_portfolio_snapshot import DailyPortfolioSnapshotBuilder
 from backend.daily_priority import DailyPriorityEngine
@@ -56,6 +57,7 @@ class DailyApiFacade:
         orchestrator: DailyOrchestrator | None = None,
         composer: DailyExperienceComposer | None = None,
         clock: Callable[[], datetime] = _utc_now,
+        facts_engine: DailyFactsEngine | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -65,6 +67,7 @@ class DailyApiFacade:
         )
         self._composer = composer if composer is not None else DailyExperienceComposer()
         self._clock = clock
+        self._facts_engine = facts_engine if facts_engine is not None else DailyFactsEngine()
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -86,9 +89,16 @@ class DailyApiFacade:
             )
 
         try:
+            generated_facts = self._facts_engine.generate(
+                request.positions, request.fact_candidates
+            )
+            context_by_id = {item.id: item for item in request.fact_candidates}
+            fact_candidates = tuple(
+                context_by_id[str(item["id"])] for item in generated_facts
+            )
             orchestration = self._orchestrator.run(
                 positions=request.positions,
-                fact_candidates=request.fact_candidates,
+                fact_candidates=fact_candidates,
                 reference_date=request.reference_date,
                 validation_reports=request.validation_reports,
             )
