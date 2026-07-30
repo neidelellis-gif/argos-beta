@@ -15,6 +15,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext(fs.readFileSync("frontend/daily_client.js", "utf8"), context);
 vm.runInContext("this.DailyClientForTest = DailyFrontendClient", context);
+vm.runInContext(fs.readFileSync("frontend/daily_request_builder.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("frontend/app.js", "utf8"), context);
 
 function readCsv(content) {
@@ -26,6 +27,62 @@ test("initial canonical portfolio state is empty", () => {
         JSON.parse(JSON.stringify(context.getCanonicalPortfolioPositions())),
         []
     );
+});
+
+const CANONICAL_POSITION = Object.freeze({
+    institution: "UBS",
+    owner: "JOLIKA",
+    account: null,
+    asset_class: "FIXED_INCOME",
+    asset_subclass: null,
+    asset_name: "Treasury Bond",
+    identifier: "US912810TM09",
+    identifier_type: "ISIN",
+    quantity: "10.0000",
+    unit_price: "98.1250",
+    market_value: "981.25000000",
+    currency: "USD",
+    portfolio_weight: "0.125000",
+    reference_date: "2026-07-29",
+    source_file: "ubs.csv",
+    ignored_field: "must not be sent"
+});
+
+test("DailyRequestBuilder builds an empty collection", () => {
+    assert.deepEqual(context.DailyRequestBuilder.build([]), []);
+});
+
+test("DailyRequestBuilder preserves exactly the 15 canonical fields", () => {
+    const [position] = context.DailyRequestBuilder.build([CANONICAL_POSITION]);
+
+    assert.deepEqual(Object.keys(position), [
+        "institution", "owner", "account", "asset_class", "asset_subclass",
+        "asset_name", "identifier", "identifier_type", "quantity", "unit_price",
+        "market_value", "currency", "portfolio_weight", "reference_date", "source_file"
+    ]);
+    assert.equal(position.quantity, "10.0000");
+    assert.equal(position.unit_price, "98.1250");
+    assert.equal(position.market_value, "981.25000000");
+    assert.equal(position.portfolio_weight, "0.125000");
+    assert.equal(position.reference_date, "2026-07-29");
+    assert.equal(position.account, null);
+    assert.equal(position.asset_subclass, null);
+});
+
+test("DailyRequestBuilder copies multiple positions without mutating its input", () => {
+    const input = [
+        { ...CANONICAL_POSITION },
+        { ...CANONICAL_POSITION, institution: "Santander", reference_date: null }
+    ];
+    const before = JSON.stringify(input);
+    const result = context.DailyRequestBuilder.build(input);
+
+    assert.equal(result.length, 2);
+    assert.equal(result[1].institution, "Santander");
+    assert.equal(result[1].reference_date, null);
+    assert.equal(JSON.stringify(input), before);
+    assert.notEqual(result, input);
+    assert.notEqual(result[0], input[0]);
 });
 
 const UBS_FIXTURE_PATH =
@@ -900,6 +957,26 @@ test("loadDailyExperience exposes loading, prevents concurrent loads and renders
     resolve(dailyResponse());
     await Promise.all([first, second]);
     assert.equal(elements.get("greeting").textContent, "Bom dia, Nei.");
+});
+
+test("loadDailyExperience sends canonical positions through DailyRequestBuilder", async () => {
+    dailyDom();
+    context.storeCanonicalPortfolioPositions([CANONICAL_POSITION]);
+    let request;
+
+    await context.loadDailyExperience({
+        async loadExperience(payload) {
+            request = payload;
+            return dailyResponse();
+        }
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(request)), JSON.parse(JSON.stringify({
+        positions: [context.DailyRequestBuilder.build([CANONICAL_POSITION])[0]],
+        fact_candidates: [],
+        reference_date: null
+    })));
+    assert.equal(request.positions[0].ignored_field, undefined);
 });
 
 test("loadDailyExperience renders only the safe failure message", async () => {
