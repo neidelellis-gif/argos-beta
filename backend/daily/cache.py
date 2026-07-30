@@ -10,7 +10,12 @@ from backend.daily.models import ExternalDataResult
 class DailyCache:
     def __init__(self, directory=None, ttl_seconds=None):
         self.directory = Path(directory or get_setting("ARGOS_DAILY_CACHE_DIR", ".cache/daily"))
-        self.ttl_seconds = int(ttl_seconds or get_setting("ARGOS_DAILY_CACHE_TTL_SECONDS", "900"))
+        configured_ttl = (
+            ttl_seconds
+            if ttl_seconds is not None
+            else get_setting("ARGOS_DAILY_CACHE_TTL_SECONDS", "900")
+        )
+        self.ttl_seconds = int(str(configured_ttl).strip() or "900")
 
     def _path(self, kind):
         return self.directory / f"{kind}.pickle"
