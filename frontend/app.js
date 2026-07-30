@@ -772,8 +772,11 @@ async function loadDailyExperience(client = new DailyFrontendClient()) {
     }
     setDailyLoading(true);
     try {
+        if (typeof DailyRequestBuilder === "undefined") {
+            await import("./daily_request_builder.js");
+        }
         const response = await client.loadExperience({
-            positions: [],
+            positions: DailyRequestBuilder.build(canonicalPortfolioPositions),
             fact_candidates: [],
             reference_date: null
         });
