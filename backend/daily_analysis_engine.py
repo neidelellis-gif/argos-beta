@@ -166,11 +166,15 @@ class DailyAnalysisEngine:
             "title": title,
             "summary": summary,
             "related_facts": related_facts,
+            "affected_assets": assets,
         }
 
     @staticmethod
     def _assets(fact: Mapping[str, object]) -> set[str]:
-        return {str(asset) for asset in fact["affected_assets"]}  # type: ignore[union-attr]
+        value = fact["affected_assets"]
+        if not isinstance(value, Iterable) or isinstance(value, (str, bytes)):
+            return set()
+        return {str(asset) for asset in value}
 
     @staticmethod
     def _asset_phrase(assets: list[str]) -> str:

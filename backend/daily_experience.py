@@ -17,6 +17,7 @@ from backend.daily_priority import (
     AffectedDimension,
     DailyPriorityAction,
 )
+from collections.abc import Mapping
 
 
 class DailyGreetingPeriod(str, Enum):
@@ -370,6 +371,61 @@ class DailyExperienceComposer:
         return DailyExperienceResult(
             reference_date, generated_at, header, status, message,
             facts, priorities, analyses, blocks, summary,
+        )
+
+    def compose_priorities(
+        self,
+        result: DailyOrchestrationResult,
+        generated: list[dict[str, object]],
+    ) -> DailyExperienceResult:
+        """Map engine decisions to the existing public experience contract."""
+        base = self.compose(result)
+        selected = generated[:2]
+        priorities = tuple(self._priority_item(item) for item in selected)
+        analyses = tuple(self._analysis_item(item) for item in selected)
+        has_decision = any(item["type"] == "DECIDE" for item in selected)
+        status = _experience_status(has_decision, bool(priorities))
+        message = DailyExperienceMessage(status, _MESSAGES[status])
+        counts = (len(base.facts), len(priorities), len(analyses))
+        blocks = tuple(
+            DailyExperienceBlock(
+                block_type, _BLOCK_TITLES[block_type],
+                DailyBlockVisibility.VISIBLE if count else DailyBlockVisibility.HIDDEN,
+                count,
+            )
+            for block_type, count in zip(tuple(DailyBlockType), counts, strict=True)
+        )
+        visible = sum(block.visibility is DailyBlockVisibility.VISIBLE for block in blocks)
+        summary = DailyExperienceSummary(
+            counts[0], counts[1], counts[2], visible, 3 - visible,
+            bool(priorities), has_decision, bool(priorities),
+        )
+        return DailyExperienceResult(
+            base.reference_date, base.generated_at, base.header, status, message,
+            base.facts, priorities, analyses, blocks, summary,
+        )
+
+    @staticmethod
+    def _priority_item(item: Mapping[str, object]) -> DailyPriorityItem:
+        level = DailyPriorityLevel(
+            "MODERATE" if item["priority"] == "MEDIUM" else str(item["priority"])
+        )
+        related: tuple[object, ...] = tuple(item["related_analyses"])  # type: ignore[arg-type]
+        return DailyPriorityItem(
+            str(item["id"]), str(related[0]), level, _LEVEL_LABELS[level],
+            str(item["title"]), str(item["summary"]),
+        )
+
+    @staticmethod
+    def _analysis_item(item: Mapping[str, object]) -> DailyAnalysisItem:
+        level = DailyPriorityLevel(
+            "MODERATE" if item["priority"] == "MEDIUM" else str(item["priority"])
+        )
+        action = DailyPriorityAction(str(item["type"]))
+        related: tuple[object, ...] = tuple(item["related_analyses"])  # type: ignore[arg-type]
+        return DailyAnalysisItem(
+            str(item["id"]), str(related[0]), action, _ACTION_LABELS[action],
+            level, str(item["title"]), str(item["summary"]), (),
         )
 
     @staticmethod

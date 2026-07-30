@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal
 import re
+from typing import cast
 
 from backend.daily_analysis_engine import DailyAnalysisEngine
 from backend.models import PortfolioOwner, PortfolioPosition
@@ -46,8 +47,10 @@ def test_one_fact_produces_complete_analysis_and_preserves_reference() -> None:
     assert result[0]["title"] == "Fato one"
     assert result[0]["related_facts"] == ["one"]
     assert set(result[0]) == {
-        "id", "type", "priority", "title", "summary", "related_facts"
+        "id", "type", "priority", "title", "summary", "related_facts",
+        "affected_assets",
     }
+    assert result[0]["affected_assets"] == ["ARGOS1"]
 
 
 def test_related_facts_are_grouped_transitively() -> None:
@@ -112,6 +115,6 @@ def test_inputs_are_not_modified() -> None:
     source = fact("one")
     positions = (position(),)
     before = source.copy()
-    before["affected_assets"] = list(source["affected_assets"])
+    before["affected_assets"] = list(cast(list[str], source["affected_assets"]))
     DailyAnalysisEngine().generate((source,), positions)
     assert source == before

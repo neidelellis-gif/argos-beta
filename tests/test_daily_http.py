@@ -9,6 +9,7 @@ import json
 import threading
 from collections.abc import Iterator
 from types import MappingProxyType
+from typing import cast
 
 import pytest
 
@@ -118,6 +119,14 @@ def test_valid_post_executes_real_complete_flow() -> None:
     assert payload["status"] == "SUCCESS"
     assert payload["generated_at"] == "2026-07-30T12:00:00+00:00"
     assert payload["experience_status"] == "DECISION_REQUIRED"
+    assert payload["contract_version"] == "1.0"
+    assert payload["error"] is None
+    priorities = cast(list[dict[str, object]], payload["priorities"])
+    analyses = cast(list[dict[str, object]], payload["analyses"])
+    assert len(priorities) <= 2
+    analysis_ids = {item["fact_id"] for item in analyses}
+    assert analysis_ids
+    assert all(item["fact_id"] in analysis_ids for item in priorities)
 
 
 def test_null_reference_date_executes_real_complete_flow() -> None:
@@ -126,7 +135,8 @@ def test_null_reference_date_executes_real_complete_flow() -> None:
 
     assert response.status_code == 200
     assert payload["status"] == "SUCCESS"
-    assert payload["header"]["display_date"] == "quinta-feira, 30 de julho de 2026"
+    header = cast(dict[str, object], payload["header"])
+    assert header["display_date"] == "quinta-feira, 30 de julho de 2026"
     assert payload["error"] is None
 
 
