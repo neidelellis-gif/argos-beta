@@ -875,6 +875,25 @@ test("DailyFrontendClient posts the official request and returns JSON on HTTP 20
     assert.deepEqual(JSON.parse(call.options.body), request);
 });
 
+test("DailyFrontendClient accepts complete 1.3 and requires decision contexts", async () => {
+    const complete = dailyResponse({
+        contract_version: "1.3", market_agenda: [], impact_assessments: [],
+        decision_contexts: []
+    });
+    const accepted = new context.DailyClientForTest(async () => ({
+        status: 200, async json() { return complete; }
+    }));
+    assert.equal(await accepted.loadExperience({}), complete);
+
+    const incomplete = dailyResponse({
+        contract_version: "1.3", market_agenda: [], impact_assessments: []
+    });
+    const rejected = new context.DailyClientForTest(async () => ({
+        status: 200, async json() { return incomplete; }
+    }));
+    await assert.rejects(rejected.loadExperience({}), /Erro interno\./);
+});
+
 for (const overrides of [
     { contract_version: "2.0" },
     { experience_status: "UNKNOWN" },

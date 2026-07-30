@@ -12,6 +12,7 @@ from backend.daily_contract import (
     DailyApiFact,
     DailyApiHeader,
     DailyApiImpactAssessment,
+    DailyApiDecisionContext,
     DailyApiMessage,
     DailyApiMarketAgendaEvent,
     DailyApiPriority,
@@ -38,6 +39,7 @@ from backend.important_facts import ImportantFactsEngine
 from backend.portfolio_impact import PortfolioImpactEngine
 from backend.market_agenda_engine import MarketAgendaEngine
 from backend.portfolio_impact_engine import PortfolioImpactAssessmentEngine
+from backend.decision_context_engine import DecisionContextEngine
 
 
 def _utc_now() -> datetime:
@@ -72,6 +74,7 @@ class DailyApiFacade:
         priority_engine: AnalysisPriorityEngine | None = None,
         market_agenda_engine: MarketAgendaEngine | None = None,
         impact_engine: PortfolioImpactAssessmentEngine | None = None,
+        decision_context_engine: DecisionContextEngine | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -86,6 +89,7 @@ class DailyApiFacade:
         self._priority_engine = priority_engine if priority_engine is not None else AnalysisPriorityEngine()
         self._market_agenda_engine = market_agenda_engine if market_agenda_engine is not None else MarketAgendaEngine()
         self._impact_engine = impact_engine if impact_engine is not None else PortfolioImpactAssessmentEngine()
+        self._decision_context_engine = decision_context_engine or DecisionContextEngine()
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -130,6 +134,10 @@ class DailyApiFacade:
             impacts = self._impact_engine.generate(generated_facts, impact_agenda, request.positions)
             analyses = self._analysis_engine.generate(generated_facts, request.positions, impacts)
             priorities = self._priority_engine.generate(analyses, request.positions)
+            decision_contexts = self._decision_context_engine.generate(
+                request.decision_profile, generated_facts, impact_agenda, impacts,
+                analyses, priorities, request.positions, request.reference_date,
+            )
             context_by_id = {item.id: item for item in request.fact_candidates}
             fact_candidates = tuple(
                 context_by_id[str(item["id"])] for item in generated_facts
@@ -141,7 +149,7 @@ class DailyApiFacade:
                 validation_reports=request.validation_reports,
             )
             experience = self._composer.compose_priorities(orchestration, priorities)
-            return self._success_response(generated_at, experience, agenda, impacts)
+            return self._success_response(generated_at, experience, agenda, impacts, decision_contexts)
         except DailyOrchestrationError as error:
             return self._error_response(
                 generated_at,
@@ -169,6 +177,7 @@ class DailyApiFacade:
         generated_at: datetime, experience: DailyExperienceResult,
         agenda: tuple[dict[str, object], ...] = (),
         impacts: list[dict[str, object]] | tuple[dict[str, object], ...] = (),
+        decision_contexts: tuple[dict[str, object], ...] = (),
     ) -> DailyApiResponse:
         facts = tuple(
             DailyApiFact(item.fact_id, item.category, item.title, item.priority)
@@ -253,6 +262,14 @@ class DailyApiFacade:
                 affected_assets=tuple(str(value) for value in _iterable(item["affected_assets"])),
                 impact_factors=tuple(dict(factor) for factor in _iterable(item["impact_factors"]) if isinstance(factor, dict)),
             ) for item in impacts[:5]),
+            decision_contexts=tuple(DailyApiDecisionContext(
+                id=str(item["id"]), context_type=str(item["context_type"]),
+                relevance_level=str(item["relevance_level"]), title=str(item["title"]),
+                summary=str(item["summary"]),
+                related_assets=tuple(str(value) for value in _iterable(item["related_assets"])),
+                context_factors=tuple(dict(value) for value in _iterable(item["context_factors"]) if isinstance(value, dict)),
+                limitations=tuple(str(value) for value in _iterable(item["limitations"])),
+            ) for item in decision_contexts[:5]),
         )
 
     @staticmethod
@@ -331,6 +348,13 @@ def daily_api_response_to_dict(response: DailyApiResponse) -> dict[str, object]:
             "affected_assets": list(item.affected_assets),
             "impact_factors": [dict(factor) for factor in item.impact_factors],
         } for item in response.impact_assessments],
+        "decision_contexts": [{
+            "id": item.id, "context_type": item.context_type,
+            "relevance_level": item.relevance_level, "title": item.title,
+            "summary": item.summary, "related_assets": list(item.related_assets),
+            "context_factors": [dict(factor) for factor in item.context_factors],
+            "limitations": list(item.limitations),
+        } for item in response.decision_contexts],
         "summary": summary,
         "error": error,
     }

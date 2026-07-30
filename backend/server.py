@@ -25,6 +25,8 @@ from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
 from backend.portfolio_import import import_portfolios
 from backend.market_agenda import MarketAgendaEvent, import_market_agenda
 from backend.market_agenda_serializer import serialize_market_agenda
+from backend.decision_context import DecisionProfile, import_decision_profile
+from backend.decision_context_serializer import serialize_decision_profile
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -39,6 +41,7 @@ class SessionPortfolio(TypedDict):
 
 SESSION_PORTFOLIOS: dict[str, SessionPortfolio] = {}
 SESSION_MARKET_AGENDA: dict[str, tuple[MarketAgendaEvent, ...]] = {}
+SESSION_DECISION_CONTEXT: dict[str, DecisionProfile] = {}
 DAILY_HTTP_ADAPTER = DailyHttpAdapter()
 
 
@@ -187,6 +190,10 @@ class ArgosRequestHandler(
         super().end_headers()
 
     def do_GET(self):
+        if self.path == "/api/decision-context":
+            profile = SESSION_DECISION_CONTEXT.get(self._session_id() or "")
+            self._send_json({"ok": True, "profile": serialize_decision_profile(profile) if profile else None})
+            return
         if self.path == "/api/market-agenda":
             events = SESSION_MARKET_AGENDA.get(self._session_id() or "", ())
             self._send_json({"ok": True, "events": serialize_market_agenda(events), "count": len(events)})
@@ -245,6 +252,9 @@ class ArgosRequestHandler(
         super().do_GET()
 
     def do_POST(self):
+        if self.path == "/api/decision-context/import":
+            self._import_decision_context()
+            return
         if self.path == "/api/market-agenda/import":
             self._import_market_agenda()
             return
@@ -317,7 +327,7 @@ class ArgosRequestHandler(
             content_length = -1
         if content_length < 0:
             response = DAILY_HTTP_ADAPTER.handle(
-                self.command, dict(self.headers), b"", self._session_agenda()
+                self.command, dict(self.headers), b"", self._session_agenda(), self._session_decision_profile()
             )
         elif content_length > MAX_DAILY_REQUEST_BYTES:
             response = DAILY_HTTP_ADAPTER.handle(
@@ -325,11 +335,12 @@ class ArgosRequestHandler(
                 dict(self.headers),
                 b" " * (MAX_DAILY_REQUEST_BYTES + 1),
                 self._session_agenda(),
+                self._session_decision_profile(),
             )
         else:
             body = self.rfile.read(content_length)
             response = DAILY_HTTP_ADAPTER.handle(
-                self.command, dict(self.headers), body, self._session_agenda()
+                self.command, dict(self.headers), body, self._session_agenda(), self._session_decision_profile()
             )
         self.send_response(response.status_code)
         for name, value in response.headers.items():
@@ -339,6 +350,12 @@ class ArgosRequestHandler(
         self.wfile.write(response.body)
 
     def do_DELETE(self):
+        if self.path == "/api/decision-context":
+            session_id = self._session_id()
+            if session_id:
+                SESSION_DECISION_CONTEXT.pop(session_id, None)
+            self._send_json({"ok": True, "profile": None})
+            return
         if self.path == "/api/market-agenda":
             session_id = self._session_id()
             if session_id:
@@ -368,6 +385,9 @@ class ArgosRequestHandler(
 
     def _session_agenda(self) -> tuple[MarketAgendaEvent, ...]:
         return SESSION_MARKET_AGENDA.get(self._session_id() or "", ())
+
+    def _session_decision_profile(self) -> DecisionProfile | None:
+        return SESSION_DECISION_CONTEXT.get(self._session_id() or "")
 
     def _dashboard(self, include_positions: bool = True):
         session_id = self._session_id()
@@ -472,6 +492,23 @@ class ArgosRequestHandler(
             self._send_json(
                 {"ok": True, "events": serialize_market_agenda(events),
                  "count": len(events), "diagnostics": []},
+                extra_headers={"Set-Cookie": (
+                    f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
+                )},
+            )
+        except Exception as exc:
+            self._send_json({"ok": False, "error": str(exc)}, status=400)
+
+    def _import_decision_context(self) -> None:
+        try:
+            files = self._multipart_files()
+            if len(files) != 1:
+                raise ValueError("Envie exatamente um arquivo de contexto decisório.")
+            profile = import_decision_profile(*files[0])
+            session_id = self._session_id() or secrets.token_urlsafe(24)
+            SESSION_DECISION_CONTEXT[session_id] = profile
+            self._send_json(
+                {"ok": True, "profile": serialize_decision_profile(profile), "diagnostics": []},
                 extra_headers={"Set-Cookie": (
                     f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
                 )},

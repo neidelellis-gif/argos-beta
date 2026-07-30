@@ -2,10 +2,15 @@
 
 ## Current version
 
-`1.2` is the current response version. Every response, including HTTP boundary
-errors, contains `contract_version: "1.2"`. Version 1.2 preserves every 1.1 field
-and adds `impact_assessments`; frontend readers treat 1.0 and 1.1 responses
-without that field as an empty impact collection.
+`1.3` is the current response version. Every response, including HTTP boundary
+errors, contains `contract_version: "1.3"`. Version 1.3 preserves facts, analyses
+and priorities from 1.0, agenda from 1.1 and impacts from 1.2, and adds
+`decision_contexts`. Older frontend payloads safely treat that collection as empty.
+
+Each decision context publicly contains exactly `id`, `context_type`,
+`relevance_level`, `title`, `summary`, `related_assets`, `context_factors` and
+`limitations`, with at most five items. Profile data, source references, notes,
+session data and internal relationship IDs are not exposed.
 
 Each agenda item contains exactly `id`, `event_type`, `importance`, `title`,
 `summary`, `event_date`, `event_time`, `timezone`, `all_day`, `affected_assets`
@@ -28,9 +33,9 @@ and `validation_reports`. Unknown envelope fields are ignored and cannot change
 execution. The two collection fields are required; the other fields are
 optional.
 
-The 1.2 response contract requires `status`, `generated_at`, `contract_version`,
+The 1.3 response contract requires `status`, `generated_at`, `contract_version`,
 `experience_status`, `header`, `message`, `facts`, `priorities`, `analyses`,
-`blocks`, `market_agenda`, `impact_assessments`, `summary`, and `error`. Official public enums and structural validators
+`blocks`, `market_agenda`, `impact_assessments`, `decision_contexts`, `summary`, and `error`. Official public enums and structural validators
 are defined in `backend/daily_contract.py`; the corresponding compatibility
 validator used by the browser is `DailyApiContract` in
 `frontend/daily_client.js`.

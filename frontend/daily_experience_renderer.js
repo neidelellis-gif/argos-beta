@@ -1,7 +1,7 @@
 "use strict";
 
 const DailyExperienceRenderer = (() => {
-    const LIMITS = Object.freeze({ facts: 5, priorities: 2, analyses: 2, impacts: 5, agenda: 10 });
+    const LIMITS = Object.freeze({ facts: 5, priorities: 2, analyses: 2, contexts: 5, impacts: 5, agenda: 10 });
     const EVENT_LABELS = Object.freeze({
         EARNINGS: "Resultados", DIVIDEND: "Dividendos", CENTRAL_BANK: "Bancos centrais",
         MACROECONOMIC: "Economia", REGULATORY: "Regulação", CORPORATE: "Evento corporativo",
@@ -21,6 +21,14 @@ const DailyExperienceRenderer = (() => {
     });
     const DIRECTION_LABELS = Object.freeze({
         POSITIVE: "Positivo", NEGATIVE: "Negativo", MIXED: "Misto", UNCERTAIN: "Incerto"
+    });
+    const CONTEXT_LABELS = Object.freeze({
+        RISK_ALIGNMENT: "Perfil de risco", HORIZON_ALIGNMENT: "Horizonte",
+        OBJECTIVE_ALIGNMENT: "Objetivos", LIQUIDITY_CONTEXT: "Liquidez",
+        PRESERVATION_CONTEXT: "Preservação de capital", VOLATILITY_CONTEXT: "Volatilidade",
+        CONCENTRATION_CONTEXT: "Concentração", RESTRICTION_CONTEXT: "Restrições",
+        CURRENCY_CONTEXT: "Moeda-base", MARKET_PREFERENCE: "Mercado preferencial",
+        DECISION_FREQUENCY: "Frequência decisória", CONTEXT_CONFLICT: "Conflito de contexto"
     });
 
     function element(tagName, className, text) {
@@ -80,7 +88,7 @@ const DailyExperienceRenderer = (() => {
     }
 
     function render(response) {
-        if (!response || response.status !== "SUCCESS" || !["1.0", "1.1", "1.2"].includes(response.contract_version)
+        if (!response || response.status !== "SUCCESS" || !["1.0", "1.1", "1.2", "1.3"].includes(response.contract_version)
                 || !response.header || !Array.isArray(response.facts)
                 || !Array.isArray(response.priorities) || !Array.isArray(response.analyses)) {
             throw new TypeError("Invalid daily experience response");
@@ -127,6 +135,25 @@ const DailyExperienceRenderer = (() => {
             })
         );
 
+        const contexts = Array.isArray(response.decision_contexts) ? response.decision_contexts : [];
+        renderCollection("daily-decision-context", "dailyDecisionContexts", contexts, LIMITS.contexts, (context) => {
+            const level = LEVEL_LABELS[context.relevance_level] || "";
+            const related = Array.isArray(context.related_assets)
+                ? context.related_assets.filter((value) => typeof value === "string").join(" · ") : "";
+            const factors = Array.isArray(context.context_factors) ? context.context_factors
+                .filter((factor) => factor && typeof factor.description === "string")
+                .map((factor) => factor.description).join(" · ") : "";
+            const limitations = Array.isArray(context.limitations)
+                ? context.limitations.filter((value) => typeof value === "string").join(" · ") : "";
+            const metadata = [related ? `Ativos relacionados: ${related}` : "", factors,
+                limitations ? `Limitações: ${limitations}` : ""].filter(Boolean).join(" · ");
+            return item({
+                eyebrow: CONTEXT_LABELS[context.context_type] || "Contexto",
+                badge: level ? { className: `priority priority-${level === "Alta" ? "high" : level === "Baixa" ? "low" : "moderate"}`, text: level } : null,
+                title: text(context.title), summary: text(context.summary), metadata
+            });
+        });
+
         const impacts = Array.isArray(response.impact_assessments) ? response.impact_assessments : [];
         renderCollection("daily-impacts", "dailyImpacts", impacts, LIMITS.impacts, (impact) => {
             const level = LEVEL_LABELS[impact.impact_level] || "";
@@ -144,7 +171,7 @@ const DailyExperienceRenderer = (() => {
             });
         });
 
-        const agenda = ["1.1", "1.2"].includes(response.contract_version) && Array.isArray(response.market_agenda)
+        const agenda = ["1.1", "1.2", "1.3"].includes(response.contract_version) && Array.isArray(response.market_agenda)
             ? response.market_agenda : [];
         renderCollection("marketAgendaPanel", "marketAgenda", agenda, LIMITS.agenda, (event) => {
             const timing = event.all_day ? "Dia inteiro" : [text(event.event_time), text(event.timezone)]

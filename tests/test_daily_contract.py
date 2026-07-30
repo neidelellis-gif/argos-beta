@@ -16,7 +16,7 @@ from backend.daily_contract import (
 
 
 def test_contract_has_one_documented_official_version() -> None:
-    assert CONTRACT_VERSION == "1.2"
+    assert CONTRACT_VERSION == "1.3"
 
 
 def test_empty_request_is_valid() -> None:

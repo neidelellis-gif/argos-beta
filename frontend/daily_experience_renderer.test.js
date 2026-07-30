@@ -20,6 +20,8 @@ function setup() {
         ["daily-facts", "importantFacts"],
         ["daily-priorities", "dailyPriorities"],
         ["daily-analyses", "dailyAnalyses"],
+        ["daily-decision-context", "dailyDecisionContexts"],
+        ["daily-impacts", "dailyImpacts"],
         ["market-agenda", "marketAgenda"]
     ].forEach(([panelId, listId]) => {
         const section = node("article");
@@ -229,4 +231,29 @@ test("renders contract 1.2 impacts safely, translates labels, limits five, and h
     assert.equal(JSON.stringify(payload), before);
     renderer.render(response({ contract_version: "1.2", impact_assessments: [], market_agenda: [] }));
     assert.equal(elements.get("daily-impacts").hidden, true);
+});
+
+test("renders contract 1.3 decision contexts safely, translated, limited and immutable", () => {
+    const { elements, renderer } = setup();
+    const context = {
+        id: "context-secret", context_type: "RESTRICTION_CONTEXT", relevance_level: "HIGH",
+        title: "<Contexto>", summary: "Relação descritiva.", related_assets: ["USD"],
+        context_factors: [{ factor_type: "RESTRICTION", factor_value: "secret", description: "Restrição declarada." }],
+        limitations: ["A exposição quantitativa não foi calculada."], related_facts: ["private"]
+    };
+    const payload = response({ contract_version: "1.3", decision_contexts: Array(7).fill(context) });
+    const before = JSON.stringify(payload);
+    renderer.render(payload);
+    assert.equal(elements.get("daily-decision-context").hidden, false);
+    assert.equal(elements.get("dailyDecisionContexts").children.length, 5);
+    const rendered = JSON.stringify(elements.get("dailyDecisionContexts"));
+    assert.match(rendered, /Restrições/);
+    assert.match(rendered, /Alta/);
+    assert.match(rendered, /Ativos relacionados: USD/);
+    assert.match(rendered, /Restrição declarada/);
+    assert.match(rendered, /Limitações/);
+    assert.doesNotMatch(rendered, /context-secret|private|factor_value|\[object Object\]/);
+    assert.equal(JSON.stringify(payload), before);
+    renderer.render(response({ contract_version: "1.3", decision_contexts: [] }));
+    assert.equal(elements.get("daily-decision-context").hidden, true);
 });
