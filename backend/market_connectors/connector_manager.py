@@ -23,6 +23,8 @@ class ConnectorManager:
     ) -> None:
         self._connectors: dict[str, MarketConnector] = {}
         self._active: str | None = None
+        self._preferred: str | None = None
+        self._fallback: str | None = None
         self._cache = cache or ConnectorCache()
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
@@ -39,6 +41,7 @@ class ConnectorManager:
         self._connectors[normalized] = connector
         if active or self._active is None:
             self._active = normalized
+            self._preferred = normalized
             self._cache.clear()
 
     def select(self, name: str) -> None:
@@ -47,18 +50,34 @@ class ConnectorManager:
             raise KeyError(f"Conector de mercado não registrado: {normalized}.")
         if normalized != self._active:
             self._active = normalized
+            self._preferred = normalized
             self._cache.clear()
 
+    def configure_fallback(self, preferred: str, fallback: str) -> None:
+        """Prefer one provider and transparently use another when it fails."""
+        preferred_name, fallback_name = preferred.strip().upper(), fallback.strip().upper()
+        if preferred_name not in self._connectors or fallback_name not in self._connectors:
+            raise KeyError("Conector preferencial ou fallback não registrado.")
+        self._preferred, self._fallback, self._active = preferred_name, fallback_name, preferred_name
+        self._cache.clear()
+
     def reload(self) -> ConnectorCacheEntry:
-        connector = self._connector()
-        if not connector.is_available():
-            raise ConnectorUnavailableError(f"Conector de mercado indisponível: {self._active}.")
-        facts = tuple(connector.load_facts())
-        agenda = tuple(connector.load_agenda())
-        metadata = connector.metadata()
+        target = self._preferred or self._active
+        error: Exception | None = None
+        try:
+            facts, agenda, metadata = self._load(target)
+            selected = target
+        except Exception as exc:
+            error = exc
+            if self._fallback is None or target == self._fallback:
+                raise
+            facts, agenda, metadata = self._load(self._fallback)
+            selected = self._fallback
+        self._active = selected
         entry = ConnectorCacheEntry(
             last_reload=self._clock(), facts=facts, agenda=agenda,
-            source=str(metadata.get("source", self._active)),
+            source=str(metadata.get("source", selected)), connector=selected,
+            reload_succeeded=error is None, error=str(error) if error else None,
         )
         self._cache.replace(entry)
         return entry
@@ -70,15 +89,27 @@ class ConnectorManager:
         return self._current().agenda
 
     def status(self) -> dict[str, object]:
-        connector = self._connector()
         entry = self._cache.entry
         return {
             "connector": self._active,
-            "available": connector.is_available(),
+            "active_connector": self._active,
+            "available": self._connector().is_available(),
+            "fallback_available": self._fallback is not None,
             "last_reload": entry.last_reload.isoformat() if entry else None,
             "facts": len(entry.facts) if entry else 0,
             "agenda": len(entry.agenda) if entry else 0,
+            "source": "REMOTE" if self._active == self._preferred and self._fallback else "LOCAL",
+            "last_reload_success": entry.reload_succeeded if entry else None,
+            "last_error": entry.error if entry else None,
         }
+
+    def _load(self, name: str | None):
+        if name is None:
+            raise ConnectorUnavailableError("Nenhum conector de mercado está ativo.")
+        connector = self._connectors[name]
+        if not connector.is_available():
+            raise ConnectorUnavailableError(f"Conector de mercado indisponível: {name}.")
+        return tuple(connector.load_facts()), tuple(connector.load_agenda()), connector.metadata()
 
     def _current(self) -> ConnectorCacheEntry:
         return self._cache.entry or self.reload()
