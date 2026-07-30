@@ -239,6 +239,26 @@ def test_dashboard_endpoint_returns_single_structure():
         thread.join()
 
 
+def test_dashboard_endpoint_accepts_empty_cache_ttl_setting(monkeypatch):
+    monkeypatch.setenv("ARGOS_DAILY_CACHE_TTL_SECONDS", "")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ArgosRequestHandler)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    try:
+        with urlopen(
+            f"http://127.0.0.1:{server.server_port}/api/dashboard"
+        ) as response:
+            payload = json.load(response)
+
+        assert response.status == 200
+        assert "error" not in payload
+        assert payload["header"]["version"] == "2.2"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
 def test_frontend_consumes_and_exposes_dashboard_sections():
     app = Path("frontend/app.js").read_text(encoding="utf-8")
     page = Path("frontend/index.html").read_text(encoding="utf-8")
