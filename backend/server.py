@@ -28,6 +28,7 @@ from backend.market_agenda_serializer import serialize_market_agenda
 from backend.decision_context import DecisionProfile, import_decision_profile
 from backend.decision_context_serializer import serialize_decision_profile
 from backend.official_portfolios import OfficialPortfolioLoader
+from backend.market_data_loader import MarketDataLoader
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -45,6 +46,7 @@ SESSION_MARKET_AGENDA: dict[str, tuple[MarketAgendaEvent, ...]] = {}
 SESSION_DECISION_CONTEXT: dict[str, DecisionProfile] = {}
 DAILY_HTTP_ADAPTER = DailyHttpAdapter()
 OFFICIAL_PORTFOLIO_LOADER = OfficialPortfolioLoader()
+MARKET_DATA_LOADER = MarketDataLoader()
 
 
 def _decode_file_payload(file_payload: Dict[str, str]) -> bytes:
@@ -322,6 +324,7 @@ class ArgosRequestHandler(
         self.send_error(501, "Unsupported method")
 
     def _daily_experience(self) -> None:
+        market_data = MARKET_DATA_LOADER.load()
         content_length_value = self.headers.get("Content-Length")
         try:
             content_length = int(content_length_value or "0")
@@ -329,23 +332,26 @@ class ArgosRequestHandler(
             content_length = -1
         if content_length < 0:
             response = DAILY_HTTP_ADAPTER.handle(
-                self.command, dict(self.headers), b"", self._session_agenda(), self._session_decision_profile(),
+                self.command, dict(self.headers), b"", market_data.agenda, self._session_decision_profile(),
                 OFFICIAL_PORTFOLIO_LOADER.load_positions(),
+                market_data.facts,
             )
         elif content_length > MAX_DAILY_REQUEST_BYTES:
             response = DAILY_HTTP_ADAPTER.handle(
                 self.command,
                 dict(self.headers),
                 b" " * (MAX_DAILY_REQUEST_BYTES + 1),
-                self._session_agenda(),
+                market_data.agenda,
                 self._session_decision_profile(),
                 OFFICIAL_PORTFOLIO_LOADER.load_positions(),
+                market_data.facts,
             )
         else:
             body = self.rfile.read(content_length)
             response = DAILY_HTTP_ADAPTER.handle(
-                self.command, dict(self.headers), body, self._session_agenda(), self._session_decision_profile(),
+                self.command, dict(self.headers), body, market_data.agenda, self._session_decision_profile(),
                 OFFICIAL_PORTFOLIO_LOADER.load_positions(),
+                market_data.facts,
             )
         self.send_response(response.status_code)
         for name, value in response.headers.items():

@@ -101,6 +101,7 @@ class DailyHttpAdapter:
         agenda_events: tuple[MarketAgendaEvent, ...] = (),
         decision_profile: DecisionProfile | None = None,
         official_positions: tuple[PortfolioPosition, ...] | None = None,
+        official_facts: tuple[FactCandidate, ...] | None = None,
     ) -> DailyHttpResponse:
         try:
             if method != "POST":
@@ -126,6 +127,7 @@ class DailyHttpAdapter:
             request = replace(
                 parsed_request, agenda_events=agenda_events, decision_profile=decision_profile,
                 positions=official_positions if official_positions is not None else parsed_request.positions,
+                fact_candidates=official_facts if official_facts is not None else parsed_request.fact_candidates,
             )
             response = self._facade.execute(request)
             return self._facade_response(response)

@@ -60,6 +60,21 @@ class FactCandidate:
         ):
             raise TypeError("fact relations accept only strings")
 
+    @property
+    def fact_id(self) -> str:
+        """Official market-data name retained without changing engine compatibility."""
+        return self.id
+
+    @property
+    def reference_date(self):
+        """Calendar date represented by the source publication timestamp."""
+        return self.published_at.date()
+
+
+# The official repository and the legacy analytical contract share one immutable
+# representation.  Keeping the alias avoids a translation model inside engines.
+MarketFact = FactCandidate
+
 
 @dataclass(frozen=True)
 class FactRelevance:

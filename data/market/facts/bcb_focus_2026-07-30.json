@@ -1,0 +1,23 @@
+{
+  "source_id": "BCB-FOCUS",
+  "source_name": "Banco Central do Brasil",
+  "source_type": "RELATORIO_OFICIAL",
+  "reference_date": "2026-07-30",
+  "collected_at": "2026-07-30T10:00:00Z",
+  "data_version": "1.0",
+  "facts": [
+    {
+      "fact_id": "bcb-focus-2026-07-30",
+      "title": "Banco Central publica expectativas do mercado",
+      "description": "Relatório oficial consolida expectativas econômicas na data de referência.",
+      "category": "ECONOMY",
+      "source": "BCB-FOCUS",
+      "reference_date": "2026-07-30",
+      "importance": "MEDIUM",
+      "related_assets": ["LFT-2029", "CDB-SAN-01"],
+      "related_sectors": [],
+      "related_currencies": ["BRL"],
+      "related_institutions": []
+    }
+  ]
+}

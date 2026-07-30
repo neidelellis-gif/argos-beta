@@ -1,0 +1,31 @@
+{
+  "source_id": "BCB-CALENDAR",
+  "source_name": "Banco Central do Brasil",
+  "source_type": "BANCO_CENTRAL",
+  "reference_date": "2026-07-30",
+  "collected_at": "2026-07-30T10:05:00Z",
+  "data_version": "1.0",
+  "events": [
+    {
+      "event_id": "bcb-copom-2026-08-05",
+      "event_type": "CENTRAL_BANK",
+      "title": "Decisão do Copom",
+      "event_date": "2026-08-05",
+      "event_time": "18:30",
+      "timezone": "America/Sao_Paulo",
+      "all_day": false,
+      "institution": "Banco Central do Brasil",
+      "asset_identifiers": ["LFT-2029", "CDB-SAN-01"],
+      "asset_names": [],
+      "asset_classes": ["FIXED_INCOME"],
+      "sectors": [],
+      "currencies": ["BRL"],
+      "markets": ["BRAZIL"],
+      "country": "BR",
+      "importance": "HIGH",
+      "source_name": "Banco Central do Brasil",
+      "source_reference": "BCB-CALENDAR:2026-08-05",
+      "description": "Evento publicado no calendário oficial do Banco Central."
+    }
+  ]
+}
