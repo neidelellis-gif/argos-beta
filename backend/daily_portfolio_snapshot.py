@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
+from collections.abc import Callable
 from typing import Iterable, Mapping, Optional, Tuple, TypeVar
 
 from backend.import_validation import (
@@ -90,6 +91,10 @@ ValidationReportKey = Tuple[PortfolioOwner, str, Optional[str]]
 MapValue = TypeVar("MapValue")
 
 
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 class DailyPortfolioSnapshotBuilder:
     """Build institution diagnostics first and a consolidated snapshot second.
 
@@ -102,9 +107,11 @@ class DailyPortfolioSnapshotBuilder:
         self,
         validation_engine: Optional[ImportValidationEngine] = None,
         consolidation_engine: Optional[PortfolioConsolidationEngine] = None,
+        clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         self._validation_engine = validation_engine or ImportValidationEngine()
         self._consolidation_engine = consolidation_engine or PortfolioConsolidationEngine()
+        self._clock = clock
 
     def build(
         self,
@@ -177,7 +184,7 @@ class DailyPortfolioSnapshotBuilder:
         status = self._status(originals, reports_used, warnings)
         return DailyPortfolioSnapshot(
             reference_date=reference_date,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=self._generated_at(),
             owners=tuple(sorted({item.owner for item in originals}, key=lambda item: item.value)),
             institutions=tuple(sorted({item.institution for item in originals}, key=self._text_key)),
             currencies=tuple(
@@ -199,6 +206,14 @@ class DailyPortfolioSnapshotBuilder:
                 duplicate_count=duplicate_count,
             ),
         )
+
+    def _generated_at(self) -> datetime:
+        value = self._clock()
+        if not isinstance(value, datetime):
+            raise TypeError("snapshot clock must return a datetime")
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("snapshot clock must be timezone-aware")
+        return value.astimezone(timezone.utc)
 
     @staticmethod
     def _ensure_positions(positions: Tuple[PortfolioPosition, ...]) -> None:
