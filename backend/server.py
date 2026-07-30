@@ -20,6 +20,7 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(project_root))
 
 from backend.dashboard import build_dashboard, load_dashboard
+from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
 from backend.portfolio_import import import_portfolios
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -34,6 +35,7 @@ class SessionPortfolio(TypedDict):
 
 
 SESSION_PORTFOLIOS: dict[str, SessionPortfolio] = {}
+DAILY_HTTP_ADAPTER = DailyHttpAdapter()
 
 
 def _decode_file_payload(file_payload: Dict[str, str]) -> bytes:
@@ -181,6 +183,9 @@ class ArgosRequestHandler(
         super().end_headers()
 
     def do_GET(self):
+        if self.path == "/api/daily-experience":
+            self._daily_experience()
+            return
         # Official flow:
         # Dashboard -> DailyOrchestrator -> DailyContextService.
         # Cockpit and facts are compatibility-only projections of Dashboard.
@@ -232,6 +237,9 @@ class ArgosRequestHandler(
         super().do_GET()
 
     def do_POST(self):
+        if self.path == "/api/daily-experience":
+            self._daily_experience()
+            return
         if self.path == "/api/portfolios/import":
             self._import_portfolios()
             return
@@ -283,6 +291,40 @@ class ArgosRequestHandler(
                 {"ok": False, "error": str(exc)},
                 status=400
             )
+
+    def do_PUT(self):
+        if self.path == "/api/daily-experience":
+            self._daily_experience()
+            return
+        self.send_error(501, "Unsupported method")
+
+    def _daily_experience(self) -> None:
+        content_length_value = self.headers.get("Content-Length")
+        try:
+            content_length = int(content_length_value or "0")
+        except ValueError:
+            content_length = -1
+        if content_length < 0:
+            response = DAILY_HTTP_ADAPTER.handle(
+                self.command, dict(self.headers), b""
+            )
+        elif content_length > MAX_DAILY_REQUEST_BYTES:
+            response = DAILY_HTTP_ADAPTER.handle(
+                self.command,
+                dict(self.headers),
+                b" " * (MAX_DAILY_REQUEST_BYTES + 1),
+            )
+        else:
+            body = self.rfile.read(content_length)
+            response = DAILY_HTTP_ADAPTER.handle(
+                self.command, dict(self.headers), body
+            )
+        self.send_response(response.status_code)
+        for name, value in response.headers.items():
+            self.send_header(name, value)
+        self.send_header("Content-Length", str(len(response.body)))
+        self.end_headers()
+        self.wfile.write(response.body)
 
     def do_DELETE(self):
         if self.path != "/api/portfolios":
