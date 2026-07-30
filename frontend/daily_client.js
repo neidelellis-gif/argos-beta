@@ -1,8 +1,8 @@
 "use strict";
 
 const DailyApiContract = Object.freeze({
-    version: "1.1",
-    compatibleVersions: Object.freeze(["1.0", "1.1"]),
+    version: "1.2",
+    compatibleVersions: Object.freeze(["1.0", "1.1", "1.2"]),
     statuses: Object.freeze(["SUCCESS", "ERROR"]),
     experienceStatuses: Object.freeze([
         "READY", "NO_ACTION_REQUIRED", "ATTENTION_REQUIRED", "DECISION_REQUIRED"
@@ -34,6 +34,7 @@ const DailyApiContract = Object.freeze({
             && [payload.facts, payload.priorities, payload.analyses, payload.blocks]
                 .every(Array.isArray)
             && (payload.contract_version === "1.0" || Array.isArray(payload.market_agenda))
+            && (payload.contract_version !== "1.2" || Array.isArray(payload.impact_assessments))
             && payload.facts.every((fact) => fact && typeof fact === "object"
                 && this.priorityLevels.includes(fact.importance))
             && payload.priorities.every((priority) => (

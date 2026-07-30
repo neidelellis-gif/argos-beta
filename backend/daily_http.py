@@ -348,7 +348,7 @@ class DailyHttpAdapter:
             "contract_version": CONTRACT_VERSION,
             "status": DailyApiStatus.ERROR.value, "generated_at": None, "experience_status": None,
             "header": None, "message": None, "facts": [], "priorities": [],
-            "analyses": [], "blocks": [], "market_agenda": [], "summary": None,
+            "analyses": [], "blocks": [], "market_agenda": [], "impact_assessments": [], "summary": None,
             "error": {"code": code, "message": message, "stage": "HTTP"},
         }
         return self._json_response(status, payload, extra_headers)

@@ -11,6 +11,7 @@ from backend.daily_contract import (
     DailyApiErrorCode,
     DailyApiFact,
     DailyApiHeader,
+    DailyApiImpactAssessment,
     DailyApiMessage,
     DailyApiMarketAgendaEvent,
     DailyApiPriority,
@@ -36,6 +37,7 @@ from backend.daily_priority import DailyPriorityEngine
 from backend.important_facts import ImportantFactsEngine
 from backend.portfolio_impact import PortfolioImpactEngine
 from backend.market_agenda_engine import MarketAgendaEngine
+from backend.portfolio_impact_engine import PortfolioImpactAssessmentEngine
 
 
 def _utc_now() -> datetime:
@@ -69,6 +71,7 @@ class DailyApiFacade:
         analysis_engine: DailyAnalysisEngine | None = None,
         priority_engine: AnalysisPriorityEngine | None = None,
         market_agenda_engine: MarketAgendaEngine | None = None,
+        impact_engine: PortfolioImpactAssessmentEngine | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -82,6 +85,7 @@ class DailyApiFacade:
         self._analysis_engine = analysis_engine if analysis_engine is not None else DailyAnalysisEngine()
         self._priority_engine = priority_engine if priority_engine is not None else AnalysisPriorityEngine()
         self._market_agenda_engine = market_agenda_engine if market_agenda_engine is not None else MarketAgendaEngine()
+        self._impact_engine = impact_engine if impact_engine is not None else PortfolioImpactAssessmentEngine()
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -106,7 +110,25 @@ class DailyApiFacade:
             generated_facts = self._facts_engine.generate(
                 request.positions, request.fact_candidates
             )
-            analyses = self._analysis_engine.generate(generated_facts, request.positions)
+            agenda = self._market_agenda_engine.generate(
+                request.agenda_events, request.positions, request.reference_date
+            )
+            event_by_id = {f"agenda-{event.event_id}": event for event in request.agenda_events}
+            impact_agenda = []
+            for item in agenda:
+                enriched = dict(item)
+                event = event_by_id.get(str(item["id"]))
+                if event is not None:
+                    enriched.update({
+                        "asset_identifiers": list(event.asset_identifiers),
+                        "asset_names": list(event.asset_names), "asset_classes": list(event.asset_classes),
+                        "sectors": list(event.sectors), "currencies": list(event.currencies),
+                        "markets": list(event.markets), "country": event.country,
+                        "institution": event.institution,
+                    })
+                impact_agenda.append(enriched)
+            impacts = self._impact_engine.generate(generated_facts, impact_agenda, request.positions)
+            analyses = self._analysis_engine.generate(generated_facts, request.positions, impacts)
             priorities = self._priority_engine.generate(analyses, request.positions)
             context_by_id = {item.id: item for item in request.fact_candidates}
             fact_candidates = tuple(
@@ -119,10 +141,7 @@ class DailyApiFacade:
                 validation_reports=request.validation_reports,
             )
             experience = self._composer.compose_priorities(orchestration, priorities)
-            agenda = self._market_agenda_engine.generate(
-                request.agenda_events, request.positions, request.reference_date
-            )
-            return self._success_response(generated_at, experience, agenda)
+            return self._success_response(generated_at, experience, agenda, impacts)
         except DailyOrchestrationError as error:
             return self._error_response(
                 generated_at,
@@ -149,6 +168,7 @@ class DailyApiFacade:
     def _success_response(
         generated_at: datetime, experience: DailyExperienceResult,
         agenda: tuple[dict[str, object], ...] = (),
+        impacts: list[dict[str, object]] | tuple[dict[str, object], ...] = (),
     ) -> DailyApiResponse:
         facts = tuple(
             DailyApiFact(item.fact_id, item.category, item.title, item.priority)
@@ -226,6 +246,13 @@ class DailyApiFacade:
                 affected_assets=tuple(str(value) for value in _iterable(item["affected_assets"])),
                 source_name=str(item["source_name"]),
             ) for item in agenda),
+            impact_assessments=tuple(DailyApiImpactAssessment(
+                id=str(item["id"]), source_type=str(item["source_type"]),
+                impact_level=str(item["impact_level"]), impact_direction=str(item["impact_direction"]),
+                confidence=str(item["confidence"]), title=str(item["title"]), summary=str(item["summary"]),
+                affected_assets=tuple(str(value) for value in _iterable(item["affected_assets"])),
+                impact_factors=tuple(dict(factor) for factor in _iterable(item["impact_factors"]) if isinstance(factor, dict)),
+            ) for item in impacts[:5]),
         )
 
     @staticmethod
@@ -297,6 +324,13 @@ def daily_api_response_to_dict(response: DailyApiResponse) -> dict[str, object]:
             "event_time": item.event_time, "timezone": item.timezone, "all_day": item.all_day,
             "affected_assets": list(item.affected_assets), "source_name": item.source_name,
         } for item in response.market_agenda],
+        "impact_assessments": [{
+            "id": item.id, "source_type": item.source_type, "impact_level": item.impact_level,
+            "impact_direction": item.impact_direction, "confidence": item.confidence,
+            "title": item.title, "summary": item.summary,
+            "affected_assets": list(item.affected_assets),
+            "impact_factors": [dict(factor) for factor in item.impact_factors],
+        } for item in response.impact_assessments],
         "summary": summary,
         "error": error,
     }
