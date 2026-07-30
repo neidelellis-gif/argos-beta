@@ -349,6 +349,7 @@ class DailyHttpAdapter:
         payload: dict[str, object] = {
             "contract_version": CONTRACT_VERSION,
             "status": DailyApiStatus.ERROR.value, "generated_at": None, "experience_status": None,
+            "experience": {"status": "ERROR"},
             "header": None, "message": None, "facts": [], "priorities": [],
             "analyses": [], "blocks": [], "market_agenda": [], "impact_assessments": [], "summary": None,
             "error": {"code": code, "message": message, "stage": "HTTP"},

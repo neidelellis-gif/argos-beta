@@ -896,17 +896,34 @@ test("DailyFrontendClient accepts complete 1.3 and requires decision contexts", 
 
 test("DailyFrontendClient accepts 1.4 only with structured data quality", async () => {
     const complete = {
-        contract_version: "1.4", status: "SUCCESS", generated_at: NOW,
+        contract_version: "1.4", status: "SUCCESS", generated_at: "2026-07-30T12:00:00+00:00",
         experience_status: "READY", header: {}, message: {}, facts: [], priorities: [],
         analyses: [], blocks: [], market_agenda: [], impact_assessments: [],
         decision_contexts: [], summary: {}, error: null,
         data_quality: { status: "HEALTHY", summary: { errors: 0, warnings: 0, infos: 0 }, diagnostics: [] }
     };
-    const client = new context.DailyFrontendClient(async () => ({ ok: true, json: async () => complete }));
+    const client = new context.DailyClientForTest(async () => ({ status: 200, json: async () => complete }));
     assert.equal((await client.loadExperience({})).contract_version, "1.4");
     const invalid = { ...complete }; delete invalid.data_quality;
-    const invalidClient = new context.DailyFrontendClient(async () => ({ ok: true, json: async () => invalid }));
-    await assert.rejects(() => invalidClient.loadExperience({}), /incompatível/);
+    const invalidClient = new context.DailyClientForTest(async () => ({ status: 200, json: async () => invalid }));
+    await assert.rejects(() => invalidClient.loadExperience({}), /Erro interno/);
+});
+
+test("DailyFrontendClient accepts 1.5 only with orchestrated experience status", async () => {
+    const complete = dailyResponse({
+        contract_version: "1.5", market_agenda: [], impact_assessments: [],
+        decision_contexts: [], data_quality: { status: "HEALTHY", diagnostics: [] },
+        experience: { status: "READY" }
+    });
+    const client = new context.DailyClientForTest(async () => ({
+        status: 200, async json() { return complete; }
+    }));
+    assert.equal((await client.loadExperience({})).experience.status, "READY");
+    const invalid = { ...complete, experience: { status: "UNKNOWN" } };
+    const invalidClient = new context.DailyClientForTest(async () => ({
+        status: 200, async json() { return invalid; }
+    }));
+    await assert.rejects(invalidClient.loadExperience({}), /Erro interno/);
 });
 
 for (const overrides of [

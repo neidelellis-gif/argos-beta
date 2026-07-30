@@ -1,6 +1,7 @@
 """Stable public facade for the official ARGOS daily experience."""
 
 from collections.abc import Callable, Iterable
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from backend.daily_contract import (
@@ -42,6 +43,7 @@ from backend.market_agenda_engine import MarketAgendaEngine
 from backend.portfolio_impact_engine import PortfolioImpactAssessmentEngine
 from backend.decision_context_engine import DecisionContextEngine
 from backend.data_quality_engine import DataQualityEngine
+from backend.daily_experience_orchestrator import DailyExperienceOrchestrator
 
 
 def _utc_now() -> datetime:
@@ -93,6 +95,7 @@ class DailyApiFacade:
         impact_engine: PortfolioImpactAssessmentEngine | None = None,
         decision_context_engine: DecisionContextEngine | None = None,
         data_quality_engine: DataQualityEngine | None = None,
+        experience_orchestrator: DailyExperienceOrchestrator | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -109,6 +112,7 @@ class DailyApiFacade:
         self._impact_engine = impact_engine if impact_engine is not None else PortfolioImpactAssessmentEngine()
         self._decision_context_engine = decision_context_engine or DecisionContextEngine()
         self._data_quality_engine = data_quality_engine or DataQualityEngine()
+        self._experience_orchestrator = experience_orchestrator or DailyExperienceOrchestrator()
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -172,7 +176,15 @@ class DailyApiFacade:
                 validation_reports=request.validation_reports,
             )
             experience = self._composer.compose_priorities(orchestration, priorities)
-            return self._success_response(generated_at, experience, agenda, impacts, decision_contexts, quality)
+            response = self._success_response(generated_at, experience, agenda, impacts, decision_contexts, quality)
+            assembly = self._experience_orchestrator.orchestrate(
+                contract_version=response.contract_version,
+                data_quality={"status": response.data_quality.status, "diagnostics": response.data_quality.diagnostics} if response.data_quality else None,
+                facts=response.facts, priorities=response.priorities, analyses=response.analyses,
+                decision_contexts=response.decision_contexts,
+                impact_assessments=response.impact_assessments, market_agenda=response.market_agenda,
+            )
+            return replace(response, experience={"status": assembly.status.value})
         except DailyOrchestrationError as error:
             return self._error_response(
                 generated_at,
@@ -295,6 +307,7 @@ class DailyApiFacade:
                 limitations=tuple(str(value) for value in _iterable(item["limitations"])),
             ) for item in decision_contexts[:5]),
             data_quality=_data_quality_contract(data_quality),
+            experience={"status": "READY"},
         )
 
     @staticmethod
@@ -390,6 +403,7 @@ def daily_api_response_to_dict(response: DailyApiResponse) -> dict[str, object]:
             "summary": dict(quality.summary),
             "diagnostics": [dict(item) for item in quality.diagnostics],
         },
+        "experience": dict(response.experience or {"status": "ERROR"}),
         "summary": summary,
         "error": error,
     }

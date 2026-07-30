@@ -89,9 +89,11 @@ const DailyExperienceRenderer = (() => {
     }
 
     function render(response) {
-        if (!response || response.status !== "SUCCESS" || !["1.0", "1.1", "1.2", "1.3", "1.4"].includes(response.contract_version)
+        if (!response || response.status !== "SUCCESS" || !["1.0", "1.1", "1.2", "1.3", "1.4", "1.5"].includes(response.contract_version)
                 || !response.header || !Array.isArray(response.facts)
-                || !Array.isArray(response.priorities) || !Array.isArray(response.analyses)) {
+                || !Array.isArray(response.priorities) || !Array.isArray(response.analyses)
+                || (response.contract_version === "1.5" && (!response.experience
+                    || !["READY", "PARTIAL"].includes(response.experience.status)))) {
             throw new TypeError("Invalid daily experience response");
         }
 
@@ -101,7 +103,7 @@ const DailyExperienceRenderer = (() => {
         panel("lastUpdateLabel").textContent = "Experiência gerada em";
         panel("lastUpdate").textContent = text(response.generated_at);
 
-        const quality = response.contract_version === "1.4" && response.data_quality
+        const quality = ["1.4", "1.5"].includes(response.contract_version) && response.data_quality
             && ["WARNING", "ERROR"].includes(response.data_quality.status)
             && Array.isArray(response.data_quality.diagnostics) ? response.data_quality.diagnostics : [];
         renderCollection("data-quality", "dataQualityDiagnostics", quality, LIMITS.diagnostics, (diagnostic) => {
@@ -186,7 +188,7 @@ const DailyExperienceRenderer = (() => {
             });
         });
 
-        const agenda = ["1.1", "1.2", "1.3", "1.4"].includes(response.contract_version) && Array.isArray(response.market_agenda)
+        const agenda = ["1.1", "1.2", "1.3", "1.4", "1.5"].includes(response.contract_version) && Array.isArray(response.market_agenda)
             ? response.market_agenda : [];
         renderCollection("marketAgendaPanel", "marketAgenda", agenda, LIMITS.agenda, (event) => {
             const timing = event.all_day ? "Dia inteiro" : [text(event.event_time), text(event.timezone)]
