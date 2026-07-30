@@ -648,122 +648,11 @@ function createEmptyState(message) {
     return createTextElement("p", "daily-empty", message);
 }
 
-function createDailyItem({ title, eyebrow, summary, metadata }) {
-    const article = document.createElement("article");
-    article.className = "daily-item";
-    const header = document.createElement("div");
-    header.className = "daily-item-header";
-    header.append(createTextElement("span", "daily-item-eyebrow", eyebrow));
-    article.append(
-        header,
-        createTextElement("h3", "", title),
-        createTextElement("p", "daily-item-summary", summary)
-    );
-    if (metadata) {
-        article.append(createTextElement("p", "daily-item-meta", metadata));
-    }
-    return article;
-}
-
-function renderHeader(header, generatedAt) {
-    document.getElementById("greeting").textContent = header.greeting;
-    document.getElementById("currentDate").textContent = header.display_date;
-    document.getElementById("lastUpdateLabel").textContent = "Experiência gerada em";
-    document.getElementById("lastUpdate").textContent = generatedAt;
-}
-
-function renderMessage(message) {
-    document.getElementById("dailyMessageTitle").textContent = message.title;
-    document.getElementById("dailyWindow").textContent = message.text;
-}
-
-function renderFacts(facts) {
-    const container = document.getElementById("importantFacts");
-    container.replaceChildren();
-    facts.forEach((fact) => container.append(
-        createDailyItem({
-            title: fact.text,
-            eyebrow: fact.category,
-            summary: fact.importance
-        })
-    ));
-}
-
-function renderPriorities(priorities) {
-    const container = document.getElementById("dailyPriorities");
-    container.replaceChildren();
-    priorities.forEach((item) => container.append(
-        createDailyItem({
-            title: item.title,
-            eyebrow: item.label,
-            summary: item.reason
-        })
-    ));
-}
-
-function renderAnalyses(analyses) {
-    const container = document.getElementById("dailyAnalyses");
-    container.replaceChildren();
-    analyses.forEach((item) => container.append(
-        createDailyItem({
-            title: item.title,
-            eyebrow: item.action,
-            summary: item.reason
-        })
-    ));
-}
-
-function renderBlocks(blocks) {
-    const panels = [
-        document.getElementById("importantFacts").closest("article"),
-        document.getElementById("dailyPriorities").closest("article"),
-        document.getElementById("dailyAnalyses").closest("article")
-    ];
-    blocks.forEach((block, index) => {
-        panels[index].hidden = !block.visible;
-        panels[index].querySelector("h2").textContent = block.title;
-    });
-}
-
-function renderSummary(summary) {
-    const container = document.getElementById("dailySummary");
-    container.replaceChildren(
-        createMetric("Fatos", summary.fact_count),
-        createMetric("Prioridades", summary.priority_count),
-        createMetric("Análises", summary.analysis_count),
-        createMetric("Blocos visíveis", summary.visible_block_count)
-    );
-    document.getElementById("summaryStatus").textContent =
-        `${summary.visible_block_count} blocos visíveis`;
-}
-
-function renderDailyExperience(response) {
-    renderHeader(response.header, response.generated_at);
-    renderMessage(response.message);
-    renderFacts(response.facts);
-    renderPriorities(response.priorities);
-    renderAnalyses(response.analyses);
-    renderBlocks(response.blocks);
-    renderSummary(response.summary);
-    document.getElementById("factsCount").textContent = response.summary.fact_count;
-    document.getElementById("prioritiesCount").textContent = response.summary.priority_count;
-    document.getElementById("analysesCount").textContent = response.summary.analysis_count;
-}
-
 function setDailyLoading(loading) {
     dailyExperienceLoading = loading;
-    const container = document.getElementById("dailySummary");
     if (loading) {
-        container.replaceChildren(createTextElement(
-            "p", "loading-message", "Carregando experiência diária..."
-        ));
+        DailyExperienceRenderer.showLoading();
     }
-}
-
-function renderDailyError(message) {
-    document.getElementById("dailySummary").replaceChildren(
-        createTextElement("p", "error-message", message)
-    );
 }
 
 async function loadDailyExperience(client = new DailyFrontendClient()) {
@@ -780,9 +669,10 @@ async function loadDailyExperience(client = new DailyFrontendClient()) {
             fact_candidates: [],
             reference_date: null
         });
-        renderDailyExperience(response);
+        DailyExperienceRenderer.render(response);
     } catch (error) {
-        renderDailyError(error.message);
+        console.error("Daily experience failed", error);
+        DailyExperienceRenderer.showError();
     } finally {
         setDailyLoading(false);
     }
