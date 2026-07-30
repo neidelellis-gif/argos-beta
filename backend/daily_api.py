@@ -27,6 +27,8 @@ from backend.daily_experience import (
     DailyExperienceResult,
 )
 from backend.daily_facts_engine import DailyFactsEngine
+from backend.daily_analysis_engine import DailyAnalysisEngine
+from backend.daily_priority_engine import DailyPriorityEngine as AnalysisPriorityEngine
 from backend.daily_orchestrator import DailyOrchestrationError, DailyOrchestrator
 from backend.daily_portfolio_snapshot import DailyPortfolioSnapshotBuilder
 from backend.daily_priority import DailyPriorityEngine
@@ -58,6 +60,8 @@ class DailyApiFacade:
         composer: DailyExperienceComposer | None = None,
         clock: Callable[[], datetime] = _utc_now,
         facts_engine: DailyFactsEngine | None = None,
+        analysis_engine: DailyAnalysisEngine | None = None,
+        priority_engine: AnalysisPriorityEngine | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -68,6 +72,8 @@ class DailyApiFacade:
         self._composer = composer if composer is not None else DailyExperienceComposer()
         self._clock = clock
         self._facts_engine = facts_engine if facts_engine is not None else DailyFactsEngine()
+        self._analysis_engine = analysis_engine if analysis_engine is not None else DailyAnalysisEngine()
+        self._priority_engine = priority_engine if priority_engine is not None else AnalysisPriorityEngine()
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -92,6 +98,8 @@ class DailyApiFacade:
             generated_facts = self._facts_engine.generate(
                 request.positions, request.fact_candidates
             )
+            analyses = self._analysis_engine.generate(generated_facts, request.positions)
+            priorities = self._priority_engine.generate(analyses, request.positions)
             context_by_id = {item.id: item for item in request.fact_candidates}
             fact_candidates = tuple(
                 context_by_id[str(item["id"])] for item in generated_facts
@@ -102,7 +110,7 @@ class DailyApiFacade:
                 reference_date=request.reference_date,
                 validation_reports=request.validation_reports,
             )
-            experience = self._composer.compose(orchestration)
+            experience = self._composer.compose_priorities(orchestration, priorities)
             return self._success_response(generated_at, experience)
         except DailyOrchestrationError as error:
             return self._error_response(
