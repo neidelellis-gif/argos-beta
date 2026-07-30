@@ -1,6 +1,7 @@
 import base64
 import http.client
 import json
+import socket
 import threading
 from http.server import ThreadingHTTPServer
 from unittest.mock import patch
@@ -30,6 +31,14 @@ def request(server, method, path, payload=None):
     result = response.status, json.loads(response.read())
     connection.close()
     return result
+
+
+def raw_request(server, request_bytes):
+    with socket.create_connection(("127.0.0.1", server.server_port)) as connection:
+        connection.sendall(request_bytes)
+        response = http.client.HTTPResponse(connection)
+        response.begin()
+        return response.status, json.loads(response.read())
 
 
 def official_dashboard():
@@ -94,3 +103,35 @@ def test_legacy_analyze_delegates_to_official_import_dashboard_flow(server):
     load.assert_called_once()
     assert imported_paths
     assert all(not path.exists() for path in imported_paths)
+
+
+def test_analyze_treats_empty_content_length_as_an_empty_body(server):
+    status, response = raw_request(
+        server,
+        b"POST /api/analyze HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Content-Type: application/json\r\n"
+        b"Content-Length:\r\n"
+        b"Connection: close\r\n\r\n",
+    )
+
+    assert status == 400
+    assert response["ok"] is False
+    assert response["error"].startswith("Corpo JSON inv\u00e1lido:")
+
+
+def test_analyze_rejects_invalid_content_length_with_json_error(server):
+    status, response = raw_request(
+        server,
+        b"POST /api/analyze HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Content-Type: application/json\r\n"
+        b"Content-Length: invalid\r\n"
+        b"Connection: close\r\n\r\n",
+    )
+
+    assert status == 400
+    assert response == {
+        "ok": False,
+        "error": "Content-Length deve ser um n\u00famero inteiro n\u00e3o negativo.",
+    }

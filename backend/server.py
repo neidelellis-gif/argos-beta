@@ -294,12 +294,11 @@ class ArgosRequestHandler(
             )
             return
 
-        content_length = int(
-            self.headers.get(
-                "Content-Length",
-                0
-            )
-        )
+        try:
+            content_length = self._content_length()
+        except ValueError as exc:
+            self._send_json({"ok": False, "error": str(exc)}, status=400)
+            return
 
         raw_body = self.rfile.read(
             content_length
@@ -339,9 +338,8 @@ class ArgosRequestHandler(
     def _daily_experience(self) -> None:
         market_facts = MARKET_CONNECTOR_MANAGER.load_facts()
         market_agenda = MARKET_CONNECTOR_MANAGER.load_agenda()
-        content_length_value = self.headers.get("Content-Length")
         try:
-            content_length = int(content_length_value or "0")
+            content_length = self._content_length()
         except ValueError:
             content_length = -1
         if content_length < 0:
@@ -408,6 +406,16 @@ class ArgosRequestHandler(
                 return value
         return None
 
+    def _content_length(self) -> int:
+        """Return a validated request length, treating an empty header as no body."""
+        raw_value = self.headers.get("Content-Length")
+        value = raw_value.strip() if raw_value is not None else ""
+        if not value:
+            return 0
+        if not value.isdecimal():
+            raise ValueError("Content-Length deve ser um número inteiro não negativo.")
+        return int(value)
+
     def _session_agenda(self) -> tuple[MarketAgendaEvent, ...]:
         return SESSION_MARKET_AGENDA.get(self._session_id() or "", ())
 
@@ -425,7 +433,7 @@ class ArgosRequestHandler(
         content_type = self.headers.get("Content-Type", "")
         if not content_type.lower().startswith("multipart/form-data;"):
             raise ValueError("Use multipart/form-data para enviar os arquivos.")
-        content_length = int(self.headers.get("Content-Length", 0))
+        content_length = self._content_length()
         if content_length <= 0:
             raise ValueError("Envie ao menos um arquivo para importação.")
         body = self.rfile.read(content_length)
