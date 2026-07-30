@@ -174,8 +174,10 @@ def test_required_fields(field: str) -> None:
     assert f"campo {field}" in response.body.decode()
 
 
-def test_unknown_request_field_is_rejected() -> None:
-    assert _post(_adapter(), _body(_payload(secret=True))).status_code == 400
+def test_unknown_request_field_is_ignored_without_changing_behavior() -> None:
+    plain = _decoded(_post(_adapter()))
+    with_extra = _decoded(_post(_adapter(), _body(_payload(secret=True))))
+    assert with_extra == plain
 
 
 @pytest.mark.parametrize(
