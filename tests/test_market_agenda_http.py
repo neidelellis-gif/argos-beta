@@ -64,7 +64,9 @@ def test_import_get_invalid_preserves_and_delete(server):
     )
     assert status == 200 and daily["status"] == "SUCCESS" and daily["error"] is None
     assert daily["contract_version"] == "1.5" and len(daily["market_agenda"]) == 1
-    assert len(daily["impact_assessments"]) == 1
+    assert {item["source_type"] for item in daily["impact_assessments"]} == {
+        "FACT", "MARKET_EVENT",
+    }
     assert set(daily["impact_assessments"][0]) == {
         "id", "source_type", "impact_level", "impact_direction", "confidence",
         "title", "summary", "affected_assets", "impact_factors",
