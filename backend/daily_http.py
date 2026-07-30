@@ -10,12 +10,15 @@ from types import MappingProxyType
 from typing import TypeVar
 
 from backend.daily_api import (
-    DailyApiErrorCode,
     DailyApiFacade,
+    daily_api_response_to_dict,
+)
+from backend.daily_contract import (
+    CONTRACT_VERSION,
+    DailyApiErrorCode,
     DailyApiRequest,
     DailyApiResponse,
     DailyApiStatus,
-    daily_api_response_to_dict,
 )
 from backend.important_facts import FactCandidate, FactCategory, FactImportance
 from backend.models import PortfolioOwner, PortfolioPosition
@@ -23,9 +26,6 @@ from backend.models import PortfolioOwner, PortfolioPosition
 
 MAX_DAILY_REQUEST_BYTES = 1_048_576
 _JSON_CONTENT_TYPE = "application/json; charset=utf-8"
-_REQUEST_FIELDS = frozenset(
-    {"positions", "fact_candidates", "reference_date", "validation_reports"}
-)
 _POSITION_FIELDS = frozenset(
     {
         "institution", "owner", "account", "asset_class", "asset_subclass",
@@ -158,9 +158,6 @@ class DailyHttpAdapter:
         request_data: dict[object, object] = payload
         if any(not isinstance(key, str) for key in request_data):
             raise DailyHttpRequestError("A requisição possui formato inválido.")
-        unknown = set(request_data) - _REQUEST_FIELDS
-        if unknown:
-            raise DailyHttpRequestError("A requisição possui campos desconhecidos.")
         for field in ("positions", "fact_candidates"):
             if field not in request_data:
                 raise DailyHttpRequestError(f"O campo {field} é obrigatório.", field)
@@ -346,7 +343,8 @@ class DailyHttpAdapter:
         extra_headers: Mapping[str, str] | None = None,
     ) -> DailyHttpResponse:
         payload: dict[str, object] = {
-            "status": "ERROR", "generated_at": None, "experience_status": None,
+            "contract_version": CONTRACT_VERSION,
+            "status": DailyApiStatus.ERROR.value, "generated_at": None, "experience_status": None,
             "header": None, "message": None, "facts": [], "priorities": [],
             "analyses": [], "blocks": [], "summary": None,
             "error": {"code": code, "message": message, "stage": "HTTP"},

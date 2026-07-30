@@ -639,6 +639,7 @@ test("formats quantities and percentages in Brazilian Portuguese", () => {
 
 function dailyResponse(overrides = {}) {
     return {
+        contract_version: "1.0",
         status: "SUCCESS",
         generated_at: "2026-07-30T12:00:00+00:00",
         experience_status: "READY",
@@ -708,6 +709,30 @@ test("DailyFrontendClient posts the official request and returns JSON on HTTP 20
         { "Content-Type": "application/json" }
     );
     assert.deepEqual(JSON.parse(call.options.body), request);
+});
+
+for (const overrides of [
+    { contract_version: "2.0" },
+    { experience_status: "UNKNOWN" },
+    { blocks: [{ type: "UNKNOWN", visible: true, title: "X", items: [] }] }
+]) {
+    test(`DailyFrontendClient rejects incompatible contract ${JSON.stringify(overrides)}`, async () => {
+        const client = new context.DailyClientForTest(async () => ({
+            status: 200,
+            async json() { return dailyResponse(overrides); }
+        }));
+        await assert.rejects(client.loadExperience({}), /Erro interno\./);
+    });
+}
+
+test("DailyFrontendClient rejects a response missing a required field", async () => {
+    const payload = dailyResponse();
+    delete payload.summary;
+    const client = new context.DailyClientForTest(async () => ({
+        status: 200,
+        async json() { return payload; }
+    }));
+    await assert.rejects(client.loadExperience({}), /Erro interno\./);
 });
 
 for (const status of [400, 500]) {
