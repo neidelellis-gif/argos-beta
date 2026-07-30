@@ -1,11 +1,15 @@
 from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import cast
 
 import pytest
 
 from backend.daily_brief import ImportantFact
-from backend.daily_portfolio_snapshot import DailyPortfolioSnapshotBuilder
+from backend.daily_portfolio_snapshot import (
+    DailyPortfolioSnapshot,
+    DailyPortfolioSnapshotBuilder,
+)
 from backend.important_facts import (
     FactCandidate,
     FactCategory,
@@ -116,18 +120,18 @@ def test_contracts_and_inputs_are_immutable_and_snapshot_is_preserved():
     result = ImportantFactsEngine(clock=lambda: NOW).select((item,), portfolio)
 
     with pytest.raises(FrozenInstanceError):
-        result.relevance[0].score = 0
+        result.relevance[0].score = 0  # type: ignore[reportAttributeAccessIssue]
     with pytest.raises(FrozenInstanceError):
-        item.title = "Changed"
+        item.title = "Changed"  # type: ignore[reportAttributeAccessIssue]
     assert portfolio == original
 
 
 def test_rejects_wrong_contracts_and_naive_engine_clock():
     engine = ImportantFactsEngine(clock=lambda: NOW)
     with pytest.raises(TypeError, match="FactCandidate"):
-        engine.select((object(),), snapshot())
+        engine.select((cast(FactCandidate, object()),), snapshot())
     with pytest.raises(TypeError, match="DailyPortfolioSnapshot"):
-        engine.select((), object())
+        engine.select((), cast(DailyPortfolioSnapshot, object()))
     with pytest.raises(ValueError, match="timezone"):
         ImportantFactsEngine(clock=lambda: NOW.replace(tzinfo=None)).select((), snapshot())
     with pytest.raises(TypeError, match="tuples"):
