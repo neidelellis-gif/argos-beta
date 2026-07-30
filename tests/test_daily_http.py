@@ -120,6 +120,16 @@ def test_valid_post_executes_real_complete_flow() -> None:
     assert payload["experience_status"] == "DECISION_REQUIRED"
 
 
+def test_null_reference_date_executes_real_complete_flow() -> None:
+    response = _post(_adapter(), _body(_payload(reference_date=None)))
+    payload = _decoded(response)
+
+    assert response.status_code == 200
+    assert payload["status"] == "SUCCESS"
+    assert payload["header"]["display_date"] == "quinta-feira, 30 de julho de 2026"
+    assert payload["error"] is None
+
+
 @pytest.mark.parametrize("method", ("GET", "PUT"))
 def test_non_post_methods_are_rejected_without_facade_execution(method: str) -> None:
     class FailingFacade(DailyApiFacade):
