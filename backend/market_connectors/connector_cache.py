@@ -13,6 +13,9 @@ class ConnectorCacheEntry:
     facts: tuple[MarketFact, ...]
     agenda: tuple[MarketAgendaEvent, ...]
     source: str
+    connector: str
+    reload_succeeded: bool
+    error: str | None = None
 
 
 class ConnectorCache:

@@ -28,7 +28,7 @@ from backend.market_agenda_serializer import serialize_market_agenda
 from backend.decision_context import DecisionProfile, import_decision_profile
 from backend.decision_context_serializer import serialize_decision_profile
 from backend.official_portfolios import OfficialPortfolioLoader
-from backend.market_connectors import ConnectorManager, LocalMarketConnector
+from backend.market_connectors import BcbMarketConnector, ConnectorManager, LocalMarketConnector
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -47,7 +47,9 @@ SESSION_DECISION_CONTEXT: dict[str, DecisionProfile] = {}
 DAILY_HTTP_ADAPTER = DailyHttpAdapter()
 OFFICIAL_PORTFOLIO_LOADER = OfficialPortfolioLoader()
 MARKET_CONNECTOR_MANAGER = ConnectorManager()
-MARKET_CONNECTOR_MANAGER.register("LOCAL", LocalMarketConnector(), active=True)
+MARKET_CONNECTOR_MANAGER.register("BCB", BcbMarketConnector(), active=True)
+MARKET_CONNECTOR_MANAGER.register("LOCAL", LocalMarketConnector())
+MARKET_CONNECTOR_MANAGER.configure_fallback("BCB", "LOCAL")
 
 
 def _decode_file_payload(file_payload: Dict[str, str]) -> bytes:
