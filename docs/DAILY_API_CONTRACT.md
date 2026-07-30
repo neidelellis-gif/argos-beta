@@ -2,8 +2,14 @@
 
 ## Current version
 
-`1.0` is the only supported version. Every response, including HTTP boundary
-errors, contains `contract_version: "1.0"`.
+`1.1` is the current response version. Every response, including HTTP boundary
+errors, contains `contract_version: "1.1"`. Version 1.1 preserves every 1.0 field
+and adds `market_agenda`; frontend readers continue treating a 1.0 response
+without that field as an empty agenda.
+
+Each agenda item contains exactly `id`, `event_type`, `importance`, `title`,
+`summary`, `event_date`, `event_time`, `timezone`, `all_day`, `affected_assets`
+and `source_name`, with at most ten items.
 
 The frontend verifies exact compatibility before rendering. It does not infer,
 upgrade, downgrade, rename, or otherwise adapt response fields automatically.

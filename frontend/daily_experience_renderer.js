@@ -1,7 +1,12 @@
 "use strict";
 
 const DailyExperienceRenderer = (() => {
-    const LIMITS = Object.freeze({ facts: 5, priorities: 2, analyses: 2 });
+    const LIMITS = Object.freeze({ facts: 5, priorities: 2, analyses: 2, agenda: 10 });
+    const EVENT_LABELS = Object.freeze({
+        EARNINGS: "Resultados", DIVIDEND: "Dividendos", CENTRAL_BANK: "Bancos centrais",
+        MACROECONOMIC: "Economia", REGULATORY: "Regulação", CORPORATE: "Evento corporativo",
+        MARKET_HOLIDAY: "Feriado de mercado", OTHER: "Outro"
+    });
     const LEVEL_LABELS = Object.freeze({
         HIGH: "Alta",
         MEDIUM: "Moderada",
@@ -69,7 +74,7 @@ const DailyExperienceRenderer = (() => {
     }
 
     function render(response) {
-        if (!response || response.status !== "SUCCESS" || response.contract_version !== "1.0"
+        if (!response || response.status !== "SUCCESS" || !["1.0", "1.1"].includes(response.contract_version)
                 || !response.header || !Array.isArray(response.facts)
                 || !Array.isArray(response.priorities) || !Array.isArray(response.analyses)) {
             throw new TypeError("Invalid daily experience response");
@@ -115,8 +120,26 @@ const DailyExperienceRenderer = (() => {
             })
         );
 
-        // Agenda is not part of public contract 1.0. Keep its prepared panel hidden.
-        panel("market-agenda").hidden = true;
+        const agenda = response.contract_version === "1.1" && Array.isArray(response.market_agenda)
+            ? response.market_agenda : [];
+        renderCollection("marketAgendaPanel", "marketAgenda", agenda, LIMITS.agenda, (event) => {
+            const timing = event.all_day ? "Dia inteiro" : [text(event.event_time), text(event.timezone)]
+                .filter(Boolean).join(" — ");
+            const metadata = [text(event.event_date), timing,
+                assets(event) ? `Relacionada a: ${assets(event)}` : "",
+                text(event.source_name) ? `Fonte: ${text(event.source_name)}` : ""
+            ].filter(Boolean).join(" · ");
+            const level = LEVEL_LABELS[event.importance] || "";
+            return item({
+                eyebrow: EVENT_LABELS[event.event_type] || "Outro",
+                badge: level ? {
+                    className: `priority priority-${level === "Alta" ? "high" : level === "Baixa" ? "low" : "moderate"}`,
+                    text: level
+                } : null,
+                title: text(event.title), summary: text(event.summary), metadata
+            });
+        });
+        panel("market-agenda").hidden = agenda.length === 0;
     }
 
     function showLoading() {

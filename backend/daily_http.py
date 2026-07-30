@@ -1,7 +1,7 @@
 """HTTP boundary for the official ARGOS daily API facade."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from enum import Enum, IntEnum
@@ -22,6 +22,7 @@ from backend.daily_contract import (
 )
 from backend.important_facts import FactCandidate, FactCategory, FactImportance
 from backend.models import PortfolioOwner, PortfolioPosition
+from backend.market_agenda import MarketAgendaEvent
 
 
 MAX_DAILY_REQUEST_BYTES = 1_048_576
@@ -96,6 +97,7 @@ class DailyHttpAdapter:
         method: str,
         headers: Mapping[str, str],
         body: bytes,
+        agenda_events: tuple[MarketAgendaEvent, ...] = (),
     ) -> DailyHttpResponse:
         try:
             if method != "POST":
@@ -117,7 +119,7 @@ class DailyHttpAdapter:
                     "UNSUPPORTED_MEDIA_TYPE",
                     "O conteúdo deve ser enviado em formato JSON.",
                 )
-            request = self._request(body)
+            request = replace(self._request(body), agenda_events=agenda_events)
             response = self._facade.execute(request)
             return self._facade_response(response)
         except DailyHttpRequestError as error:
@@ -346,7 +348,7 @@ class DailyHttpAdapter:
             "contract_version": CONTRACT_VERSION,
             "status": DailyApiStatus.ERROR.value, "generated_at": None, "experience_status": None,
             "header": None, "message": None, "facts": [], "priorities": [],
-            "analyses": [], "blocks": [], "summary": None,
+            "analyses": [], "blocks": [], "market_agenda": [], "summary": None,
             "error": {"code": code, "message": message, "stage": "HTTP"},
         }
         return self._json_response(status, payload, extra_headers)
