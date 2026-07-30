@@ -70,6 +70,16 @@ test("renders a complete payload and preserves the public date", () => {
     assert.equal(elements.get("market-agenda").hidden, true);
 });
 
+test("renders 1.5 only when the orchestrated experience can be presented", () => {
+    const { renderer } = setup();
+    assert.doesNotThrow(() => renderer.render(response({
+        contract_version: "1.5", experience: { status: "READY" }
+    })));
+    assert.throws(() => renderer.render(response({
+        contract_version: "1.5", experience: { status: "ERROR" }
+    })), /Invalid daily experience/);
+});
+
 for (const [name, overrides, visible] of [
     ["only facts", { priorities: [], analyses: [] }, "daily-facts"],
     ["only priorities", { facts: [], analyses: [] }, "daily-priorities"],

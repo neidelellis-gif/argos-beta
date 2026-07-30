@@ -17,7 +17,13 @@ from backend.market_agenda import MarketAgendaEvent
 from backend.decision_context import DecisionProfile
 
 
-CONTRACT_VERSION = "1.4"
+CONTRACT_VERSION = "1.5"
+
+
+class PublicExperienceStatus(str, Enum):
+    READY = "READY"
+    PARTIAL = "PARTIAL"
+    ERROR = "ERROR"
 
 
 class DailyApiStatus(str, Enum):
@@ -320,6 +326,7 @@ class DailyApiResponse:
     impact_assessments: tuple[DailyApiImpactAssessment, ...] = ()
     decision_contexts: tuple[DailyApiDecisionContext, ...] = ()
     data_quality: DailyApiDataQuality | None = None
+    experience: Mapping[str, str] | None = None
     contract_version: str = CONTRACT_VERSION
 
     def __post_init__(self) -> None:
@@ -346,6 +353,10 @@ class DailyApiResponse:
             ))
         if not isinstance(self.data_quality, DailyApiDataQuality):
             raise TypeError("data_quality must be a DailyApiDataQuality")
+        if self.experience is None:
+            object.__setattr__(self, "experience", {"status": PublicExperienceStatus.ERROR.value})
+        if not isinstance(self.experience, Mapping) or set(self.experience) != {"status"} or self.experience["status"] not in {item.value for item in PublicExperienceStatus}:
+            raise ValueError("experience must contain one official status")
         if self.status is DailyApiStatus.SUCCESS:
             self._validate_success()
         else:
@@ -356,6 +367,8 @@ class DailyApiResponse:
             raise ValueError("SUCCESS response must contain one complete experience")
         if self.experience_status not in {status.value for status in DailyExperienceStatus}:
             raise ValueError("experience_status must be an official status")
+        if self.experience is None or self.experience["status"] == PublicExperienceStatus.ERROR.value:
+            raise ValueError("SUCCESS response must contain a renderable experience")
         expected_classes = (DailyApiFact, DailyApiPriority, DailyApiAnalysis, DailyApiBlock)
         for items, expected in zip((self.facts, self.priorities, self.analyses, self.blocks), expected_classes, strict=True):
             if any(not isinstance(item, expected) for item in items):
@@ -378,11 +391,13 @@ class DailyApiResponse:
     def _validate_error(self) -> None:
         if self.experience_status is not None or self.header is not None or self.message is not None or self.facts or self.priorities or self.analyses or self.blocks or self.market_agenda or self.impact_assessments or self.summary is not None or self.error is None:
             raise ValueError("ERROR response must not contain a partial experience")
+        if self.experience is None or self.experience["status"] != PublicExperienceStatus.ERROR.value:
+            raise ValueError("ERROR response must contain ERROR experience status")
 
 
 RESPONSE_REQUIRED_FIELDS = frozenset({
     "status", "generated_at", "contract_version", "experience_status", "header",
-    "message", "facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments", "decision_contexts", "data_quality", "summary", "error",
+    "message", "facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments", "decision_contexts", "data_quality", "experience", "summary", "error",
 })
 
 
@@ -401,6 +416,7 @@ def validate_daily_api_response_payload(payload: object) -> bool:
             and payload["summary"] is None
             and isinstance(payload["error"], Mapping)
             and isinstance(payload["data_quality"], Mapping)
+            and payload["experience"] == {"status": PublicExperienceStatus.ERROR.value}
         )
     return (
         isinstance(payload["generated_at"], str)
@@ -410,6 +426,9 @@ def validate_daily_api_response_payload(payload: object) -> bool:
         and all(isinstance(payload[field], list) for field in ("facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments"))
         and isinstance(payload["summary"], Mapping)
         and isinstance(payload["data_quality"], Mapping)
+        and isinstance(payload["experience"], Mapping) and set(payload["experience"]) == {"status"}
+        and payload["experience"].get("status") in {item.value for item in PublicExperienceStatus}
+        and payload["experience"].get("status") != PublicExperienceStatus.ERROR.value
         and payload["error"] is None
         and all(isinstance(fact, Mapping) and fact.get("importance") in {item.value for item in DailyPriorityLevel} for fact in payload["facts"])
         and all(isinstance(priority, Mapping) and priority.get("level") in {item.value for item in DailyPriorityLevel} for priority in payload["priorities"])

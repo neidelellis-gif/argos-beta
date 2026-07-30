@@ -2,11 +2,12 @@
 
 ## Current version
 
-`1.4` is the current response version. Every response, including HTTP boundary
-errors, contains `contract_version: "1.4"`. Version 1.4 preserves facts, analyses
+`1.5` is the current response version. Every response, including HTTP boundary
+errors, contains `contract_version: "1.5"`. Version 1.5 preserves facts, analyses
 and priorities from 1.0, agenda from 1.1, impacts from 1.2 and decision contexts
-from 1.3, and adds only `data_quality`. The renderer remains compatible with
-versions 1.0, 1.1, 1.2 and 1.3.
+from 1.3 and data quality from 1.4. It adds only `experience`, containing one
+official status: `READY`, `PARTIAL` or `ERROR`. The renderer remains compatible
+with versions 1.0 through 1.5.
 
 `data_quality` contains exactly `status`, `summary` and `diagnostics`. Official
 statuses are `HEALTHY`, `WARNING` and `ERROR`; summary contains `errors`,
@@ -40,9 +41,9 @@ and `validation_reports`. Unknown envelope fields are ignored and cannot change
 execution. The two collection fields are required; the other fields are
 optional.
 
-The 1.4 response contract requires `status`, `generated_at`, `contract_version`,
+The 1.5 response contract requires `status`, `generated_at`, `contract_version`,
 `experience_status`, `header`, `message`, `facts`, `priorities`, `analyses`,
-`blocks`, `market_agenda`, `impact_assessments`, `decision_contexts`,
+`blocks`, `market_agenda`, `impact_assessments`, `decision_contexts`, `experience`,
 `data_quality`, `summary`, and `error`. Official public enums and structural validators
 are defined in `backend/daily_contract.py`; the corresponding compatibility
 validator used by the browser is `DailyApiContract` in
