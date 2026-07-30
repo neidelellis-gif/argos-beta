@@ -16,6 +16,8 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync("frontend/daily_client.js", "utf8"), context);
 vm.runInContext("this.DailyClientForTest = DailyFrontendClient", context);
 vm.runInContext(fs.readFileSync("frontend/daily_request_builder.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("frontend/daily_experience_renderer.js", "utf8"), context);
+vm.runInContext("this.DailyRendererForTest = DailyExperienceRenderer", context);
 vm.runInContext(fs.readFileSync("frontend/app.js", "utf8"), context);
 
 function readCsv(content) {
@@ -827,20 +829,24 @@ function dailyResponse(overrides = {}) {
 function dailyDom() {
     const elements = new Map();
     [
-        "greeting", "currentDate", "lastUpdateLabel", "lastUpdate",
-        "dailyMessageTitle", "dailyWindow", "factsCount", "prioritiesCount",
-        "analysesCount", "summaryStatus"
+        "greeting", "currentDate", "lastUpdateLabel", "lastUpdate"
     ].forEach((id) => elements.set(id, createElement("span")));
-    ["importantFacts", "dailyPriorities", "dailyAnalyses"].forEach((id) => {
-        const heading = createElement("h2");
+    [
+        ["daily-facts", "importantFacts"],
+        ["daily-priorities", "dailyPriorities"],
+        ["daily-analyses", "dailyAnalyses"]
+    ].forEach(([panelId, listId]) => {
         const panel = createElement("article");
-        panel.hidden = false;
-        panel.querySelector = () => heading;
+        panel.hidden = true;
         const container = createElement("div");
-        container.closest = () => panel;
-        elements.set(id, container);
+        elements.set(panelId, panel);
+        elements.set(listId, container);
     });
-    elements.set("dailySummary", createElement("div"));
+    ["market-agenda", "daily-error", "daily-loading"].forEach((id) => {
+        const element = createElement("div");
+        element.hidden = true;
+        elements.set(id, element);
+    });
     context.document.createElement = createElement;
     context.document.getElementById = (id) => elements.get(id);
     return elements;
@@ -917,24 +923,21 @@ test("DailyFrontendClient reports a friendly network error", async () => {
     );
 });
 
-test("renders header, message, facts, priorities, analyses, blocks and summary", () => {
+test("renders header, facts, priorities and analyses in the executive cockpit", () => {
     const elements = dailyDom();
-    context.renderDailyExperience(dailyResponse());
+    context.DailyRendererForTest.render(dailyResponse());
 
     assert.equal(elements.get("greeting").textContent, "Bom dia, Nei.");
-    assert.equal(elements.get("dailyWindow").textContent, "Decisão com clareza.");
     assert.equal(elements.get("importantFacts").children[0].children[1].textContent, "Fato <b>seguro</b>");
     assert.equal(elements.get("dailyPriorities").children[0].children[1].textContent, "Prioridade");
     assert.equal(elements.get("dailyAnalyses").children[0].children[1].textContent, "Análise");
-    assert.equal(elements.get("dailySummary").children.length, 4);
-    assert.equal(elements.get("summaryStatus").textContent, "3 blocos visíveis");
     assert.equal("innerHTML" in elements.get("importantFacts").children[0].children[1], false);
 });
 
 test("renders the same DOM for the same DailyApiResponse", () => {
     const snapshot = () => {
         const elements = dailyDom();
-        context.renderDailyExperience(dailyResponse());
+        context.DailyRendererForTest.render(dailyResponse());
         return JSON.stringify([...elements].map(([id, element]) => [id, element]));
     };
     assert.equal(snapshot(), snapshot());
@@ -953,7 +956,7 @@ test("loadDailyExperience exposes loading, prevents concurrent loads and renders
     const first = context.loadDailyExperience(client);
     const second = context.loadDailyExperience(client);
     assert.equal(calls, 1);
-    assert.equal(elements.get("dailySummary").children[0].textContent, "Carregando experiência diária...");
+    assert.equal(elements.get("daily-loading").hidden, false);
     resolve(dailyResponse());
     await Promise.all([first, second]);
     assert.equal(elements.get("greeting").textContent, "Bom dia, Nei.");
@@ -986,8 +989,7 @@ test("loadDailyExperience renders only the safe failure message", async () => {
             throw new Error("Não foi possível carregar a experiência diária.");
         }
     });
-    assert.equal(
-        elements.get("dailySummary").children[0].textContent,
-        "Não foi possível carregar a experiência diária."
-    );
+    assert.equal(elements.get("daily-error").textContent,
+        "Não foi possível preparar a experiência diária.");
+    assert.equal(elements.get("daily-loading").hidden, true);
 });
