@@ -1,0 +1,15 @@
+{
+  "portfolio_id": "JOLIKA-SANTANDER-20260730",
+  "portfolio_name": "Jolika — Santander",
+  "portfolio_type": "COMPANY",
+  "base_currency": "BRL",
+  "institution": "Santander",
+  "reference_date": "2026-07-30",
+  "origin": "Carteira oficial Jolika",
+  "positions": [{
+    "account": "Jolika", "asset_class": "Renda Fixa", "asset_subclass": "Pós-fixado",
+    "asset_name": "CDB Santander", "identifier": "CDB-SAN-01", "identifier_type": "INTERNAL",
+    "quantity": "1", "unit_price": "10000", "market_value": "10000", "currency": "BRL",
+    "portfolio_weight": "1"
+  }]
+}

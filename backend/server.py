@@ -27,6 +27,7 @@ from backend.market_agenda import MarketAgendaEvent, import_market_agenda
 from backend.market_agenda_serializer import serialize_market_agenda
 from backend.decision_context import DecisionProfile, import_decision_profile
 from backend.decision_context_serializer import serialize_decision_profile
+from backend.official_portfolios import OfficialPortfolioLoader
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -43,6 +44,7 @@ SESSION_PORTFOLIOS: dict[str, SessionPortfolio] = {}
 SESSION_MARKET_AGENDA: dict[str, tuple[MarketAgendaEvent, ...]] = {}
 SESSION_DECISION_CONTEXT: dict[str, DecisionProfile] = {}
 DAILY_HTTP_ADAPTER = DailyHttpAdapter()
+OFFICIAL_PORTFOLIO_LOADER = OfficialPortfolioLoader()
 
 
 def _decode_file_payload(file_payload: Dict[str, str]) -> bytes:
@@ -327,7 +329,8 @@ class ArgosRequestHandler(
             content_length = -1
         if content_length < 0:
             response = DAILY_HTTP_ADAPTER.handle(
-                self.command, dict(self.headers), b"", self._session_agenda(), self._session_decision_profile()
+                self.command, dict(self.headers), b"", self._session_agenda(), self._session_decision_profile(),
+                OFFICIAL_PORTFOLIO_LOADER.load_positions(),
             )
         elif content_length > MAX_DAILY_REQUEST_BYTES:
             response = DAILY_HTTP_ADAPTER.handle(
@@ -336,11 +339,13 @@ class ArgosRequestHandler(
                 b" " * (MAX_DAILY_REQUEST_BYTES + 1),
                 self._session_agenda(),
                 self._session_decision_profile(),
+                OFFICIAL_PORTFOLIO_LOADER.load_positions(),
             )
         else:
             body = self.rfile.read(content_length)
             response = DAILY_HTTP_ADAPTER.handle(
-                self.command, dict(self.headers), body, self._session_agenda(), self._session_decision_profile()
+                self.command, dict(self.headers), body, self._session_agenda(), self._session_decision_profile(),
+                OFFICIAL_PORTFOLIO_LOADER.load_positions(),
             )
         self.send_response(response.status_code)
         for name, value in response.headers.items():
@@ -390,15 +395,8 @@ class ArgosRequestHandler(
         return SESSION_DECISION_CONTEXT.get(self._session_id() or "")
 
     def _dashboard(self, include_positions: bool = True):
-        session_id = self._session_id()
-        session = SESSION_PORTFOLIOS.get(session_id) if session_id is not None else None
-        positions = session.get("positions") if session is not None else None
-        last_import_at = session.get("last_import_at") if session is not None else None
-        dashboard = (
-            load_dashboard()
-            if positions is None
-            else build_dashboard(positions, last_import_at=last_import_at)
-        )
+        positions = OFFICIAL_PORTFOLIO_LOADER.load_positions()
+        dashboard = load_dashboard()
         if include_positions:
             dashboard["positions"] = serialize_portfolio_positions(positions or ())
         return dashboard

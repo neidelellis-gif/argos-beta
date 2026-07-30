@@ -164,7 +164,7 @@ def test_unrecognized_institution(server):
     assert cookie is None
 
 
-def test_dashboard_uses_current_session_after_import(server):
+def test_dashboard_keeps_official_repository_after_session_import(server):
     _, imported, set_cookie = post_files(
         server, [(UBS_FIXTURE.name, UBS_FIXTURE.read_bytes())]
     )
@@ -177,20 +177,12 @@ def test_dashboard_uses_current_session_after_import(server):
     connection.close()
 
     assert response.status == 200
-    assert dashboard["session"] == imported["dashboard"]["session"]
-    assert dashboard["institutions"] == imported["dashboard"]["institutions"]
-    assert dashboard["consolidated"] == imported["dashboard"]["consolidated"]
-    assert dashboard["positions"] == imported["positions"]
-    assert [fact["id"] for fact in dashboard["daily"]["important_facts"]] == [
-        fact["id"]
-        for fact in imported["dashboard"]["daily"]["important_facts"]
-    ]
-    assert (
-        dashboard["daily"]["generated_at"]
-        >= imported["dashboard"]["daily"]["generated_at"]
-    )
-    assert dashboard["institutions"][0]["name"] == "UBS"
-    assert dashboard["consolidated"]["position_count"] == 28
+    assert {item["owner"] for item in dashboard["positions"]} == {"NEI", "JOLIKA"}
+    assert {item["institution"] for item in dashboard["positions"]} == {
+        "Bradesco", "Santander", "UBS",
+    }
+    assert dashboard["positions"] != imported["positions"]
+    assert dashboard["consolidated"]["position_count"] == 3
 
 
 def test_sequential_import_replaces_only_the_reimported_institution(server):
@@ -294,7 +286,9 @@ def test_clear_all_portfolios_empties_session_and_dashboard(server):
     assert cookie.split("=", 1)[1] not in SESSION_PORTFOLIOS
 
 
-def test_empty_dashboard_exposes_empty_positions(server):
+def test_dashboard_without_session_exposes_official_positions(server):
     status, payload = request_with_cookie(server, "GET", "/api/dashboard", "")
     assert status == 200
-    assert payload["positions"] == []
+    assert {item["institution"] for item in payload["positions"]} == {
+        "Bradesco", "Santander", "UBS",
+    }
