@@ -9,12 +9,6 @@ const STATUS_LABELS = {
     pronto: "Pronto"
 };
 
-const PRIORITY_CLASSES = {
-    Alta: "high",
-    Moderada: "moderate",
-    Baixa: "low"
-};
-
 const FILE_SOURCE_IDENTIFIERS = [
     {
         source: "Exportação de posições UBS",
@@ -84,6 +78,7 @@ const TIPRANKS_PREVIEW_COLUMNS = [
 
 let importedPortfolioPositions = [];
 let dashboardValuesVisible = false;
+let dailyExperienceLoading = false;
 
 function identifySantanderExcelSource(fileName) {
     return /^your-positions-\d+-\d+\.xlsx$/i.test(fileName)
@@ -174,28 +169,6 @@ function transformTipRanksPortfolio({ headers, dataRows }) {
                 valueFor(row, "analyst price target %", "price target %")
             )
         }));
-}
-
-function setGreeting() {
-    const greeting = document.getElementById("greeting");
-    const currentDate = document.getElementById("currentDate");
-    const now = new Date();
-    const hour = now.getHours();
-
-    if (hour < 12) {
-        greeting.textContent = "Bom dia, Nei.";
-    } else if (hour < 18) {
-        greeting.textContent = "Boa tarde, Nei.";
-    } else {
-        greeting.textContent = "Boa noite, Nei.";
-    }
-
-    currentDate.textContent = new Intl.DateTimeFormat("pt-BR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric"
-    }).format(now);
 }
 
 function setupPortfolioFilePicker() {
@@ -664,15 +637,12 @@ function createEmptyState(message) {
     return createTextElement("p", "daily-empty", message);
 }
 
-function createDailyItem({ title, eyebrow, summary, priority, metadata }) {
+function createDailyItem({ title, eyebrow, summary, metadata }) {
     const article = document.createElement("article");
     article.className = "daily-item";
     const header = document.createElement("div");
     header.className = "daily-item-header";
-    header.append(
-        createTextElement("span", "daily-item-eyebrow", eyebrow),
-        createTextElement("span", `priority priority-${PRIORITY_CLASSES[priority] || "low"}`, priority)
-    );
+    header.append(createTextElement("span", "daily-item-eyebrow", eyebrow));
     article.append(
         header,
         createTextElement("h3", "", title),
@@ -684,85 +654,123 @@ function createDailyItem({ title, eyebrow, summary, priority, metadata }) {
     return article;
 }
 
-function renderDailyExperience(daily) {
-    const facts = document.getElementById("importantFacts");
-    const priorities = document.getElementById("dailyPriorities");
-    const analyses = document.getElementById("dailyAnalyses");
-    const panorama = document.getElementById("dailyPanorama");
-    const agenda = document.getElementById("marketAgenda");
-    const agendaPanel = document.getElementById("marketAgendaPanel");
-    [facts, priorities, analyses, panorama, agenda].forEach(
-        (container) => container.replaceChildren()
-    );
+function renderHeader(header, generatedAt) {
+    document.getElementById("greeting").textContent = header.greeting;
+    document.getElementById("currentDate").textContent = header.display_date;
+    document.getElementById("lastUpdateLabel").textContent = "Experiência gerada em";
+    document.getElementById("lastUpdate").textContent = generatedAt;
+}
 
-    document.getElementById("dailyWindow").textContent =
-        `Contexto disponível para as últimas ${daily.lookback_hours} horas.`;
-    document.getElementById("factsCount").textContent =
-        formatCount(daily.important_facts.length, "fato", "fatos");
-    document.getElementById("prioritiesCount").textContent =
-        formatCount(daily.priorities.length, "prioridade", "prioridades");
-    document.getElementById("analysesCount").textContent =
-        formatCount(daily.analyses.length, "análise", "análises");
-    document.getElementById("agendaCount").textContent =
-        formatCount(daily.market_agenda.length, "evento", "eventos");
+function renderMessage(message) {
+    document.getElementById("dailyMessageTitle").textContent = message.title;
+    document.getElementById("dailyWindow").textContent = message.text;
+}
 
-    if (daily.important_facts.length === 0) {
-        facts.append(createEmptyState(daily.empty_states.important_facts));
-    }
-    daily.important_facts.slice(0, 5).forEach((fact) => facts.append(
+function renderFacts(facts) {
+    const container = document.getElementById("importantFacts");
+    container.replaceChildren();
+    facts.forEach((fact) => container.append(
         createDailyItem({
-            title: fact.title,
+            title: fact.text,
             eyebrow: fact.category,
-            summary: fact.summary,
-            priority: fact.priority,
-            metadata: `${fact.context} · ${fact.source} · ${
-                new Intl.DateTimeFormat("pt-BR", {
-                    dateStyle: "short",
-                    timeStyle: "short"
-                }).format(new Date(fact.occurred_at))
-            }`
+            summary: fact.importance
         })
     ));
-    daily.priorities.forEach((item) => priorities.append(
+}
+
+function renderPriorities(priorities) {
+    const container = document.getElementById("dailyPriorities");
+    container.replaceChildren();
+    priorities.forEach((item) => container.append(
         createDailyItem({
             title: item.title,
-            eyebrow: "Prioridade",
-            summary: item.context,
-            priority: item.level
+            eyebrow: item.label,
+            summary: item.reason
         })
     ));
-    daily.analyses.forEach((item) => analyses.append(
+}
+
+function renderAnalyses(analyses) {
+    const container = document.getElementById("dailyAnalyses");
+    container.replaceChildren();
+    analyses.forEach((item) => container.append(
         createDailyItem({
             title: item.title,
-            eyebrow: item.status,
-            summary: item.reason,
-            metadata: item.related_to ? `Relacionada a: ${item.related_to}` : null
+            eyebrow: item.action,
+            summary: item.reason
         })
     ));
-    daily.global_overview.forEach((item) => {
-        const card = document.createElement("article");
-        card.className = "panorama-card";
-        card.append(
-            createTextElement("h3", "", item.topic),
-            createTextElement("p", "daily-item-summary", item.summary),
-            createTextElement("span", "integration-status", item.status)
-        );
-        panorama.append(card);
+}
+
+function renderBlocks(blocks) {
+    const panels = [
+        document.getElementById("importantFacts").closest("article"),
+        document.getElementById("dailyPriorities").closest("article"),
+        document.getElementById("dailyAnalyses").closest("article")
+    ];
+    blocks.forEach((block, index) => {
+        panels[index].hidden = !block.visible;
+        panels[index].querySelector("h2").textContent = block.title;
     });
-    agendaPanel.hidden = daily.market_agenda.length === 0;
-    if (daily.market_agenda.length > 0) {
-        daily.market_agenda.forEach((item) => agenda.append(
-            createDailyItem({
-                title: item.title,
-                eyebrow: item.event_type,
-                summary: item.summary,
-                metadata: `${item.source} · ${new Intl.DateTimeFormat("pt-BR",
-                    item.time_explicit
-                        ? { dateStyle: "short", timeStyle: "short" }
-                        : { dateStyle: "short" }
-                ).format(new Date(item.scheduled_at))}`
-            })
+}
+
+function renderSummary(summary) {
+    const container = document.getElementById("dailySummary");
+    container.replaceChildren(
+        createMetric("Fatos", summary.fact_count),
+        createMetric("Prioridades", summary.priority_count),
+        createMetric("Análises", summary.analysis_count),
+        createMetric("Blocos visíveis", summary.visible_block_count)
+    );
+    document.getElementById("summaryStatus").textContent =
+        `${summary.visible_block_count} blocos visíveis`;
+}
+
+function renderDailyExperience(response) {
+    renderHeader(response.header, response.generated_at);
+    renderMessage(response.message);
+    renderFacts(response.facts);
+    renderPriorities(response.priorities);
+    renderAnalyses(response.analyses);
+    renderBlocks(response.blocks);
+    renderSummary(response.summary);
+    document.getElementById("factsCount").textContent = response.summary.fact_count;
+    document.getElementById("prioritiesCount").textContent = response.summary.priority_count;
+    document.getElementById("analysesCount").textContent = response.summary.analysis_count;
+}
+
+function setDailyLoading(loading) {
+    dailyExperienceLoading = loading;
+    const container = document.getElementById("dailySummary");
+    if (loading) {
+        container.replaceChildren(createTextElement(
+            "p", "loading-message", "Carregando experiência diária..."
         ));
+    }
+}
+
+function renderDailyError(message) {
+    document.getElementById("dailySummary").replaceChildren(
+        createTextElement("p", "error-message", message)
+    );
+}
+
+async function loadDailyExperience(client = new DailyFrontendClient()) {
+    if (dailyExperienceLoading) {
+        return;
+    }
+    setDailyLoading(true);
+    try {
+        const response = await client.loadExperience({
+            positions: [],
+            fact_candidates: [],
+            reference_date: null
+        });
+        renderDailyExperience(response);
+    } catch (error) {
+        renderDailyError(error.message);
+    } finally {
+        setDailyLoading(false);
     }
 }
 
@@ -776,16 +784,8 @@ function renderDashboard(data) {
     executiveCards.replaceChildren();
     moduleCards.replaceChildren();
 
-    renderDailyExperience(data.daily);
-
-    document.getElementById("currentDate").textContent =
-        formatDashboardDate(data.header.current_date);
     document.getElementById("dashboardVersion").textContent =
         `Versão ${data.header.version}`;
-    document.getElementById("lastUpdate").textContent =
-        formatUpdatedAt(data.session.last_import_at);
-    document.getElementById("lastUpdateLabel").textContent =
-        data.labels.last_update;
     document.getElementById("situationLabel").textContent =
         data.labels.daily_situation;
     document.getElementById("situationTitle").textContent =
@@ -858,8 +858,11 @@ async function loadDashboard() {
         renderDashboard(await response.json());
     } catch (error) {
         console.error(error);
-        document.getElementById("institutions").innerHTML =
-            '<p class="error-message">Não foi possível carregar o dashboard.</p>';
+        document.getElementById("institutions").replaceChildren(
+            createTextElement(
+                "p", "error-message", "Não foi possível carregar o dashboard."
+            )
+        );
     }
 }
 
@@ -932,11 +935,11 @@ function createOverviewCard(item) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    setGreeting();
     setupPortfolioFilePicker();
     document.getElementById("toggleValues").addEventListener(
         "click",
         toggleDashboardValues
     );
+    loadDailyExperience();
     loadDashboard();
 });

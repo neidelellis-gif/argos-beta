@@ -13,6 +13,8 @@ const context = {
 };
 
 vm.createContext(context);
+vm.runInContext(fs.readFileSync("frontend/daily_client.js", "utf8"), context);
+vm.runInContext("this.DailyClientForTest = DailyFrontendClient", context);
 vm.runInContext(fs.readFileSync("frontend/app.js", "utf8"), context);
 
 function readCsv(content) {
@@ -633,4 +635,160 @@ test("formats currencies according to the approved official standard", () => {
 test("formats quantities and percentages in Brazilian Portuguese", () => {
     assert.equal(context.formatQuantity("2976.18735"), "2.976,18735");
     assert.equal(context.formatPercentage("12.5"), "12,50%");
+});
+
+function dailyResponse(overrides = {}) {
+    return {
+        status: "SUCCESS",
+        generated_at: "2026-07-30T12:00:00+00:00",
+        experience_status: "READY",
+        header: {
+            greeting: "Bom dia, Nei.",
+            display_date: "quinta-feira, 30 de julho de 2026",
+            period: "MORNING"
+        },
+        message: { title: "Resumo do dia", text: "Decisão com clareza." },
+        facts: [{ id: "f1", category: "Mercados", text: "Fato <b>seguro</b>", importance: "HIGH" }],
+        priorities: [{ fact_id: "f1", level: "HIGH", label: "Alta", title: "Prioridade", reason: "Razão" }],
+        analyses: [{ fact_id: "f1", action: "Analisar", title: "Análise", reason: "Motivo" }],
+        blocks: [
+            { type: "FACTS", visible: true, title: "Fatos importantes", items: [] },
+            { type: "PRIORITIES", visible: true, title: "Prioridades do dia", items: [] },
+            { type: "ANALYSES", visible: true, title: "Análises", items: [] }
+        ],
+        summary: {
+            fact_count: 1,
+            priority_count: 1,
+            analysis_count: 1,
+            visible_block_count: 3,
+            requires_attention: true,
+            requires_decision: false
+        },
+        error: null,
+        ...overrides
+    };
+}
+
+function dailyDom() {
+    const elements = new Map();
+    [
+        "greeting", "currentDate", "lastUpdateLabel", "lastUpdate",
+        "dailyMessageTitle", "dailyWindow", "factsCount", "prioritiesCount",
+        "analysesCount", "summaryStatus"
+    ].forEach((id) => elements.set(id, createElement("span")));
+    ["importantFacts", "dailyPriorities", "dailyAnalyses"].forEach((id) => {
+        const heading = createElement("h2");
+        const panel = createElement("article");
+        panel.hidden = false;
+        panel.querySelector = () => heading;
+        const container = createElement("div");
+        container.closest = () => panel;
+        elements.set(id, container);
+    });
+    elements.set("dailySummary", createElement("div"));
+    context.document.createElement = createElement;
+    context.document.getElementById = (id) => elements.get(id);
+    return elements;
+}
+
+test("DailyFrontendClient posts the official request and returns JSON on HTTP 200", async () => {
+    const expected = dailyResponse();
+    const request = { positions: [], fact_candidates: [], reference_date: null };
+    let call;
+    const client = new context.DailyClientForTest(async (url, options) => {
+        call = { url, options };
+        return { status: 200, async json() { return expected; } };
+    });
+
+    assert.equal(await client.loadExperience(request), expected);
+    assert.equal(call.url, "/api/daily-experience");
+    assert.equal(call.options.method, "POST");
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(call.options.headers)),
+        { "Content-Type": "application/json" }
+    );
+    assert.deepEqual(JSON.parse(call.options.body), request);
+});
+
+for (const status of [400, 500]) {
+    test(`DailyFrontendClient uses the API message on HTTP ${status}`, async () => {
+        const client = new context.DailyClientForTest(async () => ({
+            status,
+            async json() { return { error: { message: `Falha ${status}.` } }; }
+        }));
+        await assert.rejects(client.loadExperience({}), new RegExp(`Falha ${status}`));
+    });
+}
+
+test("DailyFrontendClient uses a safe fallback for HTTP errors without a message", async () => {
+    const client = new context.DailyClientForTest(async () => ({
+        status: 500,
+        async json() { return {}; }
+    }));
+    await assert.rejects(client.loadExperience({}), /Erro interno\./);
+});
+
+test("DailyFrontendClient reports a friendly network error", async () => {
+    const client = new context.DailyClientForTest(async () => {
+        throw new Error("private stack");
+    });
+    await assert.rejects(
+        client.loadExperience({}),
+        /Não foi possível carregar a experiência diária\./
+    );
+});
+
+test("renders header, message, facts, priorities, analyses, blocks and summary", () => {
+    const elements = dailyDom();
+    context.renderDailyExperience(dailyResponse());
+
+    assert.equal(elements.get("greeting").textContent, "Bom dia, Nei.");
+    assert.equal(elements.get("dailyWindow").textContent, "Decisão com clareza.");
+    assert.equal(elements.get("importantFacts").children[0].children[1].textContent, "Fato <b>seguro</b>");
+    assert.equal(elements.get("dailyPriorities").children[0].children[1].textContent, "Prioridade");
+    assert.equal(elements.get("dailyAnalyses").children[0].children[1].textContent, "Análise");
+    assert.equal(elements.get("dailySummary").children.length, 4);
+    assert.equal(elements.get("summaryStatus").textContent, "3 blocos visíveis");
+    assert.equal("innerHTML" in elements.get("importantFacts").children[0].children[1], false);
+});
+
+test("renders the same DOM for the same DailyApiResponse", () => {
+    const snapshot = () => {
+        const elements = dailyDom();
+        context.renderDailyExperience(dailyResponse());
+        return JSON.stringify([...elements].map(([id, element]) => [id, element]));
+    };
+    assert.equal(snapshot(), snapshot());
+});
+
+test("loadDailyExperience exposes loading, prevents concurrent loads and renders success", async () => {
+    const elements = dailyDom();
+    let resolve;
+    let calls = 0;
+    const client = {
+        loadExperience() {
+            calls += 1;
+            return new Promise((done) => { resolve = done; });
+        }
+    };
+    const first = context.loadDailyExperience(client);
+    const second = context.loadDailyExperience(client);
+    assert.equal(calls, 1);
+    assert.equal(elements.get("dailySummary").children[0].textContent, "Carregando experiência diária...");
+    resolve(dailyResponse());
+    await Promise.all([first, second]);
+    assert.equal(elements.get("greeting").textContent, "Bom dia, Nei.");
+});
+
+test("loadDailyExperience renders only the safe failure message", async () => {
+    const elements = dailyDom();
+    await context.loadDailyExperience({
+        async loadExperience() {
+            throw new Error("Não foi possível carregar a experiência diária.");
+        }
+    });
+    assert.equal(
+        elements.get("dailySummary").children[0].textContent,
+        "Não foi possível carregar a experiência diária."
+    );
 });
