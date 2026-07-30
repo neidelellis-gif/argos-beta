@@ -17,7 +17,7 @@ from backend.market_agenda import MarketAgendaEvent
 from backend.decision_context import DecisionProfile
 
 
-CONTRACT_VERSION = "1.3"
+CONTRACT_VERSION = "1.4"
 
 
 class DailyApiStatus(str, Enum):
@@ -138,6 +138,43 @@ class DailyApiDecisionContext:
             "DECISION_FREQUENCY", "CONTEXT_CONFLICT",
         } or self.relevance_level not in {"HIGH", "MEDIUM", "LOW"}:
             raise ValueError("decision context enums must be official")
+
+
+@dataclass(frozen=True)
+class DailyApiDataQuality:
+    status: str
+    summary: Mapping[str, int]
+    diagnostics: tuple[Mapping[str, object], ...]
+
+    def __post_init__(self) -> None:
+        if self.status not in {"HEALTHY", "WARNING", "ERROR"}:
+            raise ValueError("data quality status must be official")
+        if set(self.summary) != {"errors", "warnings", "infos"}:
+            raise ValueError("data quality summary must contain exact counters")
+        if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in self.summary.values()):
+            raise ValueError("data quality counters must be non-negative integers")
+        fields = {"id", "severity", "category", "title", "description", "affected_items", "can_continue"}
+        if any(set(item) != fields for item in self.diagnostics):
+            raise ValueError("data quality diagnostics must follow the public contract")
+        severities = {"ERROR", "WARNING", "INFO"}
+        categories = {"PORTFOLIO", "MARKET_AGENDA", "DECISION_CONTEXT", "CROSS_VALIDATION", "SYSTEM"}
+        if any(
+            item["severity"] not in severities or item["category"] not in categories
+            or not isinstance(item["affected_items"], (list, tuple))
+            or not isinstance(item["can_continue"], bool)
+            for item in self.diagnostics
+        ):
+            raise ValueError("data quality diagnostic values must be official")
+        actual = {
+            "errors": sum(item["severity"] == "ERROR" for item in self.diagnostics),
+            "warnings": sum(item["severity"] == "WARNING" for item in self.diagnostics),
+            "infos": sum(item["severity"] == "INFO" for item in self.diagnostics),
+        }
+        if dict(self.summary) != actual:
+            raise ValueError("data quality summary must match diagnostics")
+        expected_status = "ERROR" if actual["errors"] else "WARNING" if actual["warnings"] else "HEALTHY"
+        if self.status != expected_status:
+            raise ValueError("data quality status must match diagnostics")
 
 
 @dataclass(frozen=True)
@@ -282,6 +319,7 @@ class DailyApiResponse:
     market_agenda: tuple[DailyApiMarketAgendaEvent, ...] = ()
     impact_assessments: tuple[DailyApiImpactAssessment, ...] = ()
     decision_contexts: tuple[DailyApiDecisionContext, ...] = ()
+    data_quality: DailyApiDataQuality | None = None
     contract_version: str = CONTRACT_VERSION
 
     def __post_init__(self) -> None:
@@ -302,6 +340,12 @@ class DailyApiResponse:
             raise TypeError("impact_assessments contains an invalid item")
         if len(self.decision_contexts) > 5 or any(not isinstance(item, DailyApiDecisionContext) for item in self.decision_contexts):
             raise TypeError("decision_contexts contains an invalid item")
+        if self.data_quality is None:
+            object.__setattr__(self, "data_quality", DailyApiDataQuality(
+                "HEALTHY", {"errors": 0, "warnings": 0, "infos": 0}, (),
+            ))
+        if not isinstance(self.data_quality, DailyApiDataQuality):
+            raise TypeError("data_quality must be a DailyApiDataQuality")
         if self.status is DailyApiStatus.SUCCESS:
             self._validate_success()
         else:
@@ -338,7 +382,7 @@ class DailyApiResponse:
 
 RESPONSE_REQUIRED_FIELDS = frozenset({
     "status", "generated_at", "contract_version", "experience_status", "header",
-    "message", "facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments", "summary", "error",
+    "message", "facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments", "decision_contexts", "data_quality", "summary", "error",
 })
 
 
@@ -356,6 +400,7 @@ def validate_daily_api_response_payload(payload: object) -> bool:
             and all(payload[field] == [] for field in ("facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments"))
             and payload["summary"] is None
             and isinstance(payload["error"], Mapping)
+            and isinstance(payload["data_quality"], Mapping)
         )
     return (
         isinstance(payload["generated_at"], str)
@@ -364,6 +409,7 @@ def validate_daily_api_response_payload(payload: object) -> bool:
         and isinstance(payload["message"], Mapping)
         and all(isinstance(payload[field], list) for field in ("facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments"))
         and isinstance(payload["summary"], Mapping)
+        and isinstance(payload["data_quality"], Mapping)
         and payload["error"] is None
         and all(isinstance(fact, Mapping) and fact.get("importance") in {item.value for item in DailyPriorityLevel} for fact in payload["facts"])
         and all(isinstance(priority, Mapping) and priority.get("level") in {item.value for item in DailyPriorityLevel} for priority in payload["priorities"])

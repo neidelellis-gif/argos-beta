@@ -63,7 +63,7 @@ def test_import_get_invalid_preserves_and_delete(server):
         server, "POST", "/api/daily-experience", daily_body, "application/json", cookie
     )
     assert status == 200 and daily["status"] == "SUCCESS" and daily["error"] is None
-    assert daily["contract_version"] == "1.3" and len(daily["market_agenda"]) == 1
+    assert daily["contract_version"] == "1.4" and len(daily["market_agenda"]) == 1
     assert len(daily["impact_assessments"]) == 1
     assert set(daily["impact_assessments"][0]) == {
         "id", "source_type", "impact_level", "impact_direction", "confidence",

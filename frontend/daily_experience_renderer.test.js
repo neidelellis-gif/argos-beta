@@ -22,6 +22,7 @@ function setup() {
         ["daily-analyses", "dailyAnalyses"],
         ["daily-decision-context", "dailyDecisionContexts"],
         ["daily-impacts", "dailyImpacts"],
+        ["data-quality", "dataQualityDiagnostics"],
         ["market-agenda", "marketAgenda"]
     ].forEach(([panelId, listId]) => {
         const section = node("article");
@@ -256,4 +257,40 @@ test("renders contract 1.3 decision contexts safely, translated, limited and imm
     assert.equal(JSON.stringify(payload), before);
     renderer.render(response({ contract_version: "1.3", decision_contexts: [] }));
     assert.equal(elements.get("daily-decision-context").hidden, true);
+});
+
+test("keeps data quality hidden for healthy 1.4 and every previous version", () => {
+    for (const contract_version of ["1.0", "1.1", "1.2", "1.3"]) {
+        const { elements, renderer } = setup();
+        renderer.render(response({ contract_version, data_quality: {
+            status: "ERROR", diagnostics: [{ title: "Não renderizar" }]
+        } }));
+        assert.equal(elements.get("data-quality").hidden, true);
+    }
+    const { elements, renderer } = setup();
+    renderer.render(response({ contract_version: "1.4", data_quality: {
+        status: "HEALTHY", summary: { errors: 0, warnings: 0, infos: 0 }, diagnostics: []
+    } }));
+    assert.equal(elements.get("data-quality").hidden, true);
+});
+
+test("renders 1.4 diagnostics safely without interpreting HTML or mutating payload", () => {
+    const { elements, renderer } = setup();
+    const diagnostic = {
+        id: "private-id", severity: "WARNING", category: "PORTFOLIO",
+        title: "<img src=x onerror=alert(1)>", description: "Revise a importação.",
+        affected_items: ["GLD"], can_continue: true
+    };
+    const payload = response({ contract_version: "1.4", data_quality: {
+        status: "WARNING", summary: { errors: 0, warnings: 1, infos: 0 }, diagnostics: [diagnostic]
+    } });
+    const before = JSON.stringify(payload);
+    renderer.render(payload);
+    const rendered = JSON.stringify(elements.get("dataQualityDiagnostics"));
+    assert.equal(elements.get("data-quality").hidden, false);
+    assert.match(rendered, /Atenção/);
+    assert.match(rendered, /<img src=x onerror=alert\(1\)>/);
+    assert.match(rendered, /Itens afetados: GLD/);
+    assert.doesNotMatch(rendered, /private-id|PORTFOLIO|can_continue/);
+    assert.equal(JSON.stringify(payload), before);
 });
