@@ -312,13 +312,13 @@ class DailyExperienceComposer:
             raise DailyExperienceError("INVALID_CLOCK", "Presentation clock must be timezone-aware.")
 
         # Narrowed by _validate_input; local names keep composition readable.
-        reference_date = result.reference_date
         facts_result = result.important_facts
         priorities_result = result.daily_priorities
-        if reference_date is None or facts_result is None or priorities_result is None:
+        if facts_result is None or priorities_result is None:
             raise DailyExperienceError("INCOMPLETE_RESULT", "Daily orchestration result is incomplete.")
 
         local_now = now.astimezone(self._timezone)
+        reference_date = result.reference_date or local_now.date()
         generated_at = now.astimezone(timezone.utc)
         period = _greeting_period(local_now)
         greeting = {
@@ -378,8 +378,6 @@ class DailyExperienceComposer:
             raise DailyExperienceError("INVALID_RESULT_TYPE", "Expected DailyOrchestrationResult.")
         if result.status is not DailyOrchestrationStatus.COMPLETED:
             raise DailyExperienceError("ORCHESTRATION_NOT_COMPLETED", "Daily orchestration is not completed.")
-        if result.reference_date is None:
-            raise DailyExperienceError("MISSING_REFERENCE_DATE", "Daily reference date is required.")
         internal = (
             result.snapshot, result.important_facts,
             result.portfolio_impacts, result.daily_priorities, result.summary,

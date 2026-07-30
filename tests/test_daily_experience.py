@@ -554,6 +554,17 @@ def test_complete_composition_contract_content_and_labels() -> None:
     assert "Investigações" not in repr(result)
 
 
+def test_null_reference_date_uses_local_composition_date() -> None:
+    source = experience_orchestrator().run((), (), None)
+
+    result = experience_composer().compose(source)
+
+    assert source.reference_date is None
+    assert result.reference_date == date(2026, 7, 30)
+    assert result.header.reference_date == result.reference_date
+    assert result.header.formatted_date == "quinta-feira, 30 de julho de 2026"
+
+
 @pytest.mark.parametrize(
     ("local_hour", "expected_period", "expected_text"),
     (
