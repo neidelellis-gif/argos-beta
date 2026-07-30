@@ -23,6 +23,31 @@ from backend.daily.registry import (
 )
 from backend.daily.transformations import build_analyses, build_priorities
 from backend.models import PortfolioOwner, PortfolioPosition
+from dataclasses import FrozenInstanceError, replace
+
+from backend.daily_brief import DailyPriorityLevel, ImportantFact
+from backend.daily_experience import (
+    DailyBlockType,
+    DailyBlockVisibility,
+    DailyExperienceComposer,
+    DailyExperienceError,
+    DailyExperienceStatus,
+    DailyGreetingPeriod,
+)
+from backend.daily_orchestrator import (
+    DailyOrchestrationError,
+    DailyOrchestrator as OfficialDailyOrchestrator,
+)
+from backend.daily_portfolio_snapshot import DailyPortfolioSnapshotBuilder
+from backend.daily_priority import DailyPriorityAction, DailyPriorityEngine
+from backend.important_facts import (
+    FactCandidate,
+    FactCategory,
+    FactImportance,
+    ImportantFactsEngine,
+    ImportantFactsResult,
+)
+from backend.portfolio_impact import PortfolioImpactEngine
 
 NOW = datetime(2026, 7, 28, 15, 0, tzinfo=timezone.utc)
 
@@ -428,3 +453,359 @@ def test_no_legacy_production_mocks_remain():
     production = "\n".join(path.read_text(encoding="utf-8") for path in Path("backend").rglob("*.py"))
     for legacy in ("Mock Federal Reserve", "nvidia-chips", "ethereum-network", "global-equities", "oil-supply"):
         assert legacy not in production
+
+
+# Marco 15.0 — deterministic DailyExperienceComposer
+REFERENCE_DATE = date(2026, 7, 30)
+ENGINE_NOW = datetime(2026, 7, 30, 12, tzinfo=timezone.utc)
+
+
+def experience_position(
+    institution: str = "UBS",
+    owner: PortfolioOwner = PortfolioOwner.JOLIKA,
+    currency: str = "USD",
+) -> PortfolioPosition:
+    return PortfolioPosition(
+        institution=institution,
+        owner=owner,
+        account="official",
+        asset_class="Equities",
+        asset_subclass="Technology",
+        asset_name=f"{institution} asset",
+        identifier=f"{institution}-1",
+        identifier_type="TICKER",
+        quantity=Decimal("2"),
+        unit_price=Decimal("10.25"),
+        market_value=Decimal("20.50"),
+        currency=currency,
+        portfolio_weight=None,
+        reference_date=REFERENCE_DATE,
+        source_file="fixture",
+    )
+
+
+def experience_candidate(
+    identifier: str = "fact-1",
+    institution: str | None = "UBS",
+    currency: str | None = None,
+    title: str = "Official fact title",
+) -> FactCandidate:
+    return FactCandidate(
+        identifier,
+        title,
+        "Official structured description",
+        "Official source",
+        ENGINE_NOW - timedelta(hours=1),
+        FactImportance.HIGH,
+        FactCategory.MARKETS,
+        urgency=FactImportance.HIGH,
+        related_currencies=(currency,) if currency else (),
+        related_institutions=(institution,) if institution else (),
+    )
+
+
+def experience_orchestrator() -> OfficialDailyOrchestrator:
+    return OfficialDailyOrchestrator(
+        DailyPortfolioSnapshotBuilder(),
+        ImportantFactsEngine(clock=lambda: ENGINE_NOW),
+        PortfolioImpactEngine(clock=lambda: ENGINE_NOW),
+        DailyPriorityEngine(clock=lambda: ENGINE_NOW),
+        clock=lambda: ENGINE_NOW,
+    )
+
+
+def completed_experience_source(
+    positions: tuple[PortfolioPosition, ...] = (experience_position(),),
+    candidates: tuple[FactCandidate, ...] = (experience_candidate(),),
+):
+    return experience_orchestrator().run(positions, candidates, REFERENCE_DATE)
+
+
+def experience_composer(at: datetime = datetime(2026, 7, 30, 16, tzinfo=timezone.utc)):
+    return DailyExperienceComposer(clock=lambda: at)
+
+
+def test_complete_composition_contract_content_and_labels() -> None:
+    source = completed_experience_source()
+    result = experience_composer().compose(source)
+    assert source.daily_priorities is not None
+
+    assert result.reference_date == REFERENCE_DATE
+    assert result.generated_at == datetime(2026, 7, 30, 16, tzinfo=timezone.utc)
+    assert result.generated_at.utcoffset() == timedelta(0)
+    assert result.header.user_name == "Nei"
+    assert result.header.greeting_period is DailyGreetingPeriod.AFTERNOON
+    assert result.header.greeting_text == "Boa tarde, Nei"
+    assert result.header.formatted_date == "quinta-feira, 30 de julho de 2026"
+    assert "ARGOS" not in result.header.greeting_text
+    assert "Seu dia está sob controle" not in repr(result)
+    assert result.status is DailyExperienceStatus.DECISION_REQUIRED
+    assert result.message.text == "Há uma decisão que merece sua atenção hoje."
+    assert result.facts[0].fact_id == "fact-1"
+    assert result.facts[0].title == "Official fact title"
+    assert result.facts[0].category == "MARKETS"
+    assert result.facts[0].priority == "HIGH"
+    assert result.facts[0].source == "Official source"
+    assert result.priorities[0].level is DailyPriorityLevel.HIGH
+    assert result.priorities[0].label == "Alta"
+    assert result.analyses[0].action is DailyPriorityAction.DECIDE
+    assert result.analyses[0].action_label == "Decidir"
+    assert result.analyses[0].affected_dimensions == source.daily_priorities.priorities[0].affected_dimensions
+    assert "Investigações" not in repr(result)
+
+
+@pytest.mark.parametrize(
+    ("local_hour", "expected_period", "expected_text"),
+    (
+        (5, DailyGreetingPeriod.MORNING, "Bom dia, Nei"),
+        (11, DailyGreetingPeriod.MORNING, "Bom dia, Nei"),
+        (12, DailyGreetingPeriod.AFTERNOON, "Boa tarde, Nei"),
+        (17, DailyGreetingPeriod.AFTERNOON, "Boa tarde, Nei"),
+        (18, DailyGreetingPeriod.EVENING, "Boa noite, Nei"),
+        (4, DailyGreetingPeriod.EVENING, "Boa noite, Nei"),
+    ),
+)
+def test_greeting_boundaries_in_sao_paulo(
+    local_hour: int, expected_period: DailyGreetingPeriod, expected_text: str,
+) -> None:
+    # July 2026 in Sao Paulo is UTC-3.
+    instant = datetime(2026, 7, 30, (local_hour + 3) % 24, 59, tzinfo=timezone.utc)
+    result = experience_composer(instant).compose(completed_experience_source())
+    assert result.header.greeting_period is expected_period
+    assert result.header.greeting_text == expected_text
+
+
+def test_exact_boundaries_custom_timezone_name_and_reference_date_independence() -> None:
+    source = completed_experience_source()
+    morning = DailyExperienceComposer(
+        clock=lambda: datetime(2027, 1, 1, 5, tzinfo=timezone.utc),
+        user_name="Ana",
+        presentation_timezone="UTC",
+    ).compose(source)
+    afternoon = DailyExperienceComposer(
+        clock=lambda: datetime(2027, 1, 1, 12, tzinfo=timezone.utc),
+        presentation_timezone="UTC",
+    ).compose(source)
+    evening = DailyExperienceComposer(
+        clock=lambda: datetime(2027, 1, 1, 18, tzinfo=timezone.utc),
+        presentation_timezone="UTC",
+    ).compose(source)
+    assert morning.header.greeting_text == "Bom dia, Ana"
+    assert afternoon.header.greeting_text == "Boa tarde, Nei"
+    assert evening.header.greeting_text == "Boa noite, Nei"
+    assert morning.reference_date == morning.header.reference_date == REFERENCE_DATE
+    assert morning.header.formatted_date == "quinta-feira, 30 de julho de 2026"
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "error_type"),
+    (
+        ({"user_name": ""}, "INVALID_USER_NAME"),
+        ({"user_name": "  "}, "INVALID_USER_NAME"),
+        ({"presentation_timezone": "Invalid/Nowhere"}, "INVALID_TIMEZONE"),
+    ),
+)
+def test_constructor_rejects_invalid_configuration(kwargs, error_type: str) -> None:
+    with pytest.raises(DailyExperienceError) as captured:
+        DailyExperienceComposer(**kwargs)
+    assert captured.value.error_type == error_type
+    assert "Traceback" not in str(captured.value)
+
+
+def test_naive_clock_and_clock_failure_are_typed_and_preserve_cause() -> None:
+    with pytest.raises(DailyExperienceError, match="timezone-aware") as naive:
+        experience_composer(datetime(2026, 7, 30, 12)).compose(completed_experience_source())
+    assert naive.value.error_type == "INVALID_CLOCK"
+
+    def failing_clock() -> datetime:
+        raise RuntimeError("private clock detail")
+
+    with pytest.raises(DailyExperienceError) as failed:
+        DailyExperienceComposer(clock=failing_clock).compose(completed_experience_source())
+    assert failed.value.error_type == "CLOCK_ERROR"
+    assert isinstance(failed.value.cause, RuntimeError)
+    assert failed.value.__cause__ is failed.value.cause
+    assert "private clock detail" not in str(failed.value)
+
+
+def test_failed_orchestration_and_wrong_type_are_rejected() -> None:
+    class FailingBuilder(DailyPortfolioSnapshotBuilder):
+        def build(self, positions, reference_date=None, validation_reports=None):
+            raise RuntimeError("portfolio data")
+
+    failing = OfficialDailyOrchestrator(
+        FailingBuilder(), ImportantFactsEngine(), PortfolioImpactEngine(), DailyPriorityEngine(),
+        clock=lambda: ENGINE_NOW,
+    )
+    with pytest.raises(DailyOrchestrationError) as orchestration_error:
+        failing.run((), (), REFERENCE_DATE)
+    with pytest.raises(DailyExperienceError) as failed:
+        experience_composer().compose(orchestration_error.value.result)
+    assert failed.value.error_type == "ORCHESTRATION_NOT_COMPLETED"
+    with pytest.raises(DailyExperienceError) as wrong:
+        cast(Callable[[object], object], experience_composer().compose)(None)
+    assert wrong.value.error_type == "INVALID_RESULT_TYPE"
+
+
+def test_empty_experience_and_global_fact_without_priority() -> None:
+    empty = experience_composer().compose(completed_experience_source((), ()))
+    assert empty.status is DailyExperienceStatus.NO_ACTION_REQUIRED
+    assert empty.message.text == "Nada exige sua atenção na carteira hoje."
+    assert empty.facts == empty.priorities == empty.analyses == ()
+    assert all(block.visibility is DailyBlockVisibility.HIDDEN for block in empty.blocks)
+    assert empty.summary.visible_block_count == 0
+    assert empty.summary.hidden_block_count == 3
+    assert not empty.summary.automatic_analysis_open
+    assert not empty.summary.has_attention
+    assert not empty.summary.has_decision
+
+    global_only = experience_composer().compose(completed_experience_source((), (experience_candidate(institution=None),)))
+    assert len(global_only.facts) == 1
+    assert global_only.priorities == global_only.analyses == ()
+    assert global_only.status is DailyExperienceStatus.NO_ACTION_REQUIRED
+    assert not global_only.summary.automatic_analysis_open
+    assert global_only.blocks[0].visibility is DailyBlockVisibility.VISIBLE
+    assert global_only.blocks[1].visibility is DailyBlockVisibility.HIDDEN
+
+
+def test_analyze_status_message_opening_and_moderate_label() -> None:
+    source = completed_experience_source((experience_position(currency="USD"),), (experience_candidate(institution=None, currency="USD"),))
+    result = experience_composer().compose(source)
+    assert result.priorities[0].level is DailyPriorityLevel.MODERATE
+    assert result.priorities[0].label == "Moderada"
+    assert result.analyses[0].action is DailyPriorityAction.ANALYZE
+    assert result.analyses[0].action_label == "Analisar"
+    assert result.status is DailyExperienceStatus.ATTENTION_REQUIRED
+    assert result.message.text == "Há pontos da carteira que merecem sua análise hoje."
+    assert result.summary.automatic_analysis_open
+    assert result.summary.has_attention
+    assert not result.summary.has_decision
+
+
+def test_fact_limit_preserves_first_five_and_does_not_mutate_source() -> None:
+    source = completed_experience_source((), ())
+    official_facts = tuple(
+        ImportantFact(f"f-{index}", "LOW", "OTHER", f"Title {index}", "Text", f"Source {index}")
+        for index in range(7)
+    )
+    expanded = replace(
+        source,
+        important_facts=ImportantFactsResult(official_facts, ()),
+    )
+    result = experience_composer().compose(expanded)
+    assert tuple(item.fact_id for item in result.facts) == tuple(f"f-{index}" for index in range(5))
+    assert result.summary.fact_count == 5
+    assert expanded.important_facts is not None
+    assert expanded.important_facts.important_facts == official_facts
+
+
+def test_three_priorities_and_two_analyses_preserve_official_order() -> None:
+    positions = (
+        experience_position("UBS", PortfolioOwner.JOLIKA, "USD"),
+        experience_position("Santander", PortfolioOwner.JOLIKA, "BRL"),
+        experience_position("Bradesco", PortfolioOwner.NEI, "BRL"),
+    )
+    candidates = tuple(
+        experience_candidate(institution=name, identifier=name.casefold(), title=f"Fact {name}")
+        for name in ("UBS", "Santander", "Bradesco")
+    )
+    source = completed_experience_source(positions, candidates)
+    result = experience_composer().compose(source)
+    assert source.daily_priorities is not None
+    official_ids = tuple(item.priority_id for item in source.daily_priorities.priorities)
+    assert tuple(item.priority_id for item in result.priorities) == official_ids
+    assert tuple(item.priority_id for item in result.analyses) == official_ids[:2]
+    assert result.summary.priority_count == 3
+    assert result.summary.analysis_count == 2
+    assert all(item.label == "Alta" for item in result.priorities)
+    assert all(item.action_label == "Decidir" for item in result.analyses)
+
+
+def test_blocks_always_have_official_order_titles_visibility_and_counts() -> None:
+    result = experience_composer().compose(completed_experience_source())
+    assert tuple(block.block_type for block in result.blocks) == tuple(DailyBlockType)
+    assert tuple(block.title for block in result.blocks) == (
+        "Fatos importantes", "Prioridades do dia", "Análises",
+    )
+    assert len(result.blocks) == 3
+    assert tuple(block.item_count for block in result.blocks) == (1, 1, 1)
+    assert all(block.visibility is DailyBlockVisibility.VISIBLE for block in result.blocks)
+    representation = repr(result)
+    for excluded in ("AGENDA", "RISKS", "OPPORTUNITIES", "PERSONAL_COMMITMENTS", "INVESTIGATIONS"):
+        assert excluded not in representation
+
+
+def test_result_is_deeply_immutable_deterministic_and_preserves_input() -> None:
+    source = completed_experience_source()
+    before = repr(source)
+    service = experience_composer()
+    first = service.compose(source)
+    second = service.compose(source)
+    assert first == second
+    assert repr(source) == before
+    assert source.daily_priorities is not None
+    assert first.analyses[0].affected_dimensions is source.daily_priorities.priorities[0].affected_dimensions
+    with pytest.raises(FrozenInstanceError):
+        setattr(first.header, "user_name", "Changed")
+    with pytest.raises(FrozenInstanceError):
+        setattr(first.message, "text", "Changed")
+    with pytest.raises(FrozenInstanceError):
+        setattr(first.facts[0], "title", "Changed")
+    with pytest.raises(FrozenInstanceError):
+        setattr(first.analyses[0], "affected_dimensions", ())
+
+
+@pytest.mark.parametrize(
+    ("institution", "owner", "currency"),
+    (
+        ("UBS", PortfolioOwner.JOLIKA, "USD"),
+        ("Santander", PortfolioOwner.JOLIKA, "BRL"),
+        ("Bradesco", PortfolioOwner.NEI, "BRL"),
+    ),
+)
+def test_end_to_end_institution_scenarios_preserve_portfolio_contracts(
+    institution: str, owner: PortfolioOwner, currency: str,
+) -> None:
+    source = completed_experience_source(
+        (experience_position(institution, owner, currency),),
+        (experience_candidate(institution=institution),),
+    )
+    before = repr(source)
+    result = experience_composer().compose(source)
+    assert source.snapshot is not None
+    assert source.snapshot.owners == (owner,)
+    assert source.snapshot.institutions == (institution,)
+    assert source.snapshot.currencies == (currency,)
+    assert all(
+        isinstance(value, Decimal)
+        for value in source.snapshot.consolidated.gross_value_by_currency.values()
+    )
+    assert result.status is DailyExperienceStatus.DECISION_REQUIRED
+    assert result.summary.automatic_analysis_open
+    assert repr(source) == before
+
+
+def test_end_to_end_simultaneous_scenario_keeps_owners_currencies_separate() -> None:
+    positions = (
+        experience_position("UBS", PortfolioOwner.JOLIKA, "USD"),
+        experience_position("Santander", PortfolioOwner.JOLIKA, "BRL"),
+        experience_position("Bradesco", PortfolioOwner.NEI, "BRL"),
+    )
+    source = completed_experience_source(
+        positions,
+        tuple(
+            experience_candidate(name.casefold(), name, title=f"Fact {name}")
+            for name in ("UBS", "Santander", "Bradesco")
+        ),
+    )
+    assert source.snapshot is not None
+    original_values = source.snapshot.consolidated.gross_value_by_currency
+    result = experience_composer().compose(source)
+    assert source.snapshot.owners == (PortfolioOwner.JOLIKA, PortfolioOwner.NEI)
+    assert source.snapshot.institutions == ("Bradesco", "Santander", "UBS")
+    assert source.snapshot.currencies == ("BRL", "USD")
+    assert original_values == {"BRL": Decimal("41.00"), "USD": Decimal("20.50")}
+    assert result.summary.priority_count == 3
+    assert result.summary.analysis_count == 2
+    assert not hasattr(result.summary, "gross_value")
+    assert not hasattr(result, "market_agenda")
