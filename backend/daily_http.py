@@ -23,6 +23,7 @@ from backend.daily_contract import (
 from backend.important_facts import FactCandidate, FactCategory, FactImportance
 from backend.models import PortfolioOwner, PortfolioPosition
 from backend.market_agenda import MarketAgendaEvent
+from backend.decision_context import DecisionProfile
 
 
 MAX_DAILY_REQUEST_BYTES = 1_048_576
@@ -98,6 +99,7 @@ class DailyHttpAdapter:
         headers: Mapping[str, str],
         body: bytes,
         agenda_events: tuple[MarketAgendaEvent, ...] = (),
+        decision_profile: DecisionProfile | None = None,
     ) -> DailyHttpResponse:
         try:
             if method != "POST":
@@ -119,7 +121,7 @@ class DailyHttpAdapter:
                     "UNSUPPORTED_MEDIA_TYPE",
                     "O conteúdo deve ser enviado em formato JSON.",
                 )
-            request = replace(self._request(body), agenda_events=agenda_events)
+            request = replace(self._request(body), agenda_events=agenda_events, decision_profile=decision_profile)
             response = self._facade.execute(request)
             return self._facade_response(response)
         except DailyHttpRequestError as error:

@@ -14,9 +14,10 @@ from backend.import_validation import ImportValidationReport
 from backend.important_facts import FactCandidate
 from backend.models import PortfolioPosition
 from backend.market_agenda import MarketAgendaEvent
+from backend.decision_context import DecisionProfile
 
 
-CONTRACT_VERSION = "1.2"
+CONTRACT_VERSION = "1.3"
 
 
 class DailyApiStatus(str, Enum):
@@ -57,6 +58,7 @@ class DailyApiRequest:
     reference_date: date | None = None
     validation_reports: Mapping[ValidationReportKey, ImportValidationReport] | None = None
     agenda_events: tuple[MarketAgendaEvent, ...] = ()
+    decision_profile: DecisionProfile | None = None
 
 
 def validate_daily_api_request(request: object) -> bool:
@@ -77,6 +79,7 @@ def validate_daily_api_request(request: object) -> bool:
         (request.validation_reports is None or isinstance(request.validation_reports, Mapping))
         and isinstance(request.agenda_events, tuple)
         and all(isinstance(item, MarketAgendaEvent) for item in request.agenda_events)
+        and (request.decision_profile is None or isinstance(request.decision_profile, DecisionProfile))
     )
 
 
@@ -114,6 +117,27 @@ class DailyApiImpactAssessment:
             raise ValueError("impact level and confidence must be official")
         if self.impact_direction not in {"POSITIVE", "NEGATIVE", "MIXED", "UNCERTAIN"}:
             raise ValueError("impact_direction must be official")
+
+
+@dataclass(frozen=True)
+class DailyApiDecisionContext:
+    id: str
+    context_type: str
+    relevance_level: str
+    title: str
+    summary: str
+    related_assets: tuple[str, ...]
+    context_factors: tuple[dict[str, str], ...]
+    limitations: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if self.context_type not in {
+            "RISK_ALIGNMENT", "HORIZON_ALIGNMENT", "OBJECTIVE_ALIGNMENT", "LIQUIDITY_CONTEXT",
+            "PRESERVATION_CONTEXT", "VOLATILITY_CONTEXT", "CONCENTRATION_CONTEXT",
+            "RESTRICTION_CONTEXT", "CURRENCY_CONTEXT", "MARKET_PREFERENCE",
+            "DECISION_FREQUENCY", "CONTEXT_CONFLICT",
+        } or self.relevance_level not in {"HIGH", "MEDIUM", "LOW"}:
+            raise ValueError("decision context enums must be official")
 
 
 @dataclass(frozen=True)
@@ -257,6 +281,7 @@ class DailyApiResponse:
     error: DailyApiError | None
     market_agenda: tuple[DailyApiMarketAgendaEvent, ...] = ()
     impact_assessments: tuple[DailyApiImpactAssessment, ...] = ()
+    decision_contexts: tuple[DailyApiDecisionContext, ...] = ()
     contract_version: str = CONTRACT_VERSION
 
     def __post_init__(self) -> None:
@@ -269,12 +294,14 @@ class DailyApiResponse:
         if self.generated_at.tzinfo is None or self.generated_at.utcoffset() is None:
             raise ValueError("generated_at must be timezone-aware")
         object.__setattr__(self, "generated_at", self.generated_at.astimezone(timezone.utc))
-        if any(not isinstance(items, tuple) for items in (self.facts, self.priorities, self.analyses, self.blocks, self.market_agenda, self.impact_assessments)):
+        if any(not isinstance(items, tuple) for items in (self.facts, self.priorities, self.analyses, self.blocks, self.market_agenda, self.impact_assessments, self.decision_contexts)):
             raise TypeError("response collections must be tuples")
         if any(not isinstance(item, DailyApiMarketAgendaEvent) for item in self.market_agenda):
             raise TypeError("market_agenda contains an invalid item")
         if any(not isinstance(item, DailyApiImpactAssessment) for item in self.impact_assessments):
             raise TypeError("impact_assessments contains an invalid item")
+        if len(self.decision_contexts) > 5 or any(not isinstance(item, DailyApiDecisionContext) for item in self.decision_contexts):
+            raise TypeError("decision_contexts contains an invalid item")
         if self.status is DailyApiStatus.SUCCESS:
             self._validate_success()
         else:
