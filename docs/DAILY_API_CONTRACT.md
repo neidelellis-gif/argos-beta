@@ -2,10 +2,16 @@
 
 ## Current version
 
-`1.3` is the current response version. Every response, including HTTP boundary
-errors, contains `contract_version: "1.3"`. Version 1.3 preserves facts, analyses
-and priorities from 1.0, agenda from 1.1 and impacts from 1.2, and adds
-`decision_contexts`. Older frontend payloads safely treat that collection as empty.
+`1.4` is the current response version. Every response, including HTTP boundary
+errors, contains `contract_version: "1.4"`. Version 1.4 preserves facts, analyses
+and priorities from 1.0, agenda from 1.1, impacts from 1.2 and decision contexts
+from 1.3, and adds only `data_quality`. The renderer remains compatible with
+versions 1.0, 1.1, 1.2 and 1.3.
+
+`data_quality` contains exactly `status`, `summary` and `diagnostics`. Official
+statuses are `HEALTHY`, `WARNING` and `ERROR`; summary contains `errors`,
+`warnings` and `infos`. Every diagnostic contains exactly `id`, `severity`,
+`category`, `title`, `description`, `affected_items` and `can_continue`.
 
 Each decision context publicly contains exactly `id`, `context_type`,
 `relevance_level`, `title`, `summary`, `related_assets`, `context_factors` and
@@ -26,16 +32,18 @@ error.
 The official integration flow is:
 
 `DailyFrontendClient` → `DailyApiContract` → `DailyHttpAdapter` →
-`DailyApiFacade` → `DailyOrchestrator` → `DailyExperienceComposer`.
+`DailyApiFacade` → canonical inputs → `DataQualityEngine` → existing engines →
+`DailyExperienceComposer`.
 
 The request contract contains `positions`, `fact_candidates`, `reference_date`,
 and `validation_reports`. Unknown envelope fields are ignored and cannot change
 execution. The two collection fields are required; the other fields are
 optional.
 
-The 1.3 response contract requires `status`, `generated_at`, `contract_version`,
+The 1.4 response contract requires `status`, `generated_at`, `contract_version`,
 `experience_status`, `header`, `message`, `facts`, `priorities`, `analyses`,
-`blocks`, `market_agenda`, `impact_assessments`, `decision_contexts`, `summary`, and `error`. Official public enums and structural validators
+`blocks`, `market_agenda`, `impact_assessments`, `decision_contexts`,
+`data_quality`, `summary`, and `error`. Official public enums and structural validators
 are defined in `backend/daily_contract.py`; the corresponding compatibility
 validator used by the browser is `DailyApiContract` in
 `frontend/daily_client.js`.

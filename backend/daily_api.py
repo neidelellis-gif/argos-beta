@@ -13,6 +13,7 @@ from backend.daily_contract import (
     DailyApiHeader,
     DailyApiImpactAssessment,
     DailyApiDecisionContext,
+    DailyApiDataQuality,
     DailyApiMessage,
     DailyApiMarketAgendaEvent,
     DailyApiPriority,
@@ -40,6 +41,7 @@ from backend.portfolio_impact import PortfolioImpactEngine
 from backend.market_agenda_engine import MarketAgendaEngine
 from backend.portfolio_impact_engine import PortfolioImpactAssessmentEngine
 from backend.decision_context_engine import DecisionContextEngine
+from backend.data_quality_engine import DataQualityEngine
 
 
 def _utc_now() -> datetime:
@@ -61,6 +63,21 @@ def _iterable(value: object) -> Iterable[object]:
     return value if isinstance(value, (list, tuple)) else ()
 
 
+def _data_quality_contract(value: dict[str, object] | None) -> DailyApiDataQuality:
+    if value is None:
+        value = {"status": "ERROR", "summary": {"errors": 1, "warnings": 0, "infos": 0},
+                 "diagnostics": [{"id": "system.daily_experience", "severity": "ERROR",
+                    "category": "SYSTEM", "title": "Experiência indisponível",
+                    "description": "A qualidade dos dados não pôde ser concluída.",
+                    "affected_items": [], "can_continue": False}]}
+    summary = value["summary"]
+    diagnostics = value["diagnostics"]
+    if not isinstance(summary, dict) or not isinstance(diagnostics, list):
+        raise TypeError("invalid data quality result")
+    return DailyApiDataQuality(str(value["status"]), dict(summary),
+                               tuple(dict(item) for item in diagnostics if isinstance(item, dict)))
+
+
 class DailyApiFacade:
     """Coordinate official daily services and protect the public boundary."""
 
@@ -75,6 +92,7 @@ class DailyApiFacade:
         market_agenda_engine: MarketAgendaEngine | None = None,
         impact_engine: PortfolioImpactAssessmentEngine | None = None,
         decision_context_engine: DecisionContextEngine | None = None,
+        data_quality_engine: DataQualityEngine | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -90,6 +108,7 @@ class DailyApiFacade:
         self._market_agenda_engine = market_agenda_engine if market_agenda_engine is not None else MarketAgendaEngine()
         self._impact_engine = impact_engine if impact_engine is not None else PortfolioImpactAssessmentEngine()
         self._decision_context_engine = decision_context_engine or DecisionContextEngine()
+        self._data_quality_engine = data_quality_engine or DataQualityEngine()
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -111,6 +130,10 @@ class DailyApiFacade:
             )
 
         try:
+            quality = self._data_quality_engine.diagnose(
+                request.positions, request.agenda_events, request.decision_profile,
+                request.reference_date or generated_at.date(),
+            )
             generated_facts = self._facts_engine.generate(
                 request.positions, request.fact_candidates
             )
@@ -149,7 +172,7 @@ class DailyApiFacade:
                 validation_reports=request.validation_reports,
             )
             experience = self._composer.compose_priorities(orchestration, priorities)
-            return self._success_response(generated_at, experience, agenda, impacts, decision_contexts)
+            return self._success_response(generated_at, experience, agenda, impacts, decision_contexts, quality)
         except DailyOrchestrationError as error:
             return self._error_response(
                 generated_at,
@@ -178,6 +201,7 @@ class DailyApiFacade:
         agenda: tuple[dict[str, object], ...] = (),
         impacts: list[dict[str, object]] | tuple[dict[str, object], ...] = (),
         decision_contexts: tuple[dict[str, object], ...] = (),
+        data_quality: dict[str, object] | None = None,
     ) -> DailyApiResponse:
         facts = tuple(
             DailyApiFact(item.fact_id, item.category, item.title, item.priority)
@@ -270,6 +294,7 @@ class DailyApiFacade:
                 context_factors=tuple(dict(value) for value in _iterable(item["context_factors"]) if isinstance(value, dict)),
                 limitations=tuple(str(value) for value in _iterable(item["limitations"])),
             ) for item in decision_contexts[:5]),
+            data_quality=_data_quality_contract(data_quality),
         )
 
     @staticmethod
@@ -291,11 +316,16 @@ class DailyApiFacade:
             blocks=(),
             summary=None,
             error=DailyApiError(code, message, stage),
+            data_quality=_data_quality_contract(None),
         )
 
 
 def daily_api_response_to_dict(response: DailyApiResponse) -> dict[str, object]:
     """Return a detached JSON-safe representation of a daily API response."""
+
+    quality = response.data_quality
+    if quality is None:  # Defensive guard for static callers bypassing the dataclass validation.
+        raise TypeError("response data_quality is required")
 
     header: dict[str, object] | None = None
     if response.header is not None:
@@ -355,6 +385,11 @@ def daily_api_response_to_dict(response: DailyApiResponse) -> dict[str, object]:
             "context_factors": [dict(factor) for factor in item.context_factors],
             "limitations": list(item.limitations),
         } for item in response.decision_contexts],
+        "data_quality": {
+            "status": quality.status,
+            "summary": dict(quality.summary),
+            "diagnostics": [dict(item) for item in quality.diagnostics],
+        },
         "summary": summary,
         "error": error,
     }

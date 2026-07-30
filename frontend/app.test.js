@@ -894,6 +894,21 @@ test("DailyFrontendClient accepts complete 1.3 and requires decision contexts", 
     await assert.rejects(rejected.loadExperience({}), /Erro interno\./);
 });
 
+test("DailyFrontendClient accepts 1.4 only with structured data quality", async () => {
+    const complete = {
+        contract_version: "1.4", status: "SUCCESS", generated_at: NOW,
+        experience_status: "READY", header: {}, message: {}, facts: [], priorities: [],
+        analyses: [], blocks: [], market_agenda: [], impact_assessments: [],
+        decision_contexts: [], summary: {}, error: null,
+        data_quality: { status: "HEALTHY", summary: { errors: 0, warnings: 0, infos: 0 }, diagnostics: [] }
+    };
+    const client = new context.DailyFrontendClient(async () => ({ ok: true, json: async () => complete }));
+    assert.equal((await client.loadExperience({})).contract_version, "1.4");
+    const invalid = { ...complete }; delete invalid.data_quality;
+    const invalidClient = new context.DailyFrontendClient(async () => ({ ok: true, json: async () => invalid }));
+    await assert.rejects(() => invalidClient.loadExperience({}), /incompatível/);
+});
+
 for (const overrides of [
     { contract_version: "2.0" },
     { experience_status: "UNKNOWN" },
