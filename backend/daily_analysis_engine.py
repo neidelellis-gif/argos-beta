@@ -26,16 +26,36 @@ class DailyAnalysisEngine:
         self,
         facts: Iterable[Mapping[str, object]],
         positions: Iterable[PortfolioPosition],
+        impact_assessments: Iterable[Mapping[str, object]] | None = None,
     ) -> list[dict[str, object]]:
         """Return at most two analyses based exclusively on ``facts``."""
         fact_items = tuple(facts)
         position_items = tuple(positions)
+        impact_items = tuple(impact_assessments or ())
+        if any(not isinstance(impact, Mapping) for impact in impact_items):
+            raise TypeError("impact_assessments accepts only mapping instances")
         if any(not isinstance(position, PortfolioPosition) for position in position_items):
             raise TypeError("positions accepts only PortfolioPosition instances")
 
         unique_facts = self._validated_unique_facts(fact_items)
         groups = self._groups(unique_facts)
         analyses = [self._analysis(group) for group in groups]
+        impact_ids_by_fact: dict[str, list[str]] = {}
+        for impact in impact_items:
+            impact_id = impact.get("id")
+            related = impact.get("related_facts", ())
+            if isinstance(impact_id, str) and isinstance(related, (list, tuple)):
+                for fact_id in related:
+                    if isinstance(fact_id, str):
+                        impact_ids_by_fact.setdefault(fact_id, []).append(impact_id)
+        if impact_assessments is not None:
+            for analysis in analyses:
+                related_facts = analysis["related_facts"]
+                fact_ids = related_facts if isinstance(related_facts, list) else []
+                analysis["related_impacts"] = list(dict.fromkeys(
+                    impact_id for fact_id in fact_ids
+                    for impact_id in impact_ids_by_fact.get(str(fact_id), ())
+                ))
         analyses.sort(
             key=lambda item: (
                 _PRIORITY_ORDER[str(item["priority"])],

@@ -119,7 +119,7 @@ def test_valid_post_executes_real_complete_flow() -> None:
     assert payload["status"] == "SUCCESS"
     assert payload["generated_at"] == "2026-07-30T12:00:00+00:00"
     assert payload["experience_status"] == "DECISION_REQUIRED"
-    assert payload["contract_version"] == "1.1"
+    assert payload["contract_version"] == "1.2"
     assert payload["error"] is None
     priorities = cast(list[dict[str, object]], payload["priorities"])
     analyses = cast(list[dict[str, object]], payload["analyses"])

@@ -204,3 +204,29 @@ test("rejects invalid responses and controls loading and error states", () => {
     assert.equal(elements.get("daily-error").textContent,
         "Não foi possível preparar a experiência diária.");
 });
+
+test("renders contract 1.2 impacts safely, translates labels, limits five, and hides after empty", () => {
+    const { elements, renderer } = setup();
+    const impactPanel = node("article"); impactPanel.hidden = true;
+    elements.set("daily-impacts", impactPanel); elements.set("dailyImpacts", node("div"));
+    const impact = {
+        id: "impact-secret", source_id: "fact-secret", source_type: "FACT",
+        impact_level: "HIGH", impact_direction: "MIXED", confidence: "MEDIUM",
+        title: "<img src=x>", summary: "Impacto potencial.", affected_assets: ["GLD"],
+        impact_factors: [{ factor_type: "CURRENCY", factor_value: "USD", description: "Moeda USD presente." }],
+        affected_positions: [{ position_id: "secret" }]
+    };
+    const payload = response({ contract_version: "1.2", impact_assessments: Array(7).fill(impact), market_agenda: [] });
+    const before = JSON.stringify(payload);
+    renderer.render(payload);
+    assert.equal(elements.get("daily-impacts").hidden, false);
+    assert.equal(elements.get("dailyImpacts").children.length, 5);
+    const rendered = JSON.stringify(elements.get("dailyImpacts"));
+    assert.match(rendered, /Direção: Misto · Confiança: Moderada/);
+    assert.match(rendered, /Ativos relacionados: GLD/);
+    assert.match(rendered, /Moeda USD presente/);
+    assert.doesNotMatch(rendered, /fact-secret|position_id|\[object Object\]/);
+    assert.equal(JSON.stringify(payload), before);
+    renderer.render(response({ contract_version: "1.2", impact_assessments: [], market_agenda: [] }));
+    assert.equal(elements.get("daily-impacts").hidden, true);
+});

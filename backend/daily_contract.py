@@ -16,7 +16,7 @@ from backend.models import PortfolioPosition
 from backend.market_agenda import MarketAgendaEvent
 
 
-CONTRACT_VERSION = "1.1"
+CONTRACT_VERSION = "1.2"
 
 
 class DailyApiStatus(str, Enum):
@@ -93,6 +93,27 @@ class DailyApiMarketAgendaEvent:
     all_day: bool
     affected_assets: tuple[str, ...]
     source_name: str
+
+
+@dataclass(frozen=True)
+class DailyApiImpactAssessment:
+    id: str
+    source_type: str
+    impact_level: str
+    impact_direction: str
+    confidence: str
+    title: str
+    summary: str
+    affected_assets: tuple[str, ...]
+    impact_factors: tuple[dict[str, str], ...]
+
+    def __post_init__(self) -> None:
+        if self.source_type not in {"FACT", "MARKET_EVENT"}:
+            raise ValueError("source_type must be official")
+        if self.impact_level not in {"HIGH", "MEDIUM", "LOW"} or self.confidence not in {"HIGH", "MEDIUM", "LOW"}:
+            raise ValueError("impact level and confidence must be official")
+        if self.impact_direction not in {"POSITIVE", "NEGATIVE", "MIXED", "UNCERTAIN"}:
+            raise ValueError("impact_direction must be official")
 
 
 @dataclass(frozen=True)
@@ -235,6 +256,7 @@ class DailyApiResponse:
     summary: DailyApiSummary | None
     error: DailyApiError | None
     market_agenda: tuple[DailyApiMarketAgendaEvent, ...] = ()
+    impact_assessments: tuple[DailyApiImpactAssessment, ...] = ()
     contract_version: str = CONTRACT_VERSION
 
     def __post_init__(self) -> None:
@@ -247,10 +269,12 @@ class DailyApiResponse:
         if self.generated_at.tzinfo is None or self.generated_at.utcoffset() is None:
             raise ValueError("generated_at must be timezone-aware")
         object.__setattr__(self, "generated_at", self.generated_at.astimezone(timezone.utc))
-        if any(not isinstance(items, tuple) for items in (self.facts, self.priorities, self.analyses, self.blocks, self.market_agenda)):
+        if any(not isinstance(items, tuple) for items in (self.facts, self.priorities, self.analyses, self.blocks, self.market_agenda, self.impact_assessments)):
             raise TypeError("response collections must be tuples")
         if any(not isinstance(item, DailyApiMarketAgendaEvent) for item in self.market_agenda):
             raise TypeError("market_agenda contains an invalid item")
+        if any(not isinstance(item, DailyApiImpactAssessment) for item in self.impact_assessments):
+            raise TypeError("impact_assessments contains an invalid item")
         if self.status is DailyApiStatus.SUCCESS:
             self._validate_success()
         else:
@@ -281,13 +305,13 @@ class DailyApiResponse:
             raise ValueError("requires_decision must reflect analyses")
 
     def _validate_error(self) -> None:
-        if self.experience_status is not None or self.header is not None or self.message is not None or self.facts or self.priorities or self.analyses or self.blocks or self.market_agenda or self.summary is not None or self.error is None:
+        if self.experience_status is not None or self.header is not None or self.message is not None or self.facts or self.priorities or self.analyses or self.blocks or self.market_agenda or self.impact_assessments or self.summary is not None or self.error is None:
             raise ValueError("ERROR response must not contain a partial experience")
 
 
 RESPONSE_REQUIRED_FIELDS = frozenset({
     "status", "generated_at", "contract_version", "experience_status", "header",
-    "message", "facts", "priorities", "analyses", "blocks", "market_agenda", "summary", "error",
+    "message", "facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments", "summary", "error",
 })
 
 
@@ -302,7 +326,7 @@ def validate_daily_api_response_payload(payload: object) -> bool:
             payload["experience_status"] is None
             and payload["header"] is None
             and payload["message"] is None
-            and all(payload[field] == [] for field in ("facts", "priorities", "analyses", "blocks", "market_agenda"))
+            and all(payload[field] == [] for field in ("facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments"))
             and payload["summary"] is None
             and isinstance(payload["error"], Mapping)
         )
@@ -311,7 +335,7 @@ def validate_daily_api_response_payload(payload: object) -> bool:
         and payload["experience_status"] in {item.value for item in DailyExperienceStatus}
         and isinstance(payload["header"], Mapping)
         and isinstance(payload["message"], Mapping)
-        and all(isinstance(payload[field], list) for field in ("facts", "priorities", "analyses", "blocks", "market_agenda"))
+        and all(isinstance(payload[field], list) for field in ("facts", "priorities", "analyses", "blocks", "market_agenda", "impact_assessments"))
         and isinstance(payload["summary"], Mapping)
         and payload["error"] is None
         and all(isinstance(fact, Mapping) and fact.get("importance") in {item.value for item in DailyPriorityLevel} for fact in payload["facts"])

@@ -16,7 +16,7 @@ from backend.daily_contract import (
 
 
 def test_contract_has_one_documented_official_version() -> None:
-    assert CONTRACT_VERSION == "1.1"
+    assert CONTRACT_VERSION == "1.2"
 
 
 def test_empty_request_is_valid() -> None:
@@ -52,6 +52,7 @@ def _valid_response_payload() -> dict[str, object]:
         "summary": {},
         "error": None,
         "market_agenda": [],
+        "impact_assessments": [],
     }
 
 
