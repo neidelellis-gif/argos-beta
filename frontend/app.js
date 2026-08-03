@@ -81,6 +81,31 @@ let canonicalPortfolioPositions = [];
 let dashboardValuesVisible = false;
 let dailyExperienceLoading = false;
 
+function activateNotebookTab(tabName, navigationItems, panels) {
+    navigationItems.forEach((item) => {
+        const isActive = item.dataset.tab === tabName;
+        item.classList.toggle("active", isActive);
+        item.setAttribute("aria-selected", String(isActive));
+    });
+    panels.forEach((panel) => {
+        const isActive = panel.dataset.tabPanel === tabName;
+        panel.classList.toggle("active", isActive);
+        panel.hidden = !isActive;
+    });
+}
+
+function setupNotebookNavigation(root = document) {
+    const navigationItems = Array.from(root.querySelectorAll("[data-tab]"));
+    const panels = Array.from(root.querySelectorAll("[data-tab-panel]"));
+
+    navigationItems.forEach((item) => {
+        item.addEventListener("click", () => {
+            activateNotebookTab(item.dataset.tab, navigationItems, panels);
+        });
+    });
+    activateNotebookTab("daily", navigationItems, panels);
+}
+
 function storeCanonicalPortfolioPositions(positions) {
     canonicalPortfolioPositions = positions.map((position) => ({ ...position }));
 }
@@ -842,6 +867,7 @@ function createOverviewCard(item) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    setupNotebookNavigation();
     setupPortfolioFilePicker();
     document.getElementById("toggleValues").addEventListener(
         "click",
