@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="ARGOS - Diário Executivo">
-    <title>ARGOS — Diário Executivo</title>
+    <meta name="description" content="ARGOS - Caderno Executivo">
+    <title>ARGOS — Caderno Executivo</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app-shell">
-
     <aside class="sidebar">
-
         <div class="brand" aria-label="ARGOS">
             <span class="brand-mark">A</span>
             <div><strong>ARGOS</strong><span>Caderno executivo</span></div>
@@ -30,113 +28,82 @@
         </nav>
 
         <div class="sidebar-footer">
-
             <span class="system-dot"></span>
-
             Sistema operacional
-
         </div>
-
     </aside>
 
     <main class="main-content">
         <section id="tab-daily" class="notebook-page active" role="tabpanel" data-tab-panel="daily">
-        <header class="page-header">
+            <header class="page-header">
+                <div>
+                    <h1 id="greeting">Carregando...</h1>
+                    <p id="currentDate" class="current-date"></p>
+                </div>
+                <div class="header-status">
+                    <span id="lastUpdateLabel" class="status-label"></span>
+                    <strong id="lastUpdate">Carregando...</strong>
+                </div>
+            </header>
 
-            <div>
+            <section class="daily-experience" aria-label="Caderno executivo diário">
+                <p id="daily-loading" class="loading-message" hidden>Preparando sua visão do dia…</p>
+                <p id="daily-error" class="error-message" hidden></p>
 
-                <h1 id="greeting">
-                    Carregando...
-                </h1>
-
-                <p id="currentDate"
-                   class="current-date">
-                </p>
-
-            </div>
-
-            <div class="header-status">
-
-                <span id="lastUpdateLabel" class="status-label"></span>
-
-                <strong id="lastUpdate">
-                    Carregando...
-                </strong>
-
-            </div>
-
-        </header>
-        <section class="daily-experience" aria-label="Resumo executivo diário">
-            <p id="daily-loading" class="loading-message" hidden>Preparando sua visão do dia…</p>
-            <p id="daily-error" class="error-message" hidden></p>
-
-            <div class="daily-grid">
-                <article id="daily-facts" class="daily-panel daily-panel-wide" aria-labelledby="factsTitle" hidden>
-                    <div class="panel-heading">
-                        <h2 id="factsTitle">Fatos importantes</h2>
-                        <span id="factsCount" class="section-count"></span>
-                    </div>
-                    <div id="importantFacts" class="daily-list"></div>
-                </article>
-
-                <article id="daily-priorities" class="daily-panel" aria-labelledby="prioritiesTitle" hidden>
-                    <div class="panel-heading">
-                        <h2 id="prioritiesTitle">Prioridades do dia</h2>
-                        <span id="prioritiesCount" class="section-count"></span>
-                    </div>
-                    <div id="dailyPriorities" class="daily-list"></div>
-                </article>
-
-                <article id="daily-analyses" class="daily-panel" aria-labelledby="analysesTitle" hidden>
-                    <div class="panel-heading">
-                        <h2 id="analysesTitle">Análises</h2>
-                        <span id="analysesCount" class="section-count"></span>
-                    </div>
-                    <div id="dailyAnalyses" class="daily-list"></div>
-                </article>
-
-                <article id="daily-decision-context" class="daily-panel daily-panel-wide" aria-labelledby="decisionContextTitle" hidden>
-                    <div class="panel-heading">
-                        <h2 id="decisionContextTitle">Contexto da decisão</h2>
-                    </div>
-                    <div id="dailyDecisionContexts" class="daily-list"></div>
-                </article>
-
-                <article id="daily-impacts" class="daily-panel daily-panel-wide" aria-labelledby="impactsTitle" hidden>
-                    <div class="panel-heading">
-                        <div>
-                            <h2 id="impactsTitle">Impacto potencial</h2>
-                            <p class="daily-item-meta">Direção não é recomendação.</p>
+                <div class="daily-grid">
+                    <article id="daily-facts" class="daily-panel daily-panel-wide" aria-labelledby="factsTitle" hidden>
+                        <div class="panel-heading">
+                            <h2 id="factsTitle">O que aconteceu desde ontem?</h2>
+                            <span id="factsCount" class="section-count"></span>
                         </div>
-                    </div>
-                    <div id="dailyImpacts" class="daily-list"></div>
-                </article>
+                        <div id="importantFacts" class="daily-list"></div>
+                    </article>
 
-                <article class="daily-panel daily-panel-wide" aria-labelledby="panoramaTitle" hidden>
-                    <div class="panel-heading">
-                        <h2 id="panoramaTitle">Panorama global</h2>
-                    </div>
-                    <div id="dailyPanorama" class="panorama-grid"></div>
-                </article>
+                    <article id="daily-attention" class="daily-panel daily-panel-wide" aria-labelledby="attentionTitle" hidden>
+                        <div class="panel-heading">
+                            <h2 id="attentionTitle">O que realmente merece sua atenção?</h2>
+                            <span id="attentionCount" class="section-count"></span>
+                        </div>
+                        <div id="dailyAttention" class="daily-list"></div>
+                    </article>
 
-                <article id="marketAgendaPanel" class="daily-panel daily-panel-wide" aria-labelledby="agendaTitle" hidden>
-                    <div class="panel-heading">
-                        <h2 id="agendaTitle">Agenda de mercado</h2>
-                        <span id="agendaCount" class="section-count"></span>
-                    </div>
-                    <div id="market-agenda" hidden>
-                        <div id="marketAgenda" class="daily-list"></div>
-                    </div>
-                </article>
+                    <article id="daily-portfolio" class="daily-panel daily-panel-wide" aria-labelledby="portfolioTodayTitle" hidden>
+                        <div class="panel-heading">
+                            <h2 id="portfolioTodayTitle">Sua carteira hoje</h2>
+                        </div>
+                        <div id="portfolioToday" class="daily-list"></div>
+                    </article>
 
-                <article id="data-quality" class="daily-panel daily-panel-wide" aria-labelledby="dataQualityTitle" hidden>
-                    <div class="panel-heading">
-                        <h2 id="dataQualityTitle">Qualidade dos dados</h2>
-                    </div>
-                    <div id="dataQualityDiagnostics" class="daily-list"></div>
-                </article>
-            </div>
-        </section>
+                    <article id="daily-analyses" class="daily-panel daily-panel-wide" aria-labelledby="analysesTitle" hidden>
+                        <div class="panel-heading">
+                            <h2 id="analysesTitle">Análises disponíveis</h2>
+                            <span id="analysesCount" class="section-count"></span>
+                        </div>
+                        <div id="dailyAnalyses" class="daily-list"></div>
+                    </article>
+
+                    <article id="marketAgendaPanel" class="daily-panel daily-panel-wide" aria-labelledby="agendaTitle" hidden>
+                        <div class="panel-heading">
+                            <h2 id="agendaTitle">Próximos eventos</h2>
+                            <span id="agendaCount" class="section-count"></span>
+                        </div>
+                        <div id="market-agenda" hidden>
+                            <div id="marketAgenda" class="daily-list"></div>
+                        </div>
+                    </article>
+
+                    <article id="daily-explore" class="daily-panel daily-panel-wide" aria-labelledby="exploreTitle">
+                        <div class="panel-heading">
+                            <h2 id="exploreTitle">Explorar</h2>
+                        </div>
+                        <div class="daily-list">
+                            <div class="daily-item">
+                                <p class="daily-item-summary">Use o menu lateral para aprofundar Notícias, Carteiras, Panorama Global, Mercado, Agenda e Simulações.</p>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
         </section>
 
         <section id="tab-portfolios" class="notebook-page" role="tabpanel" data-tab-panel="portfolios" hidden>
@@ -145,160 +112,82 @@
                 <h1>Carteiras</h1>
                 <p>Posições oficiais, consolidação e importação em um único espaço.</p>
             </header>
-        <section class="dashboard-section" aria-label="Dashboard operacional">
-            <div class="dashboard-toolbar">
-                <div>
-                    <p class="eyebrow">DASHBOARD OPERACIONAL</p>
-                    <p id="dashboardVersion" class="dashboard-version"></p>
-                </div>
-                <button id="toggleValues" class="values-toggle" type="button">
-                    Mostrar valores
-                </button>
-            </div>
 
-            <div class="dashboard-block">
-                <h2>Instituições</h2>
-                <div id="institutions" class="institutions-grid"></div>
-            </div>
-
-            <div class="dashboard-block">
-                <h2>Consolidado</h2>
-                <div id="consolidated" class="consolidated-card"></div>
-            </div>
-        </section>
-        <section class="portfolio-import-section">
-
-            <div class="section-heading">
-
-                <div>
-
-                    <p class="eyebrow">
-                        CARTEIRAS
-                    </p>
-
-                    <h2>
-                        Importar Carteiras
-                    </h2>
-
+            <section class="dashboard-section" aria-label="Dashboard operacional">
+                <div class="dashboard-toolbar">
+                    <div>
+                        <p class="eyebrow">DASHBOARD OPERACIONAL</p>
+                        <p id="dashboardVersion" class="dashboard-version"></p>
+                    </div>
+                    <button id="toggleValues" class="values-toggle" type="button">Mostrar valores</button>
                 </div>
 
-            </div>
+                <div class="dashboard-block">
+                    <h2>Instituições</h2>
+                    <div id="institutions" class="institutions-grid"></div>
+                </div>
 
-            <div class="portfolio-file-picker">
+                <div class="dashboard-block">
+                    <h2>Consolidado</h2>
+                    <div id="consolidated" class="consolidated-card"></div>
+                </div>
+            </section>
 
-                <label
-                    class="file-picker-button"
-                    for="portfolioFile">
-                        Selecionar arquivos
-                </label>
-
-                <input
-                    id="portfolioFile"
-                    class="file-picker-input"
-                    type="file"
-                    multiple
-                    accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-
-                <div class="file-picker-details">
-                    <span
-                        id="portfolioFileName"
-                        class="file-picker-name">
-                        Nenhum arquivo selecionado
-                    </span>
-
-                    <div
-                        id="portfolioFileSummary"
-                        class="file-picker-summary"
-                        aria-live="polite">
+            <section class="portfolio-import-section">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">CARTEIRAS</p>
+                        <h2>Importar Carteiras</h2>
                     </div>
                 </div>
 
-                <button id="importPortfolios" class="import-button" type="button" disabled>
-                    Importar
-                </button>
-
-                <button id="clearPortfolios" class="clear-button" type="button">
-                    Limpar todas as carteiras
-                </button>
-
-            </div>
-
-            <div id="importProgress" class="import-progress" aria-live="polite" hidden>
-                <progress id="importProgressBar" max="100" value="0"></progress>
-                <span id="importProgressText"></span>
-            </div>
-
-        </section>
-        <section
-            id="tipRanksPreview"
-            class="tipranks-preview-section"
-            hidden>
-
-            <div class="section-heading">
-
-                <div>
-
-                    <p class="eyebrow">
-                        TIPRANKS
-                    </p>
-
-                    <h2>
-                        Pré-visualização dos Dados Internos
-                    </h2>
-
+                <div class="portfolio-file-picker">
+                    <label class="file-picker-button" for="portfolioFile">Selecionar arquivos</label>
+                    <input id="portfolioFile" class="file-picker-input" type="file" multiple accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                    <div class="file-picker-details">
+                        <span id="portfolioFileName" class="file-picker-name">Nenhum arquivo selecionado</span>
+                        <div id="portfolioFileSummary" class="file-picker-summary" aria-live="polite"></div>
+                    </div>
+                    <button id="importPortfolios" class="import-button" type="button" disabled>Importar</button>
+                    <button id="clearPortfolios" class="clear-button" type="button">Limpar todas as carteiras</button>
                 </div>
 
-            </div>
-
-            <div id="tipRanksPreviewContent"></div>
-
-        </section>
-        <section class="executive-section">
-
-            <div class="section-heading">
-
-                <div>
-
-                    <p id="situationLabel" class="eyebrow"></p>
-
-                    <h2 id="situationTitle"></h2>
-
+                <div id="importProgress" class="import-progress" aria-live="polite" hidden>
+                    <progress id="importProgressBar" max="100" value="0"></progress>
+                    <span id="importProgressText"></span>
                 </div>
+            </section>
 
-                <span
-                    class="section-count"
-                    id="executiveCount">
-                </span>
-
-            </div>
-
-            <div
-                id="executiveCards"
-                class="executive-grid">
-            </div>
-
-        </section>
-
-        <section class="modules-section">
-
-            <div class="section-heading">
-
-                <div>
-
-                    <p id="modulesLabel" class="eyebrow"></p>
-
-                    <h2 id="modulesTitle"></h2>
-
+            <section id="tipRanksPreview" class="tipranks-preview-section" hidden>
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">TIPRANKS</p>
+                        <h2>Pré-visualização dos Dados Internos</h2>
+                    </div>
                 </div>
+                <div id="tipRanksPreviewContent"></div>
+            </section>
 
-            </div>
+            <section class="executive-section">
+                <div class="section-heading">
+                    <div>
+                        <p id="situationLabel" class="eyebrow"></p>
+                        <h2 id="situationTitle"></h2>
+                    </div>
+                    <span class="section-count" id="executiveCount"></span>
+                </div>
+                <div id="executiveCards" class="executive-grid"></div>
+            </section>
 
-            <div
-                id="moduleCards"
-                class="modules-grid">
-            </div>
-
-        </section>
+            <section class="modules-section">
+                <div class="section-heading">
+                    <div>
+                        <p id="modulesLabel" class="eyebrow"></p>
+                        <h2 id="modulesTitle"></h2>
+                    </div>
+                </div>
+                <div id="moduleCards" class="modules-grid"></div>
+            </section>
         </section>
 
         <section id="tab-profile" class="notebook-page" role="tabpanel" data-tab-panel="profile" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Meu Perfil</h1><p>Módulo em preparação</p></div></section>
@@ -308,14 +197,11 @@
         <section id="tab-agenda" class="notebook-page" role="tabpanel" data-tab-panel="agenda" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Agenda</h1><p>Módulo em preparação</p></div></section>
         <section id="tab-simulations" class="notebook-page" role="tabpanel" data-tab-panel="simulations" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Simulações</h1><p>Módulo em preparação</p></div></section>
         <section id="tab-settings" class="notebook-page" role="tabpanel" data-tab-panel="settings" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Configurações</h1><p>Módulo em preparação</p></div></section>
-
     </main>
-
 </div>
 
 <script src="daily_client.js"></script>
 <script src="daily_experience_renderer.js"></script>
 <script src="app.js"></script>
-
 </body>
 </html>
