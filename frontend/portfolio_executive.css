@@ -1,0 +1,218 @@
+.portfolio-page {
+    padding: 26px 30px 30px;
+}
+
+.portfolio-page-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+}
+
+.portfolio-page-header h1 {
+    font-size: clamp(2rem, 3.8vw, 3.2rem);
+}
+
+.portfolio-owner-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-secondary);
+}
+
+.portfolio-owner-control label {
+    font-size: 0.84rem;
+}
+
+.portfolio-owner-select {
+    min-width: 132px;
+    padding: 9px 34px 9px 12px;
+    border: 1px solid rgba(98, 168, 255, 0.24);
+    border-radius: 10px;
+    background: rgba(16, 33, 58, 0.72);
+    color: var(--text-primary);
+}
+
+.portfolio-workspace {
+    min-height: calc(100vh - 150px);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(260px, 1fr));
+    gap: 18px;
+}
+
+.portfolio-float {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 25px 27px;
+    border: 1px solid rgba(98, 168, 255, 0.18);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(16, 33, 58, 0.94), rgba(9, 23, 40, 0.9));
+    box-shadow: 0 22px 46px rgba(0, 0, 0, 0.2), 0 0 24px rgba(98, 168, 255, 0.045);
+}
+
+.portfolio-float-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.portfolio-float-heading h2 {
+    font-size: 1.18rem;
+    letter-spacing: -0.01em;
+}
+
+.portfolio-float-subtitle {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.portfolio-total-list,
+.portfolio-institution-list,
+.portfolio-attention-list {
+    display: grid;
+    gap: 12px;
+}
+
+.portfolio-total-row,
+.portfolio-institution-row,
+.portfolio-attention-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.portfolio-total-row:last-child,
+.portfolio-institution-row:last-child,
+.portfolio-attention-row:last-child {
+    border-bottom: 0;
+}
+
+.portfolio-total-label,
+.portfolio-row-meta {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.portfolio-total-value {
+    font-size: clamp(1.35rem, 2.4vw, 2.1rem);
+    font-weight: 650;
+    letter-spacing: -0.035em;
+}
+
+.portfolio-institution-button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.portfolio-institution-name {
+    font-weight: 650;
+}
+
+.portfolio-status {
+    color: var(--success);
+    font-size: 0.77rem;
+}
+
+.portfolio-empty {
+    margin: auto 0;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.portfolio-allocation-bars {
+    display: grid;
+    gap: 17px;
+}
+
+.portfolio-allocation-row {
+    display: grid;
+    grid-template-columns: 100px minmax(0, 1fr) 56px;
+    align-items: center;
+    gap: 13px;
+}
+
+.portfolio-allocation-track {
+    height: 9px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(174, 187, 208, 0.12);
+}
+
+.portfolio-allocation-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+}
+
+.portfolio-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.portfolio-import-toggle,
+.portfolio-consolidate-button {
+    padding: 9px 13px;
+    border: 1px solid rgba(98, 168, 255, 0.28);
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.portfolio-import-drawer {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.portfolio-consolidation {
+    margin-top: auto;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.portfolio-consolidation p {
+    margin: 0 0 12px;
+    color: var(--text-secondary);
+}
+
+.legacy-portfolio-support {
+    display: none !important;
+}
+
+@media (max-width: 980px) {
+    .portfolio-workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .portfolio-page {
+        padding: 24px 22px 40px;
+    }
+
+    .portfolio-page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .portfolio-owner-control {
+        justify-content: space-between;
+    }
+}
