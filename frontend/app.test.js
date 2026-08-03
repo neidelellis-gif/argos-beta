@@ -749,10 +749,21 @@ test("restores canonical positions while loading the existing dashboard", async 
 });
 
 test("formats the last import date and time returned by the dashboard", () => {
-    const formatted = context.formatUpdatedAt("2026-07-28T14:35:00Z");
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = "UTC";
 
-    assert.match(formatted, /28\/07\/2026/);
-    assert.match(formatted, /14:35/);
+    try {
+        const formatted = context.formatUpdatedAt("2026-07-28T14:35:00Z");
+
+        assert.match(formatted, /28\/07\/2026/);
+        assert.match(formatted, /14:35/);
+    } finally {
+        if (originalTimezone === undefined) {
+            delete process.env.TZ;
+        } else {
+            process.env.TZ = originalTimezone;
+        }
+    }
 });
 
 test("uses a natural empty state when no import has been completed", () => {
