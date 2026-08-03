@@ -6,7 +6,7 @@ const ArgosAnalysisContext = (() => {
     const OWNERS = Object.freeze({
         nei_pf: Object.freeze({
             id: "nei_pf",
-            name: "Nei PF",
+            name: "Nei",
             type: "PERSONAL",
             currency: "USD",
             institutions: Object.freeze([
@@ -72,18 +72,12 @@ const ArgosAnalysisContext = (() => {
         const owner = getActiveOwner();
         const selector = root.getElementById("activeOwnerSelector");
         const name = root.getElementById("activeOwnerName");
-        const type = root.getElementById("activeOwnerType");
 
         if (selector) {
             selector.value = owner.id;
         }
         if (name) {
             name.textContent = owner.name;
-        }
-        if (type) {
-            type.textContent = owner.type === "COMPANY"
-                ? "Pessoa jurídica"
-                : "Pessoa física";
         }
 
         root.documentElement.dataset.argosOwner = owner.id;
