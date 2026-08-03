@@ -6,6 +6,7 @@
     <meta name="description" content="ARGOS - Caderno Executivo">
     <title>ARGOS — Caderno Executivo</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="portfolio_executive.css">
 </head>
 <body>
 <div class="app-shell">
@@ -14,14 +15,6 @@
             <span class="brand-mark">A</span>
             <div><strong>ARGOS</strong><span>Caderno executivo</span></div>
         </div>
-
-        <section class="owner-context" aria-label="Titular ativo">
-            <span class="owner-context-label">Analisando</span>
-            <strong id="activeOwnerName">Nei PF</strong>
-            <span id="activeOwnerType" class="owner-context-type">Pessoa física</span>
-            <label class="owner-selector-label" for="activeOwnerSelector">Trocar titular</label>
-            <select id="activeOwnerSelector" class="owner-selector"></select>
-        </section>
 
         <nav class="main-nav" aria-label="Seções do caderno" role="tablist">
             <button class="nav-item active" type="button" role="tab" aria-selected="true" aria-controls="tab-daily" data-tab="daily">Diário</button>
@@ -35,99 +28,76 @@
             <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" data-tab="settings">Configurações</button>
         </nav>
 
-        <div class="sidebar-footer">
-            <span class="system-dot"></span>
-            Sistema operacional
-        </div>
+        <div class="sidebar-footer"><span class="system-dot"></span>Sistema operacional</div>
     </aside>
 
     <main class="main-content">
         <section id="tab-daily" class="notebook-page active" role="tabpanel" data-tab-panel="daily">
             <header class="page-header">
-                <div>
-                    <h1 id="greeting">Carregando...</h1>
-                    <p id="currentDate" class="current-date"></p>
-                </div>
-                <div class="header-status">
-                    <span id="lastUpdateLabel" class="status-label"></span>
-                    <strong id="lastUpdate">Carregando...</strong>
-                </div>
+                <div><h1 id="greeting">Carregando...</h1><p id="currentDate" class="current-date"></p></div>
+                <div class="header-status"><span id="lastUpdateLabel" class="status-label"></span><strong id="lastUpdate">Carregando...</strong></div>
             </header>
 
             <section class="daily-experience" aria-label="Caderno executivo diário">
                 <p id="daily-loading" class="loading-message" hidden>Preparando sua visão do dia…</p>
                 <p id="daily-error" class="error-message" hidden></p>
-
                 <div class="daily-grid">
-                    <article id="daily-facts" class="daily-panel daily-panel-wide" aria-labelledby="factsTitle" hidden>
-                        <div class="panel-heading"><h2 id="factsTitle">O que aconteceu desde ontem?</h2><span id="factsCount" class="section-count"></span></div>
-                        <div id="importantFacts" class="daily-list"></div>
-                    </article>
-                    <article id="daily-attention" class="daily-panel daily-panel-wide" aria-labelledby="attentionTitle" hidden>
-                        <div class="panel-heading"><h2 id="attentionTitle">O que realmente merece sua atenção?</h2><span id="attentionCount" class="section-count"></span></div>
-                        <div id="dailyAttention" class="daily-list"></div>
-                    </article>
-                    <article id="daily-portfolio" class="daily-panel daily-panel-wide" aria-labelledby="portfolioTodayTitle" hidden>
-                        <div class="panel-heading"><h2 id="portfolioTodayTitle">Sua carteira hoje</h2></div>
-                        <div id="portfolioToday" class="daily-list"></div>
-                    </article>
-                    <article id="daily-analyses" class="daily-panel daily-panel-wide" aria-labelledby="analysesTitle" hidden>
-                        <div class="panel-heading"><h2 id="analysesTitle">Análises disponíveis</h2><span id="analysesCount" class="section-count"></span></div>
-                        <div id="dailyAnalyses" class="daily-list"></div>
-                    </article>
-                    <article id="marketAgendaPanel" class="daily-panel daily-panel-wide" aria-labelledby="agendaTitle" hidden>
-                        <div class="panel-heading"><h2 id="agendaTitle">Próximos eventos</h2><span id="agendaCount" class="section-count"></span></div>
-                        <div id="market-agenda" hidden><div id="marketAgenda" class="daily-list"></div></div>
-                    </article>
-                    <article id="daily-explore" class="daily-panel daily-panel-wide" aria-labelledby="exploreTitle">
-                        <div class="panel-heading"><h2 id="exploreTitle">Explorar</h2></div>
-                        <div class="daily-list"><div class="daily-item"><p class="daily-item-summary">Use o menu lateral para aprofundar Notícias, Carteiras, Panorama Global, Mercado, Agenda e Simulações.</p></div></div>
-                    </article>
+                    <article id="daily-facts" class="daily-panel daily-panel-wide" aria-labelledby="factsTitle" hidden><div class="panel-heading"><h2 id="factsTitle">O que aconteceu desde ontem?</h2><span id="factsCount" class="section-count"></span></div><div id="importantFacts" class="daily-list"></div></article>
+                    <article id="daily-attention" class="daily-panel daily-panel-wide" aria-labelledby="attentionTitle" hidden><div class="panel-heading"><h2 id="attentionTitle">O que realmente merece sua atenção?</h2><span id="attentionCount" class="section-count"></span></div><div id="dailyAttention" class="daily-list"></div></article>
+                    <article id="daily-portfolio" class="daily-panel daily-panel-wide" aria-labelledby="portfolioTodayTitle" hidden><div class="panel-heading"><h2 id="portfolioTodayTitle">Sua carteira hoje</h2></div><div id="portfolioToday" class="daily-list"></div></article>
+                    <article id="daily-analyses" class="daily-panel daily-panel-wide" aria-labelledby="analysesTitle" hidden><div class="panel-heading"><h2 id="analysesTitle">Análises disponíveis</h2><span id="analysesCount" class="section-count"></span></div><div id="dailyAnalyses" class="daily-list"></div></article>
+                    <article id="marketAgendaPanel" class="daily-panel daily-panel-wide" aria-labelledby="agendaTitle" hidden><div class="panel-heading"><h2 id="agendaTitle">Próximos eventos</h2><span id="agendaCount" class="section-count"></span></div><div id="market-agenda" hidden><div id="marketAgenda" class="daily-list"></div></div></article>
+                    <article id="daily-explore" class="daily-panel daily-panel-wide" aria-labelledby="exploreTitle"><div class="panel-heading"><h2 id="exploreTitle">Explorar</h2></div><div class="daily-list"><div class="daily-item"><p class="daily-item-summary">Use o menu lateral para aprofundar Notícias, Carteiras, Panorama Global, Mercado, Agenda e Simulações.</p></div></div></article>
                 </div>
             </section>
         </section>
 
-        <section id="tab-portfolios" class="notebook-page" role="tabpanel" data-tab-panel="portfolios" hidden>
-            <header class="notebook-page-header">
-                <p class="eyebrow">PATRIMÔNIOS</p>
-                <h1>Carteiras</h1>
-                <p>Posições oficiais, consolidação e importação em um único espaço.</p>
+        <section id="tab-portfolios" class="notebook-page portfolio-page" role="tabpanel" data-tab-panel="portfolios" hidden>
+            <header class="portfolio-page-header">
+                <div><p class="eyebrow">PATRIMÔNIO</p><h1>Carteiras</h1><p class="current-date">Análises individuais antes de qualquer consolidação.</p></div>
+                <div class="portfolio-tools">
+                    <div class="portfolio-owner-control"><label for="activeOwnerSelector">Patrimônio de</label><select id="activeOwnerSelector" class="portfolio-owner-select" aria-label="Selecionar titular"></select></div>
+                    <button id="portfolioImportToggle" class="portfolio-import-toggle" type="button">Importar carteiras</button>
+                </div>
             </header>
 
-            <section class="dashboard-section" aria-label="Dashboard operacional">
-                <div class="dashboard-toolbar">
-                    <div><p class="eyebrow">DASHBOARD OPERACIONAL</p><p id="dashboardVersion" class="dashboard-version"></p></div>
-                    <button id="toggleValues" class="values-toggle" type="button">Mostrar valores</button>
-                </div>
-                <div class="dashboard-block"><h2>Instituições</h2><div id="institutions" class="institutions-grid"></div></div>
-                <div class="dashboard-block"><h2>Consolidado</h2><div id="consolidated" class="consolidated-card"></div></div>
-            </section>
-
-            <section class="portfolio-import-section">
-                <div class="section-heading"><div><p class="eyebrow">CARTEIRAS</p><h2>Importar Carteiras</h2></div></div>
+            <section id="portfolioImportDrawer" class="portfolio-import-drawer" hidden>
                 <div class="portfolio-file-picker">
                     <label class="file-picker-button" for="portfolioFile">Selecionar arquivos</label>
                     <input id="portfolioFile" class="file-picker-input" type="file" multiple accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                     <div class="file-picker-details"><span id="portfolioFileName" class="file-picker-name">Nenhum arquivo selecionado</span><div id="portfolioFileSummary" class="file-picker-summary" aria-live="polite"></div></div>
                     <button id="importPortfolios" class="import-button" type="button" disabled>Importar</button>
-                    <button id="clearPortfolios" class="clear-button" type="button">Limpar todas as carteiras</button>
+                    <button id="clearPortfolios" class="clear-button" type="button">Limpar carteiras</button>
                 </div>
                 <div id="importProgress" class="import-progress" aria-live="polite" hidden><progress id="importProgressBar" max="100" value="0"></progress><span id="importProgressText"></span></div>
+                <section id="tipRanksPreview" class="tipranks-preview-section" hidden><div id="tipRanksPreviewContent"></div></section>
             </section>
 
-            <section id="tipRanksPreview" class="tipranks-preview-section" hidden>
-                <div class="section-heading"><div><p class="eyebrow">TIPRANKS</p><h2>Pré-visualização dos Dados Internos</h2></div></div>
-                <div id="tipRanksPreviewContent"></div>
-            </section>
+            <div class="portfolio-workspace">
+                <article class="portfolio-float">
+                    <div class="portfolio-float-heading"><div><h2>Patrimônio de <span id="portfolioOwnerName">Nei</span></h2><p class="portfolio-float-subtitle">Somente instituições do titular selecionado</p></div><button id="toggleValues" class="values-toggle" type="button">Mostrar valores</button></div>
+                    <div id="portfolioExecutiveTotals" class="portfolio-total-list"></div>
+                </article>
 
-            <section class="executive-section">
-                <div class="section-heading"><div><p id="situationLabel" class="eyebrow"></p><h2 id="situationTitle"></h2></div><span class="section-count" id="executiveCount"></span></div>
-                <div id="executiveCards" class="executive-grid"></div>
-            </section>
+                <article class="portfolio-float">
+                    <div class="portfolio-float-heading"><div><h2>Distribuição</h2><p class="portfolio-float-subtitle">Visão atual por moeda das carteiras importadas</p></div></div>
+                    <div id="portfolioExecutiveAllocation"></div>
+                </article>
 
-            <section class="modules-section">
-                <div class="section-heading"><div><p id="modulesLabel" class="eyebrow"></p><h2 id="modulesTitle"></h2></div></div>
-                <div id="moduleCards" class="modules-grid"></div>
+                <article class="portfolio-float">
+                    <div class="portfolio-float-heading"><div><h2>O que merece atenção</h2><p class="portfolio-float-subtitle">Ordem obrigatória do processo patrimonial</p></div></div>
+                    <div id="portfolioExecutiveAttention"></div>
+                    <div class="portfolio-consolidation"><p>O consolidado será liberado somente depois das análises individuais.</p><button class="portfolio-consolidate-button" type="button" disabled>Consolidar carteiras</button></div>
+                </article>
+
+                <article class="portfolio-float">
+                    <div class="portfolio-float-heading"><div><h2>Instituições</h2><p class="portfolio-float-subtitle">Abra e conclua uma análise por vez</p></div></div>
+                    <div id="portfolioExecutiveInstitutions"></div>
+                </article>
+            </div>
+
+            <section class="legacy-portfolio-support" aria-hidden="true">
+                <p id="dashboardVersion"></p><div id="institutions"></div><div id="consolidated"></div><p id="situationLabel"></p><h2 id="situationTitle"></h2><span id="executiveCount"></span><div id="executiveCards"></div><p id="modulesLabel"></p><h2 id="modulesTitle"></h2><div id="moduleCards"></div>
             </section>
         </section>
 
@@ -145,5 +115,6 @@
 <script src="daily_client.js"></script>
 <script src="daily_experience_renderer.js"></script>
 <script src="app.js"></script>
+<script src="portfolio_executive.js"></script>
 </body>
 </html>
