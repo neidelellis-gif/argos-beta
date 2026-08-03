@@ -6,6 +6,7 @@
     <meta name="description" content="ARGOS - Caderno Executivo">
     <title>ARGOS — Caderno Executivo</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="daily_flow.css">
     <link rel="stylesheet" href="portfolio_executive.css">
 </head>
 <body>
@@ -38,17 +39,48 @@
                 <div class="header-status"><span id="lastUpdateLabel" class="status-label"></span><strong id="lastUpdate">Carregando...</strong></div>
             </header>
 
-            <section class="daily-experience" aria-label="Caderno executivo diário">
+            <section class="daily-flow" aria-label="Fluxo executivo diário">
                 <p id="daily-loading" class="loading-message" hidden>Preparando sua visão do dia…</p>
                 <p id="daily-error" class="error-message" hidden></p>
-                <div class="daily-grid">
-                    <article id="daily-facts" class="daily-panel daily-panel-wide" aria-labelledby="factsTitle" hidden><div class="panel-heading"><h2 id="factsTitle">O que aconteceu desde ontem?</h2><span id="factsCount" class="section-count"></span></div><div id="importantFacts" class="daily-list"></div></article>
-                    <article id="daily-attention" class="daily-panel daily-panel-wide" aria-labelledby="attentionTitle" hidden><div class="panel-heading"><h2 id="attentionTitle">O que realmente merece sua atenção?</h2><span id="attentionCount" class="section-count"></span></div><div id="dailyAttention" class="daily-list"></div></article>
-                    <article id="daily-portfolio" class="daily-panel daily-panel-wide" aria-labelledby="portfolioTodayTitle" hidden><div class="panel-heading"><h2 id="portfolioTodayTitle">Sua carteira hoje</h2></div><div id="portfolioToday" class="daily-list"></div></article>
-                    <article id="daily-analyses" class="daily-panel daily-panel-wide" aria-labelledby="analysesTitle" hidden><div class="panel-heading"><h2 id="analysesTitle">Análises disponíveis</h2><span id="analysesCount" class="section-count"></span></div><div id="dailyAnalyses" class="daily-list"></div></article>
-                    <article id="marketAgendaPanel" class="daily-panel daily-panel-wide" aria-labelledby="agendaTitle" hidden><div class="panel-heading"><h2 id="agendaTitle">Próximos eventos</h2><span id="agendaCount" class="section-count"></span></div><div id="market-agenda" hidden><div id="marketAgenda" class="daily-list"></div></div></article>
-                    <article id="daily-explore" class="daily-panel daily-panel-wide" aria-labelledby="exploreTitle"><div class="panel-heading"><h2 id="exploreTitle">Explorar</h2></div><div class="daily-list"><div class="daily-item"><p class="daily-item-summary">Use o menu lateral para aprofundar Notícias, Carteiras, Panorama Global, Mercado, Agenda e Simulações.</p></div></div></article>
-                </div>
+
+                <section id="daily-facts" class="daily-flow-section" hidden>
+                    <div class="daily-flow-heading"><h2>O que aconteceu nas últimas horas</h2><span id="factsCount" class="daily-flow-count"></span></div>
+                    <div id="importantFacts" class="daily-flow-list"></div>
+                </section>
+
+                <section id="daily-market-reaction" class="daily-flow-section" hidden>
+                    <div class="daily-flow-heading"><h2>Como o mercado está reagindo</h2><span id="marketReactionCount" class="daily-flow-count"></span></div>
+                    <div id="marketReaction" class="daily-flow-list"></div>
+                </section>
+
+                <section id="daily-investment-impact" class="daily-flow-section" hidden>
+                    <div class="daily-flow-heading"><h2>Qual o impacto nos seus investimentos?</h2></div>
+                    <div class="daily-impact-grid">
+                        <article class="daily-impact-owner">
+                            <h3>Nei</h3>
+                            <p class="daily-impact-owner-status">Pessoa física</p>
+                            <div id="neiInvestmentImpact" class="daily-flow-list"></div>
+                        </article>
+                        <article class="daily-impact-owner">
+                            <h3>Jolika</h3>
+                            <p class="daily-impact-owner-status">Pessoa jurídica</p>
+                            <div id="jolikaInvestmentImpact" class="daily-flow-list"></div>
+                        </article>
+                    </div>
+                </section>
+
+                <section id="daily-decision" class="daily-flow-section" hidden>
+                    <div class="daily-decision">
+                        <div class="daily-decision-copy">
+                            <h2>Deseja aprofundar a análise?</h2>
+                            <p>As carteiras de Nei e Jolika permanecem separadas em todas as etapas.</p>
+                        </div>
+                        <div class="daily-decision-actions">
+                            <button id="dailyNotNow" class="daily-decision-button" type="button">Agora não</button>
+                            <button id="dailyAnalyzePortfolios" class="daily-decision-button daily-decision-button-primary" type="button">Analisar carteiras</button>
+                        </div>
+                    </div>
+                </section>
             </section>
         </section>
 
@@ -78,18 +110,15 @@
                     <div class="portfolio-float-heading"><div><h2>Patrimônio de <span id="portfolioOwnerName">Nei</span></h2><p class="portfolio-float-subtitle">Somente instituições do titular selecionado</p></div><button id="toggleValues" class="values-toggle" type="button">Mostrar valores</button></div>
                     <div id="portfolioExecutiveTotals" class="portfolio-total-list"></div>
                 </article>
-
                 <article class="portfolio-float">
                     <div class="portfolio-float-heading"><div><h2>Distribuição</h2><p class="portfolio-float-subtitle">Visão atual por moeda das carteiras importadas</p></div></div>
                     <div id="portfolioExecutiveAllocation"></div>
                 </article>
-
                 <article class="portfolio-float">
                     <div class="portfolio-float-heading"><div><h2>O que merece atenção</h2><p class="portfolio-float-subtitle">Ordem obrigatória do processo patrimonial</p></div></div>
                     <div id="portfolioExecutiveAttention"></div>
                     <div class="portfolio-consolidation"><p>O consolidado será liberado somente depois das análises individuais.</p><button class="portfolio-consolidate-button" type="button" disabled>Consolidar carteiras</button></div>
                 </article>
-
                 <article class="portfolio-float">
                     <div class="portfolio-float-heading"><div><h2>Instituições</h2><p class="portfolio-float-subtitle">Abra e conclua uma análise por vez</p></div></div>
                     <div id="portfolioExecutiveInstitutions"></div>
