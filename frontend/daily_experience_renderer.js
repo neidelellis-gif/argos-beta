@@ -51,7 +51,7 @@ const DailyExperienceRenderer = (() => {
         const section = panel(sectionId);
         const list = panel(listId);
         if (!section || !list) {
-            return;
+            return 0;
         }
 
         list.replaceChildren();
@@ -69,6 +69,7 @@ const DailyExperienceRenderer = (() => {
                 ? `${list.children.length} ${list.children.length === 1 ? "tópico" : "tópicos"}`
                 : "";
         }
+        return list.children.length;
     }
 
     function formatUpdate(isoValue) {
@@ -166,7 +167,13 @@ const DailyExperienceRenderer = (() => {
         panel("lastUpdateLabel").textContent = updateTime ? "Atualizado" : "";
         panel("lastUpdate").textContent = updateTime ? `hoje às ${updateTime}` : "";
 
-        renderList(
+        const factsSection = panel("daily-facts");
+        const factsHeading = factsSection ? factsSection.querySelector("h2") : null;
+        if (factsHeading) {
+            factsHeading.textContent = "O que aconteceu nas últimas 24 horas";
+        }
+
+        const factsRendered = renderList(
             "daily-facts", "importantFacts", "factsCount",
             response.facts, LIMITS.facts,
             (fact) => ({
@@ -174,6 +181,19 @@ const DailyExperienceRenderer = (() => {
                 summary: fact.summary
             })
         );
+
+        if (factsRendered === 0 && factsSection) {
+            const factsList = panel("importantFacts");
+            factsList.appendChild(item(
+                "Nenhum fato relevante foi incorporado nas últimas 24 horas.",
+                "A leitura do mercado aparece somente depois desta verificação."
+            ));
+            factsSection.hidden = false;
+            const factsCount = panel("factsCount");
+            if (factsCount) {
+                factsCount.textContent = "";
+            }
+        }
 
         renderList(
             "daily-market-reaction", "marketReaction", "marketReactionCount",
