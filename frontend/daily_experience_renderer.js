@@ -1,86 +1,148 @@
 "use strict";
 
 const DailyExperienceRenderer = (() => {
-    const LIMITS = Object.freeze({ facts: 5, priorities: 2, analyses: 2, contexts: 5, impacts: 5, agenda: 10, diagnostics: 10 });
-    const QUALITY_LABELS = Object.freeze({ ERROR: "Erro", WARNING: "Atenção", INFO: "Informação" });
-    const EVENT_LABELS = Object.freeze({
-        EARNINGS: "Resultados", DIVIDEND: "Dividendos", CENTRAL_BANK: "Bancos centrais",
-        MACROECONOMIC: "Economia", REGULATORY: "Regulação", CORPORATE: "Evento corporativo",
-        MARKET_HOLIDAY: "Feriado de mercado", OTHER: "Outro"
-    });
-    const LEVEL_LABELS = Object.freeze({
-        HIGH: "Alta",
-        MEDIUM: "Moderada",
-        MODERATE: "Moderada",
-        LOW: "Baixa"
-    });
-    const ACTION_LABELS = Object.freeze({
-        ANALYZE: "Analisar",
-        DECIDE: "Decidir",
-        Analisar: "Analisar",
-        Decidir: "Decidir"
-    });
-    const DIRECTION_LABELS = Object.freeze({
-        POSITIVE: "Positivo", NEGATIVE: "Negativo", MIXED: "Misto", UNCERTAIN: "Incerto"
-    });
-    const CONTEXT_LABELS = Object.freeze({
-        RISK_ALIGNMENT: "Perfil de risco", HORIZON_ALIGNMENT: "Horizonte",
-        OBJECTIVE_ALIGNMENT: "Objetivos", LIQUIDITY_CONTEXT: "Liquidez",
-        PRESERVATION_CONTEXT: "Preservação de capital", VOLATILITY_CONTEXT: "Volatilidade",
-        CONCENTRATION_CONTEXT: "Concentração", RESTRICTION_CONTEXT: "Restrições",
-        CURRENCY_CONTEXT: "Moeda-base", MARKET_PREFERENCE: "Mercado preferencial",
-        DECISION_FREQUENCY: "Frequência decisória", CONTEXT_CONFLICT: "Conflito de contexto"
-    });
-
-    function element(tagName, className, text) {
-        const node = document.createElement(tagName);
-        node.className = className;
-        node.textContent = typeof text === "string" ? text : "";
-        return node;
-    }
-
-    function text(value) {
-        return typeof value === "string" ? value : "";
-    }
-
-    function item({ eyebrow, badge, title, summary, metadata }) {
-        const article = element("article", "daily-item", "");
-        const header = element("div", "daily-item-header", "");
-        header.appendChild(element("span", "daily-item-eyebrow", eyebrow));
-        if (badge) {
-            header.appendChild(element("span", badge.className, badge.text));
-        }
-        article.appendChild(header);
-        article.appendChild(element("h3", "", title));
-        if (summary) {
-            article.appendChild(element("p", "daily-item-summary", summary));
-        }
-        if (metadata) {
-            article.appendChild(element("p", "daily-item-meta", metadata));
-        }
-        return article;
-    }
+    const LIMITS = Object.freeze({ facts: 4, market: 5, ownerImpacts: 3 });
 
     function panel(id) {
         return document.getElementById(id);
     }
 
-    function renderCollection(panelId, listId, values, limit, createItem) {
-        const section = panel(panelId);
-        const container = panel(listId);
-        if (!section || !container) {
+    function text(value) {
+        return typeof value === "string" ? value.trim() : "";
+    }
+
+    function clean(value) {
+        return text(value)
+            .replace(/analysis-[a-z0-9]+/gi, "uma análise interna")
+            .replace(/A prioridade deriva de uma análise interna,?\s*/i, "")
+            .replace(/A prioridade deriva de[^.]*\.?/i, "")
+            .replace(/A origem está relacionada ao ativo[^.]*\.?/gi, "")
+            .replace(/Direção não é recomendação\.?/gi, "")
+            .replace(/\s+·\s+·/g, " ·")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+    }
+
+    function item(title, summary = "") {
+        const row = document.createElement("article");
+        row.className = "daily-flow-item";
+
+        const marker = document.createElement("span");
+        marker.className = "daily-flow-marker";
+        marker.setAttribute("aria-hidden", "true");
+
+        const body = document.createElement("div");
+        const heading = document.createElement("h3");
+        heading.textContent = clean(title);
+        body.appendChild(heading);
+
+        const description = clean(summary);
+        if (description && description !== clean(title)) {
+            const paragraph = document.createElement("p");
+            paragraph.textContent = description;
+            body.appendChild(paragraph);
+        }
+
+        row.append(marker, body);
+        return row;
+    }
+
+    function renderList(sectionId, listId, countId, values, limit, mapper) {
+        const section = panel(sectionId);
+        const list = panel(listId);
+        if (!section || !list) {
+            return;
+        }
+
+        list.replaceChildren();
+        values.slice(0, limit).forEach((value) => {
+            const mapped = mapper(value);
+            if (mapped && clean(mapped.title)) {
+                list.appendChild(item(mapped.title, mapped.summary));
+            }
+        });
+
+        section.hidden = list.children.length === 0;
+        const count = panel(countId);
+        if (count) {
+            count.textContent = list.children.length
+                ? `${list.children.length} ${list.children.length === 1 ? "tópico" : "tópicos"}`
+                : "";
+        }
+    }
+
+    function formatUpdate(isoValue) {
+        const date = new Date(isoValue);
+        if (Number.isNaN(date.getTime())) {
+            return "";
+        }
+        return new Intl.DateTimeFormat("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "America/Sao_Paulo"
+        }).format(date);
+    }
+
+    function marketItems(response) {
+        const impacts = Array.isArray(response.impact_assessments)
+            ? response.impact_assessments : [];
+        const priorities = Array.isArray(response.priorities)
+            ? response.priorities : [];
+
+        const combined = impacts.map((impact) => ({
+            title: impact.title,
+            summary: impact.summary
+        })).concat(priorities.map((priority) => ({
+            title: priority.title,
+            summary: priority.summary || priority.reason
+        })));
+
+        const seen = new Set();
+        return combined.filter((entry) => {
+            const key = clean(entry.title).toLowerCase();
+            if (!key || seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+    }
+
+    function renderOwnerStatus(containerId, ownerName) {
+        const container = panel(containerId);
+        if (!container) {
             return;
         }
         container.replaceChildren();
-        values.slice(0, limit).forEach((value) => container.appendChild(createItem(value)));
-        section.hidden = container.children.length === 0;
+        container.appendChild(item(
+            `Atualize as carteiras de ${ownerName} para calcular os impactos por posição.`,
+            "A análise será feita por instituição e qualquer consolidação permanecerá restrita a este titular."
+        ));
     }
 
-    function assets(itemValue) {
-        const values = itemValue.affected_assets;
-        return Array.isArray(values)
-            ? values.filter((value) => typeof value === "string").join(" · ")
-            : "";
+    function bindDecisionActions() {
+        const analyze = panel("dailyAnalyzePortfolios");
+        const notNow = panel("dailyNotNow");
+
+        if (analyze && !analyze.dataset.bound) {
+            analyze.dataset.bound = "true";
+            analyze.addEventListener("click", () => {
+                const portfolioTab = document.querySelector('[data-tab="portfolios"]');
+                if (portfolioTab) {
+                    portfolioTab.click();
+                }
+            });
+        }
+
+        if (notNow && !notNow.dataset.bound) {
+            notNow.dataset.bound = "true";
+            notNow.addEventListener("click", () => {
+                const decision = panel("daily-decision");
+                if (decision) {
+                    decision.hidden = true;
+                }
+            });
+        }
     }
 
     function hideState() {
@@ -89,125 +151,42 @@ const DailyExperienceRenderer = (() => {
     }
 
     function render(response) {
-        if (!response || response.status !== "SUCCESS" || !["1.0", "1.1", "1.2", "1.3", "1.4", "1.5"].includes(response.contract_version)
-                || !response.header || !Array.isArray(response.facts)
-                || !Array.isArray(response.priorities) || !Array.isArray(response.analyses)
-                || (response.contract_version === "1.5" && (!response.experience
-                    || !["READY", "PARTIAL"].includes(response.experience.status)))) {
+        if (!response || response.status !== "SUCCESS" || !response.header
+                || !Array.isArray(response.facts)
+                || !Array.isArray(response.priorities)
+                || !Array.isArray(response.analyses)) {
             throw new TypeError("Invalid daily experience response");
         }
 
         hideState();
         panel("greeting").textContent = text(response.header.greeting);
         panel("currentDate").textContent = text(response.header.display_date);
-        panel("lastUpdateLabel").textContent = "Experiência gerada em";
-        panel("lastUpdate").textContent = text(response.generated_at);
 
-        const quality = ["1.4", "1.5"].includes(response.contract_version) && response.data_quality
-            && ["WARNING", "ERROR"].includes(response.data_quality.status)
-            && Array.isArray(response.data_quality.diagnostics) ? response.data_quality.diagnostics : [];
-        renderCollection("data-quality", "dataQualityDiagnostics", quality, LIMITS.diagnostics, (diagnostic) => {
-            const affected = Array.isArray(diagnostic.affected_items)
-                ? diagnostic.affected_items.filter((value) => typeof value === "string").join(" · ") : "";
-            return item({
-                eyebrow: QUALITY_LABELS[diagnostic.severity] || "Informação",
-                title: text(diagnostic.title), description: text(diagnostic.description),
-                summary: text(diagnostic.description),
-                metadata: affected ? `Itens afetados: ${affected}` : ""
-            });
-        });
+        const updateTime = formatUpdate(response.generated_at);
+        panel("lastUpdateLabel").textContent = updateTime ? "Atualizado" : "";
+        panel("lastUpdate").textContent = updateTime ? `hoje às ${updateTime}` : "";
 
-        renderCollection("daily-facts", "importantFacts", response.facts, LIMITS.facts, (fact) => (
-            item({
-                eyebrow: text(fact.category),
-                title: text(fact.title || fact.text),
-                summary: text(fact.summary),
-                metadata: assets(fact)
-            })
-        ));
-        renderCollection(
-            "daily-priorities", "dailyPriorities", response.priorities,
-            LIMITS.priorities, (priority) => {
-                const level = LEVEL_LABELS[priority.level] || text(priority.label);
-                return item({
-                    eyebrow: ACTION_LABELS[priority.type] || text(priority.type),
-                    badge: level ? {
-                        className: `priority priority-${level === "Alta" ? "high" : level === "Baixa" ? "low" : "moderate"}`,
-                        text: level
-                    } : null,
-                    title: text(priority.title),
-                    summary: text(priority.summary || priority.reason),
-                    metadata: assets(priority)
-                });
-            }
-        );
-
-        renderCollection(
-            "daily-analyses", "dailyAnalyses", response.analyses,
-            LIMITS.analyses, (analysis) => item({
-                eyebrow: ACTION_LABELS[analysis.type] || ACTION_LABELS[analysis.action] || text(analysis.action),
-                title: text(analysis.title),
-                summary: text(analysis.summary || analysis.reason),
-                metadata: assets(analysis)
+        renderList(
+            "daily-facts", "importantFacts", "factsCount",
+            response.facts, LIMITS.facts,
+            (fact) => ({
+                title: fact.title || fact.text,
+                summary: fact.summary
             })
         );
 
-        const contexts = Array.isArray(response.decision_contexts) ? response.decision_contexts : [];
-        renderCollection("daily-decision-context", "dailyDecisionContexts", contexts, LIMITS.contexts, (context) => {
-            const level = LEVEL_LABELS[context.relevance_level] || "";
-            const related = Array.isArray(context.related_assets)
-                ? context.related_assets.filter((value) => typeof value === "string").join(" · ") : "";
-            const factors = Array.isArray(context.context_factors) ? context.context_factors
-                .filter((factor) => factor && typeof factor.description === "string")
-                .map((factor) => factor.description).join(" · ") : "";
-            const limitations = Array.isArray(context.limitations)
-                ? context.limitations.filter((value) => typeof value === "string").join(" · ") : "";
-            const metadata = [related ? `Ativos relacionados: ${related}` : "", factors,
-                limitations ? `Limitações: ${limitations}` : ""].filter(Boolean).join(" · ");
-            return item({
-                eyebrow: CONTEXT_LABELS[context.context_type] || "Contexto",
-                badge: level ? { className: `priority priority-${level === "Alta" ? "high" : level === "Baixa" ? "low" : "moderate"}`, text: level } : null,
-                title: text(context.title), summary: text(context.summary), metadata
-            });
-        });
+        renderList(
+            "daily-market-reaction", "marketReaction", "marketReactionCount",
+            marketItems(response), LIMITS.market,
+            (entry) => entry
+        );
 
-        const impacts = Array.isArray(response.impact_assessments) ? response.impact_assessments : [];
-        renderCollection("daily-impacts", "dailyImpacts", impacts, LIMITS.impacts, (impact) => {
-            const level = LEVEL_LABELS[impact.impact_level] || "";
-            const direction = DIRECTION_LABELS[impact.impact_direction] || "Incerto";
-            const confidence = LEVEL_LABELS[impact.confidence] || "";
-            const factors = Array.isArray(impact.impact_factors) ? impact.impact_factors
-                .filter((factor) => factor && typeof factor.description === "string")
-                .map((factor) => factor.description).join(" · ") : "";
-            const metadata = [assets(impact) ? `Ativos relacionados: ${assets(impact)}` : "", factors]
-                .filter(Boolean).join(" · ");
-            return item({
-                eyebrow: `Direção: ${direction} · Confiança: ${confidence}`,
-                badge: level ? { className: `priority priority-${level === "Alta" ? "high" : level === "Baixa" ? "low" : "moderate"}`, text: level } : null,
-                title: text(impact.title), summary: text(impact.summary), metadata
-            });
-        });
+        renderOwnerStatus("neiInvestmentImpact", "Nei");
+        renderOwnerStatus("jolikaInvestmentImpact", "Jolika");
 
-        const agenda = ["1.1", "1.2", "1.3", "1.4", "1.5"].includes(response.contract_version) && Array.isArray(response.market_agenda)
-            ? response.market_agenda : [];
-        renderCollection("marketAgendaPanel", "marketAgenda", agenda, LIMITS.agenda, (event) => {
-            const timing = event.all_day ? "Dia inteiro" : [text(event.event_time), text(event.timezone)]
-                .filter(Boolean).join(" — ");
-            const metadata = [text(event.event_date), timing,
-                assets(event) ? `Relacionada a: ${assets(event)}` : "",
-                text(event.source_name) ? `Fonte: ${text(event.source_name)}` : ""
-            ].filter(Boolean).join(" · ");
-            const level = LEVEL_LABELS[event.importance] || "";
-            return item({
-                eyebrow: EVENT_LABELS[event.event_type] || "Outro",
-                badge: level ? {
-                    className: `priority priority-${level === "Alta" ? "high" : level === "Baixa" ? "low" : "moderate"}`,
-                    text: level
-                } : null,
-                title: text(event.title), summary: text(event.summary), metadata
-            });
-        });
-        panel("market-agenda").hidden = agenda.length === 0;
+        panel("daily-investment-impact").hidden = false;
+        panel("daily-decision").hidden = false;
+        bindDecisionActions();
     }
 
     function showLoading() {
