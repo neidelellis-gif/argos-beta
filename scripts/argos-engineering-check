@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+
+set -u
+
+readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly PYTHON_BIN="${PYTHON_BIN:-python}"
+readonly NODE_BIN="${NODE_BIN:-node}"
+
+declare -a STEP_NAMES=()
+declare -a STEP_RESULTS=()
+
+run_step() {
+    local number="$1"
+    local name="$2"
+    shift 2
+
+    printf '\nPASSO %s\n%s\n\n' "$number" "$name"
+    if "$@"; then
+        STEP_NAMES+=("$name")
+        STEP_RESULTS+=("PASSOU")
+        printf '\nPASSOU\n'
+    else
+        STEP_NAMES+=("$name")
+        STEP_RESULTS+=("FALHOU")
+        printf '\nFALHOU\n'
+    fi
+}
+
+check_environment() {
+    local failed=0
+    local command_name
+
+    for command_name in "$PYTHON_BIN" "$NODE_BIN" ruff mypy pyright; do
+        if ! command -v "$command_name" >/dev/null 2>&1; then
+            printf 'Dependência ausente: comando "%s" não encontrado.\n' "$command_name" >&2
+            failed=1
+        fi
+    done
+
+    if command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+        "$PYTHON_BIN" --version || failed=1
+        "$PYTHON_BIN" -c 'import openpyxl, pytest, xlrd' || {
+            printf 'Dependências Python ausentes. Instale as dependências do projeto e de engenharia.\n' >&2
+            failed=1
+        }
+    fi
+
+    if command -v "$NODE_BIN" >/dev/null 2>&1; then
+        "$NODE_BIN" --version || failed=1
+    fi
+
+    return "$failed"
+}
+
+run_python_tests() {
+    "$PYTHON_BIN" -m pytest -q
+}
+
+run_javascript_tests() {
+    "$NODE_BIN" --test frontend/*.test.js
+}
+
+run_lint() {
+    ruff check backend tests
+}
+
+run_type_checking() {
+    local failed=0
+
+    mypy backend || failed=1
+    pyright backend tests || failed=1
+    return "$failed"
+}
+
+print_summary() {
+    local failed=0
+    local index
+
+    printf '\nPASSO 6\nResumo final\n\n'
+    for index in "${!STEP_NAMES[@]}"; do
+        printf '%-32s %s\n' "${STEP_NAMES[$index]}" "${STEP_RESULTS[$index]}"
+        if [[ "${STEP_RESULTS[$index]}" == "FALHOU" ]]; then
+            failed=1
+        fi
+    done
+
+    if ((failed)); then
+        printf '\nFALHOU\n'
+    else
+        printf '\nPASSOU\n'
+    fi
+    return "$failed"
+}
+
+cd "$ROOT_DIR"
+
+run_step 1 "Verificando ambiente e dependências" check_environment
+run_step 2 "Executando testes Python" run_python_tests
+run_step 3 "Executando testes JavaScript" run_javascript_tests
+run_step 4 "Executando lint" run_lint
+run_step 5 "Executando type checking" run_type_checking
+
+print_summary
