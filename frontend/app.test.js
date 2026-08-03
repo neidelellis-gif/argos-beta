@@ -886,6 +886,17 @@ test("DailyFrontendClient posts the official request and returns JSON on HTTP 20
     assert.deepEqual(JSON.parse(call.options.body), request);
 });
 
+test("DailyFrontendClient calls fetch without changing its receiver", async () => {
+    const expected = dailyResponse();
+    const fetchImplementation = async function () {
+        assert.equal(this, undefined);
+        return { status: 200, async json() { return expected; } };
+    };
+    const client = new context.DailyClientForTest(fetchImplementation);
+
+    assert.equal(await client.loadExperience({}), expected);
+});
+
 test("DailyFrontendClient accepts complete 1.3 and requires decision contexts", async () => {
     const complete = dailyResponse({
         contract_version: "1.3", market_agenda: [], impact_assessments: [],
