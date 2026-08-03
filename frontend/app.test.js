@@ -24,6 +24,84 @@ function readCsv(content) {
     return context.getCsvDataRows(context.parseCsv(content));
 }
 
+function createNotebookElement(dataset) {
+    const classes = new Set();
+    return {
+        dataset,
+        hidden: false,
+        attributes: {},
+        listener: null,
+        classList: {
+            toggle(name, enabled) {
+                enabled ? classes.add(name) : classes.delete(name);
+            },
+            contains(name) {
+                return classes.has(name);
+            }
+        },
+        setAttribute(name, value) {
+            this.attributes[name] = value;
+        },
+        addEventListener(name, listener) {
+            if (name === "click") this.listener = listener;
+        }
+    };
+}
+
+function createNotebookFixture() {
+    const names = ["daily", "profile", "portfolios"];
+    const items = names.map((tab) => createNotebookElement({ tab }));
+    const panels = names.map(
+        (tabPanel) => createNotebookElement({ tabPanel })
+    );
+    const root = {
+        querySelectorAll(selector) {
+            return selector === "[data-tab]" ? items : panels;
+        }
+    };
+    return { root, items, panels };
+}
+
+test("notebook opens with only Daily selected", () => {
+    const { root, items, panels } = createNotebookFixture();
+
+    context.setupNotebookNavigation(root);
+
+    assert.equal(items[0].attributes["aria-selected"], "true");
+    assert.equal(panels[0].hidden, false);
+    assert.equal(panels.filter((panel) => !panel.hidden).length, 1);
+});
+
+test("notebook switches tabs without replacing panel content", () => {
+    const { root, items, panels } = createNotebookFixture();
+    panels[2].contentState = "preserved";
+    context.setupNotebookNavigation(root);
+
+    items[2].listener();
+
+    assert.equal(panels.filter((panel) => !panel.hidden).length, 1);
+    assert.equal(panels[2].hidden, false);
+    assert.equal(panels[2].contentState, "preserved");
+    assert.equal(items[2].classList.contains("active"), true);
+    assert.equal(items[0].attributes["aria-selected"], "false");
+});
+
+test("Daily and Portfolios keep their approved content boundaries", () => {
+    const html = fs.readFileSync("frontend/index.html", "utf8");
+    const daily = html.match(
+        /data-tab-panel="daily"[\s\S]*?data-tab-panel="portfolios"/
+    )[0];
+    const portfolios = html.match(
+        /data-tab-panel="portfolios"[\s\S]*?data-tab-panel="profile"/
+    )[0];
+
+    assert.match(daily, /class="daily-experience"/);
+    assert.doesNotMatch(daily, /class="dashboard-section"/);
+    assert.doesNotMatch(daily, /class="portfolio-import-section"/);
+    assert.match(portfolios, /class="dashboard-section"/);
+    assert.match(portfolios, /class="portfolio-import-section"/);
+});
+
 test("initial canonical portfolio state is empty", () => {
     assert.deepEqual(
         JSON.parse(JSON.stringify(context.getCanonicalPortfolioPositions())),

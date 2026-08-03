@@ -12,22 +12,21 @@
 
     <aside class="sidebar">
 
-        <nav class="main-nav">
+        <div class="brand" aria-label="ARGOS">
+            <span class="brand-mark">A</span>
+            <div><strong>ARGOS</strong><span>Caderno executivo</span></div>
+        </div>
 
-            <a class="nav-item active">Diário</a>
-
-            <a class="nav-item">Panorama Global</a>
-
-            <a class="nav-item">Mercados</a>
-
-            <a class="nav-item">Carteiras</a>
-
-            <a class="nav-item">Agenda</a>
-
-            <a class="nav-item">Simulações</a>
-
-            <a class="nav-item">Configurações</a>
-
+        <nav class="main-nav" aria-label="Seções do caderno" role="tablist">
+            <button class="nav-item active" type="button" role="tab" aria-selected="true" aria-controls="tab-daily" data-tab="daily">Diário</button>
+            <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-profile" data-tab="profile">Meu Perfil</button>
+            <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-news" data-tab="news">Notícias</button>
+            <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-portfolios" data-tab="portfolios">Carteiras</button>
+            <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-global" data-tab="global">Panorama Global</button>
+            <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-market" data-tab="market">Mercado</button>
+            <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-agenda" data-tab="agenda">Agenda</button>
+            <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-simulations" data-tab="simulations">Simulações</button>
+            <button class="nav-item" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" data-tab="settings">Configurações</button>
         </nav>
 
         <div class="sidebar-footer">
@@ -41,7 +40,7 @@
     </aside>
 
     <main class="main-content">
-
+        <section id="tab-daily" class="notebook-page active" role="tabpanel" data-tab-panel="daily">
         <header class="page-header">
 
             <div>
@@ -138,7 +137,14 @@
                 </article>
             </div>
         </section>
+        </section>
 
+        <section id="tab-portfolios" class="notebook-page" role="tabpanel" data-tab-panel="portfolios" hidden>
+            <header class="notebook-page-header">
+                <p class="eyebrow">PATRIMÔNIOS</p>
+                <h1>Carteiras</h1>
+                <p>Posições oficiais, consolidação e importação em um único espaço.</p>
+            </header>
         <section class="dashboard-section" aria-label="Dashboard operacional">
             <div class="dashboard-toolbar">
                 <div>
@@ -293,6 +299,15 @@
             </div>
 
         </section>
+        </section>
+
+        <section id="tab-profile" class="notebook-page" role="tabpanel" data-tab-panel="profile" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Meu Perfil</h1><p>Módulo em preparação</p></div></section>
+        <section id="tab-news" class="notebook-page" role="tabpanel" data-tab-panel="news" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Notícias</h1><p>Módulo em preparação</p></div></section>
+        <section id="tab-global" class="notebook-page" role="tabpanel" data-tab-panel="global" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Panorama Global</h1><p>Módulo em preparação</p></div></section>
+        <section id="tab-market" class="notebook-page" role="tabpanel" data-tab-panel="market" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Mercado</h1><p>Módulo em preparação</p></div></section>
+        <section id="tab-agenda" class="notebook-page" role="tabpanel" data-tab-panel="agenda" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Agenda</h1><p>Módulo em preparação</p></div></section>
+        <section id="tab-simulations" class="notebook-page" role="tabpanel" data-tab-panel="simulations" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Simulações</h1><p>Módulo em preparação</p></div></section>
+        <section id="tab-settings" class="notebook-page" role="tabpanel" data-tab-panel="settings" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Configurações</h1><p>Módulo em preparação</p></div></section>
 
     </main>
 
