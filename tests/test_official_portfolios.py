@@ -3,6 +3,7 @@
 from datetime import date, datetime, timezone
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -107,8 +108,9 @@ def test_official_positions_pass_data_quality_and_complete_daily_flow() -> None:
         DailyApiRequest(positions=positions, fact_candidates=(), reference_date=REFERENCE)
     )
 
+    diagnostics = cast(list[dict[str, object]], quality["diagnostics"])
     portfolio_errors = [
-        item for item in quality["diagnostics"]
+        item for item in diagnostics
         if item["category"] == "PORTFOLIO" and item["severity"] == "ERROR"
     ]
     assert portfolio_errors == []

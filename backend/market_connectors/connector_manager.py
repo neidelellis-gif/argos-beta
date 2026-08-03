@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from datetime import datetime, timezone
+from typing import cast
 
 from backend.important_facts import MarketFact
 from backend.market_agenda import MarketAgendaEvent
@@ -66,13 +67,13 @@ class ConnectorManager:
         error: Exception | None = None
         try:
             facts, agenda, metadata = self._load(target)
-            selected = target
+            selected = cast(str, target)
         except Exception as exc:
             error = exc
             if self._fallback is None or target == self._fallback:
                 raise
             facts, agenda, metadata = self._load(self._fallback)
-            selected = self._fallback
+            selected = cast(str, self._fallback)
         self._active = selected
         entry = ConnectorCacheEntry(
             last_reload=self._clock(), facts=facts, agenda=agenda,
