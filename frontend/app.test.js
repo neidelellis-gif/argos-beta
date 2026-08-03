@@ -1028,7 +1028,7 @@ test("loadDailyExperience exposes loading, prevents concurrent loads and renders
     assert.equal(elements.get("greeting").textContent, "Bom dia, Nei.");
 });
 
-test("loadDailyExperience sends canonical positions through DailyRequestBuilder", async () => {
+test("loadDailyExperience leaves official portfolio selection to the backend", async () => {
     dailyDom();
     context.storeCanonicalPortfolioPositions([CANONICAL_POSITION]);
     let request;
@@ -1041,11 +1041,10 @@ test("loadDailyExperience sends canonical positions through DailyRequestBuilder"
     });
 
     assert.deepEqual(JSON.parse(JSON.stringify(request)), JSON.parse(JSON.stringify({
-        positions: [context.DailyRequestBuilder.build([CANONICAL_POSITION])[0]],
+        positions: [],
         fact_candidates: [],
         reference_date: null
     })));
-    assert.equal(request.positions[0].ignored_field, undefined);
 });
 
 test("loadDailyExperience renders only the safe failure message", async () => {

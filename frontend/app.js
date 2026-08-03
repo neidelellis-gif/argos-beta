@@ -665,7 +665,8 @@ async function loadDailyExperience(client = new DailyFrontendClient()) {
             await import("./daily_request_builder.js");
         }
         const response = await client.loadExperience({
-            positions: DailyRequestBuilder.build(canonicalPortfolioPositions),
+            // The backend is the sole authority for the official portfolios.
+            positions: [],
             fact_candidates: [],
             reference_date: null
         });

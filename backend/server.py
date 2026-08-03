@@ -338,6 +338,7 @@ class ArgosRequestHandler(
     def _daily_experience(self) -> None:
         market_facts = MARKET_CONNECTOR_MANAGER.load_facts()
         market_agenda = MARKET_CONNECTOR_MANAGER.load_agenda()
+        official_positions = OFFICIAL_PORTFOLIO_LOADER.load_positions()
         try:
             content_length = self._content_length()
         except ValueError:
@@ -345,7 +346,7 @@ class ArgosRequestHandler(
         if content_length < 0:
             response = DAILY_HTTP_ADAPTER.handle(
                 self.command, dict(self.headers), b"", market_agenda, self._session_decision_profile(),
-                OFFICIAL_PORTFOLIO_LOADER.load_positions(),
+                official_positions,
                 market_facts,
             )
         elif content_length > MAX_DAILY_REQUEST_BYTES:
@@ -355,14 +356,14 @@ class ArgosRequestHandler(
                 b" " * (MAX_DAILY_REQUEST_BYTES + 1),
                 market_agenda,
                 self._session_decision_profile(),
-                OFFICIAL_PORTFOLIO_LOADER.load_positions(),
+                official_positions,
                 market_facts,
             )
         else:
             body = self.rfile.read(content_length)
             response = DAILY_HTTP_ADAPTER.handle(
                 self.command, dict(self.headers), body, market_agenda, self._session_decision_profile(),
-                OFFICIAL_PORTFOLIO_LOADER.load_positions(),
+                official_positions,
                 market_facts,
             )
         self.send_response(response.status_code)
