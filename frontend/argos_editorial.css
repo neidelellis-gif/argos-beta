@@ -1,0 +1,371 @@
+:root {
+    --background: #111315;
+    --sidebar: #0d0f11;
+    --surface: #181b1f;
+    --surface-soft: #15181b;
+    --surface-hover: #1d2126;
+    --border: rgba(232, 232, 230, 0.16);
+    --border-soft: rgba(232, 232, 230, 0.09);
+    --text-primary: #e8e8e6;
+    --text-secondary: #a7a7a2;
+    --text-muted: #74746f;
+    --accent: #b89a5a;
+    --accent-soft: rgba(184, 154, 90, 0.11);
+    --success: #7fa58d;
+    --warning: #c6a76a;
+    --content-width: 1440px;
+    --radius-large: 4px;
+    --radius-medium: 3px;
+    --shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+}
+
+body {
+    background:
+        radial-gradient(circle at 72% 8%, rgba(184, 154, 90, 0.035), transparent 30%),
+        var(--background);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.01em;
+}
+
+.app-shell {
+    grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.sidebar {
+    padding: 34px 24px 28px;
+    background: linear-gradient(180deg, #0e1012 0%, #0b0d0f 100%);
+    border-right-color: rgba(232, 232, 230, 0.07);
+}
+
+.brand {
+    margin-bottom: 50px;
+}
+
+.brand-mark {
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(184, 154, 90, 0.35);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--accent);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.18rem;
+    font-weight: 500;
+}
+
+.brand strong {
+    color: #f1f0ec;
+    font-size: 0.9rem;
+    font-weight: 650;
+    letter-spacing: 0.16em;
+}
+
+.brand span:last-child {
+    color: #676864;
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+}
+
+.main-nav {
+    gap: 2px;
+}
+
+.nav-item {
+    position: relative;
+    padding: 10px 0 10px 18px;
+    border: 0;
+    border-radius: 0;
+    color: #777974;
+    font-size: 0.86rem;
+    transition: color 140ms ease;
+}
+
+.nav-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 2px;
+    height: 0;
+    background: var(--accent);
+    transform: translateY(-50%);
+    transition: height 140ms ease;
+}
+
+.nav-item:hover,
+.nav-item:focus-visible {
+    border: 0;
+    background: transparent;
+    color: #c4c3be;
+}
+
+.nav-item.active {
+    border: 0;
+    background: transparent;
+    color: #f0efeb;
+}
+
+.nav-item.active::before {
+    height: 18px;
+}
+
+.sidebar-footer {
+    padding: 0;
+    color: #62645f;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+}
+
+.system-dot {
+    width: 5px;
+    height: 5px;
+    box-shadow: none;
+}
+
+.notebook-page {
+    padding: 34px clamp(36px, 5vw, 82px) 30px;
+}
+
+.page-header {
+    align-items: start;
+    margin-bottom: 20px;
+}
+
+.page-header h1 {
+    max-width: 760px;
+    color: #f0efeb;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.5rem, 4.2vw, 4.2rem);
+    font-weight: 400;
+    letter-spacing: -0.045em;
+}
+
+.current-date {
+    margin-top: 8px;
+    color: #7f807b;
+    font-size: 0.82rem;
+    letter-spacing: 0.025em;
+    text-transform: none;
+}
+
+.header-status {
+    min-width: auto;
+    gap: 3px;
+    padding: 2px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    text-align: right;
+}
+
+.status-label,
+.header-status strong {
+    color: #6f706c;
+    font-size: 0.7rem;
+    font-weight: 450;
+    letter-spacing: 0.025em;
+}
+
+.daily-flow {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    grid-template-areas:
+        "facts market"
+        "impact impact"
+        "decision decision";
+    column-gap: clamp(38px, 5vw, 76px);
+    row-gap: 0;
+}
+
+#daily-facts {
+    grid-area: facts;
+}
+
+#daily-market-reaction {
+    grid-area: market;
+}
+
+#daily-investment-impact {
+    grid-area: impact;
+}
+
+#daily-decision {
+    grid-area: decision;
+}
+
+.daily-flow-section {
+    min-width: 0;
+    padding: 24px 0 18px;
+    border-top: 1px solid rgba(232, 232, 230, 0.09);
+}
+
+#daily-facts,
+#daily-market-reaction {
+    border-top: 1px solid rgba(184, 154, 90, 0.36);
+}
+
+.daily-flow-heading {
+    margin-bottom: 12px;
+}
+
+.daily-flow-heading h2 {
+    color: #d9d8d3;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.12rem, 1.4vw, 1.42rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+}
+
+.daily-flow-count {
+    color: #686965;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.daily-flow-item {
+    grid-template-columns: 10px minmax(0, 1fr);
+    gap: 11px;
+    padding: 9px 0;
+    border-bottom-color: rgba(232, 232, 230, 0.055);
+}
+
+.daily-flow-marker {
+    width: 3px;
+    height: 3px;
+    margin-top: 8px;
+    background: var(--accent);
+    box-shadow: none;
+}
+
+.daily-flow-item h3 {
+    color: #d0cfca;
+    font-size: 0.86rem;
+    font-weight: 520;
+    line-height: 1.35;
+}
+
+.daily-flow-item p {
+    margin-top: 3px;
+    color: #868782;
+    font-size: 0.75rem;
+    line-height: 1.42;
+}
+
+.daily-impact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(32px, 5vw, 76px);
+}
+
+.daily-impact-owner {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.daily-impact-owner + .daily-impact-owner {
+    padding-left: clamp(28px, 4vw, 58px);
+    border-left: 1px solid rgba(232, 232, 230, 0.08);
+}
+
+.daily-impact-owner h3 {
+    margin-bottom: 2px;
+    color: var(--accent);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.05rem;
+    font-weight: 400;
+}
+
+.daily-impact-owner-status {
+    margin-bottom: 6px;
+    color: #686965;
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.daily-decision {
+    padding: 18px 0 0;
+    border-top: 1px solid rgba(232, 232, 230, 0.09);
+}
+
+.daily-decision-copy h2 {
+    color: #d9d8d3;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.04rem;
+    font-weight: 400;
+}
+
+.daily-decision-copy p {
+    color: #777873;
+    font-size: 0.75rem;
+}
+
+.daily-decision-button {
+    padding: 8px 13px;
+    border-color: rgba(232, 232, 230, 0.13);
+    border-radius: 2px;
+    color: #b7b6b1;
+    font-size: 0.74rem;
+}
+
+.daily-decision-button-primary {
+    border-color: rgba(184, 154, 90, 0.5);
+    background: rgba(184, 154, 90, 0.08);
+    color: #d9c48d;
+}
+
+@media (max-height: 820px) and (min-width: 1000px) {
+    .notebook-page {
+        padding-top: 24px;
+        padding-bottom: 20px;
+    }
+
+    .page-header {
+        margin-bottom: 14px;
+    }
+
+    .page-header h1 {
+        font-size: clamp(2.2rem, 3.6vw, 3.5rem);
+    }
+
+    .daily-flow-section {
+        padding-top: 18px;
+        padding-bottom: 12px;
+    }
+
+    .daily-flow-item {
+        padding: 6px 0;
+    }
+}
+
+@media (max-width: 920px) {
+    .app-shell {
+        grid-template-columns: 190px minmax(0, 1fr);
+    }
+
+    .daily-flow {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "facts"
+            "market"
+            "impact"
+            "decision";
+    }
+
+    .daily-impact-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .daily-impact-owner + .daily-impact-owner {
+        padding-left: 0;
+        padding-top: 18px;
+        border-left: 0;
+        border-top: 1px solid rgba(232, 232, 230, 0.08);
+    }
+}
