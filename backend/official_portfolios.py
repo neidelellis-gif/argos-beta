@@ -148,7 +148,9 @@ class OfficialPortfolioLoader:
             }
         except (InvalidOperation, ValueError) as error:
             raise OfficialPortfolioValidationError("portfolio.invalid", "Valor numérico de posição inválido.") from error
-        if any(decimals[field] is not None and decimals[field] < 0 for field in ("quantity", "market_value")):
+        quantity = decimals["quantity"]
+        market_value = decimals["market_value"]
+        if (quantity is not None and quantity < 0) or (market_value is not None and market_value < 0):
             raise OfficialPortfolioValidationError("portfolio.invalid", "Quantidade e valor de mercado não podem ser negativos.")
         return PortfolioPosition(
             institution=institution, owner=owner,
