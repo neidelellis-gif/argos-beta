@@ -1,7 +1,12 @@
 "use strict";
 
 const DailyExperienceRenderer = (() => {
-    const LIMITS = Object.freeze({ facts: 4, market: 5, ownerImpacts: 3 });
+    const LIMITS = Object.freeze({ facts: 3, market: 3, ownerImpacts: 3 });
+
+    const FALLBACK_ASSETS = Object.freeze({
+        nei: ["ETH", "PENDLE", "BTC"],
+        jolika: ["AIQ", "EQIX", "GLD"]
+    });
 
     const OWNER_ASSETS = Object.freeze({
         nei: new Set([
@@ -29,6 +34,8 @@ const DailyExperienceRenderer = (() => {
             .replace(/A prioridade deriva de[^.]*\.?/i, "")
             .replace(/A origem está relacionada ao ativo[^.]*\.?/gi, "")
             .replace(/Direção não é recomendação\.?/gi, "")
+            .replace(/Federal Reserve/gi, "Banco Central dos Estados Unidos")
+            .replace(/Treasur(?:y|ies)/gi, "títulos do governo americano")
             .replace(/\s+·\s+·/g, " ·")
             .replace(/\s{2,}/g, " ")
             .trim();
@@ -70,8 +77,8 @@ const DailyExperienceRenderer = (() => {
 
     function statusLabel(direction) {
         const normalized = text(direction).toUpperCase();
-        if (normalized === "POSITIVE") return { label: "Positivo", className: "positive" };
-        if (normalized === "NEGATIVE") return { label: "Negativo", className: "negative" };
+        if (normalized === "POSITIVE") return { label: "Favorável", className: "positive" };
+        if (normalized === "NEGATIVE") return { label: "Atenção", className: "negative" };
         return { label: "Acompanhar", className: "watch" };
     }
 
@@ -110,11 +117,7 @@ const DailyExperienceRenderer = (() => {
 
         section.hidden = list.children.length === 0;
         const count = panel(countId);
-        if (count) {
-            count.textContent = list.children.length
-                ? `${list.children.length} ${list.children.length === 1 ? "tópico" : "tópicos"}`
-                : "";
-        }
+        if (count) count.textContent = "";
         return list.children.length;
     }
 
@@ -128,24 +131,42 @@ const DailyExperienceRenderer = (() => {
         }).format(date);
     }
 
-    function marketItems(response) {
-        const impacts = Array.isArray(response.impact_assessments) ? response.impact_assessments : [];
-        const priorities = Array.isArray(response.priorities) ? response.priorities : [];
-        const combined = impacts.map((impact) => ({
-            title: impact.title,
-            summary: impact.summary
-        })).concat(priorities.map((priority) => ({
-            title: priority.title,
-            summary: priority.summary || priority.reason
-        })));
-
+    function uniqueEntries(entries) {
         const seen = new Set();
-        return combined.filter((entry) => {
+        return entries.filter((entry) => {
             const key = clean(entry.title).toLowerCase();
             if (!key || seen.has(key)) return false;
             seen.add(key);
             return true;
         });
+    }
+
+    function factItems(response) {
+        const facts = response.facts.map((fact) => ({
+            title: fact.title || fact.text,
+            summary: fact.summary
+        }));
+        const priorities = response.priorities.map((priority) => ({
+            title: priority.title,
+            summary: priority.summary || priority.reason
+        }));
+        const analyses = response.analyses.map((analysis) => ({
+            title: analysis.title,
+            summary: analysis.summary || analysis.reason
+        }));
+        return uniqueEntries(facts.concat(priorities, analyses));
+    }
+
+    function marketItems(response) {
+        const impacts = Array.isArray(response.impact_assessments) ? response.impact_assessments : [];
+        const priorities = Array.isArray(response.priorities) ? response.priorities : [];
+        return uniqueEntries(impacts.map((impact) => ({
+            title: impact.title,
+            summary: impact.summary
+        })).concat(priorities.map((priority) => ({
+            title: priority.title,
+            summary: priority.summary || priority.reason
+        }))));
     }
 
     function ownerForAsset(asset) {
@@ -155,7 +176,16 @@ const DailyExperienceRenderer = (() => {
         return null;
     }
 
-    function renderOwnerImpacts(response) {
+    function referenceImpact(asset, marketEntry) {
+        return {
+            impact_direction: "UNCERTAIN",
+            summary: marketEntry
+                ? `${clean(marketEntry.title)} pode ter relação com este ativo. Use a análise aprofundada para confirmar o efeito na posição atual.`
+                : "A última carteira conhecida mantém este ativo em acompanhamento."
+        };
+    }
+
+    function renderOwnerImpacts(response, marketEntries) {
         const containers = {
             nei: panel("neiInvestmentImpact"),
             jolika: panel("jolikaInvestmentImpact")
@@ -177,15 +207,17 @@ const DailyExperienceRenderer = (() => {
         ["nei", "jolika"].forEach((owner) => {
             const container = containers[owner];
             if (!container) return;
-            if (grouped[owner].length) {
-                grouped[owner].forEach(({ asset, impact }) => container.appendChild(impactCard(asset, impact)));
-            } else {
-                const ownerName = owner === "nei" ? "Nei" : "Jolika";
-                container.appendChild(item(
-                    `Nenhuma implicação específica foi identificada para ${ownerName} nesta leitura.`,
-                    "A posição mais recente permanece como referência."
-                ));
-            }
+
+            const entries = grouped[owner].length
+                ? grouped[owner]
+                : FALLBACK_ASSETS[owner].map((asset, index) => ({
+                    asset,
+                    impact: referenceImpact(asset, marketEntries[index % Math.max(1, marketEntries.length)])
+                }));
+
+            entries.slice(0, LIMITS.ownerImpacts).forEach(({ asset, impact }) => {
+                container.appendChild(impactCard(asset, impact));
+            });
         });
     }
 
@@ -195,6 +227,7 @@ const DailyExperienceRenderer = (() => {
 
         if (analyze && !analyze.dataset.bound) {
             analyze.dataset.bound = "true";
+            analyze.textContent = "Aprofundar análise";
             analyze.addEventListener("click", () => {
                 window.location.href = "/analysis_start.html";
             });
@@ -204,7 +237,6 @@ const DailyExperienceRenderer = (() => {
             notNow.dataset.bound = "true";
             notNow.addEventListener("click", () => {
                 notNow.textContent = "Continuar depois";
-                notNow.setAttribute("aria-label", "A análise poderá ser aprofundada depois");
             });
         }
     }
@@ -230,33 +262,31 @@ const DailyExperienceRenderer = (() => {
         panel("lastUpdateLabel").textContent = updateTime ? "Atualizado" : "";
         panel("lastUpdate").textContent = updateTime ? `hoje às ${updateTime}` : "";
 
-        const factsSection = panel("daily-facts");
-        const factsRendered = renderList(
+        const facts = factItems(response);
+        renderList(
             "daily-facts", "importantFacts", "factsCount",
-            response.facts, LIMITS.facts,
-            (fact) => ({ title: fact.title || fact.text, summary: fact.summary }),
+            facts, LIMITS.facts,
+            (entry) => entry,
             "daily-flow-item-featured"
         );
 
-        if (factsRendered === 0 && factsSection) {
-            const factsList = panel("importantFacts");
-            factsList.appendChild(item(
-                "Nenhum fato relevante foi incorporado nas últimas 24 horas.",
-                "A leitura do mercado aparece somente depois desta verificação."
-            ));
-            factsSection.hidden = false;
-        }
-
+        const market = marketItems(response);
         renderList(
             "daily-market-reaction", "marketReaction", "marketReactionCount",
-            marketItems(response), LIMITS.market,
+            market, LIMITS.market,
             (entry) => entry,
             "daily-flow-item-market"
         );
 
-        renderOwnerImpacts(response);
+        renderOwnerImpacts(response, market.length ? market : facts);
         panel("daily-investment-impact").hidden = false;
         panel("daily-decision").hidden = false;
+
+        const decisionCopy = panel("daily-decision")?.querySelector(".daily-decision-copy p");
+        if (decisionCopy) {
+            decisionCopy.textContent = "Para uma avaliação mais precisa das implicações atuais, clique em Aprofundar análise.";
+        }
+
         bindDecisionActions();
     }
 
