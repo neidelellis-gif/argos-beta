@@ -1,0 +1,79 @@
+.brand-mark {
+    border: 1px solid var(--argos-accent-line);
+    background: transparent;
+    color: var(--argos-accent);
+    box-shadow: none;
+}
+
+.nav-item {
+    border-radius: 6px;
+    color: var(--argos-text-muted);
+}
+
+.nav-item:hover,
+.nav-item:focus-visible {
+    background: rgba(255, 255, 255, 0.035);
+    border-color: transparent;
+    color: var(--argos-text);
+}
+
+.nav-item.active {
+    background: var(--argos-accent-soft);
+    border-color: transparent;
+    color: var(--argos-text);
+}
+
+.header-status {
+    min-width: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.daily-flow-section,
+.portfolio-float,
+.module-empty {
+    border-color: var(--argos-line);
+}
+
+.daily-flow-section {
+    border-radius: 0;
+}
+
+.daily-impact-owner {
+    border-radius: 2px;
+    background: transparent;
+}
+
+.daily-decision-button,
+.portfolio-import-toggle,
+.portfolio-consolidate-button,
+.values-toggle,
+.file-picker-button,
+.import-button,
+.clear-button,
+.portfolio-owner-select {
+    border-radius: 4px;
+}
+
+.daily-decision-button-primary,
+.import-button {
+    background: var(--argos-accent);
+    color: #111315;
+}
+
+.daily-flow-marker {
+    background: var(--argos-accent);
+    box-shadow: none;
+}
+
+.portfolio-float {
+    border-radius: 3px;
+    background: var(--argos-bg-elevated);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.22);
+}
+
+.portfolio-allocation-fill {
+    background: var(--argos-accent);
+}
