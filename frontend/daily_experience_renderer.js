@@ -3,6 +3,17 @@
 const DailyExperienceRenderer = (() => {
     const LIMITS = Object.freeze({ facts: 4, market: 5, ownerImpacts: 3 });
 
+    const OWNER_ASSETS = Object.freeze({
+        nei: new Set([
+            "BTC", "BITCOIN", "ETH", "ETHER", "ETHEREUM", "SOL", "SOLANA", "SUI", "APT", "NEAR",
+            "ARB", "AXL", "RAY", "LDO", "AAVE", "PENDLE", "CRV", "UNI", "ENS", "RNDR", "FET",
+            "TAO", "ETHFI", "WLD", "HYPE", "DOGE", "SHIB", "PEPE", "WIF", "ENA", "AVAX", "ONDO", "LINK"
+        ]),
+        jolika: new Set([
+            "AIQ", "EQIX", "DXCM", "URA", "GLD", "ARKQ", "XLI", "FEZ", "ICE", "QTUM", "BNC", "HDV"
+        ])
+    });
+
     function panel(id) {
         return document.getElementById(id);
     }
@@ -23,15 +34,19 @@ const DailyExperienceRenderer = (() => {
             .trim();
     }
 
+    function normalizeAsset(value) {
+        return text(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    }
+
     function assetNames(value) {
         return Array.isArray(value?.affected_assets)
             ? value.affected_assets.filter((asset) => typeof asset === "string" && asset.trim())
             : [];
     }
 
-    function item(title, summary = "") {
+    function item(title, summary = "", className = "") {
         const row = document.createElement("article");
-        row.className = "daily-flow-item";
+        row.className = `daily-flow-item ${className}`.trim();
 
         const marker = document.createElement("span");
         marker.className = "daily-flow-marker";
@@ -53,18 +68,43 @@ const DailyExperienceRenderer = (() => {
         return row;
     }
 
-    function renderList(sectionId, listId, countId, values, limit, mapper) {
+    function statusLabel(direction) {
+        const normalized = text(direction).toUpperCase();
+        if (normalized === "POSITIVE") return { label: "Positivo", className: "positive" };
+        if (normalized === "NEGATIVE") return { label: "Negativo", className: "negative" };
+        return { label: "Acompanhar", className: "watch" };
+    }
+
+    function impactCard(asset, impact) {
+        const status = statusLabel(impact.impact_direction);
+        const card = document.createElement("article");
+        card.className = `daily-asset-impact daily-asset-impact-${status.className}`;
+
+        const top = document.createElement("div");
+        top.className = "daily-asset-impact-top";
+        const ticker = document.createElement("strong");
+        ticker.textContent = asset;
+        const badge = document.createElement("span");
+        badge.className = `daily-impact-badge daily-impact-badge-${status.className}`;
+        badge.textContent = status.label;
+        top.append(ticker, badge);
+
+        const description = document.createElement("p");
+        description.textContent = clean(impact.summary || impact.title || "Ativo relacionado ao cenário atual.");
+        card.append(top, description);
+        return card;
+    }
+
+    function renderList(sectionId, listId, countId, values, limit, mapper, className = "") {
         const section = panel(sectionId);
         const list = panel(listId);
-        if (!section || !list) {
-            return 0;
-        }
+        if (!section || !list) return 0;
 
         list.replaceChildren();
         values.slice(0, limit).forEach((value) => {
             const mapped = mapper(value);
             if (mapped && clean(mapped.title)) {
-                list.appendChild(item(mapped.title, mapped.summary));
+                list.appendChild(item(mapped.title, mapped.summary, className));
             }
         });
 
@@ -80,9 +120,7 @@ const DailyExperienceRenderer = (() => {
 
     function formatUpdate(isoValue) {
         const date = new Date(isoValue);
-        if (Number.isNaN(date.getTime())) {
-            return "";
-        }
+        if (Number.isNaN(date.getTime())) return "";
         return new Intl.DateTimeFormat("pt-BR", {
             hour: "2-digit",
             minute: "2-digit",
@@ -91,48 +129,64 @@ const DailyExperienceRenderer = (() => {
     }
 
     function marketItems(response) {
-        const impacts = Array.isArray(response.impact_assessments)
-            ? response.impact_assessments : [];
-        const priorities = Array.isArray(response.priorities)
-            ? response.priorities : [];
-
-        const combined = impacts.map((impact) => {
-            const assets = assetNames(impact);
-            return {
-                title: impact.title,
-                summary: [impact.summary, assets.length ? `Ativos em atenção: ${assets.join(" · ")}` : ""]
-                    .filter(Boolean).join(" ")
-            };
-        }).concat(priorities.map((priority) => {
-            const assets = assetNames(priority);
-            return {
-                title: priority.title,
-                summary: [priority.summary || priority.reason, assets.length ? `Ativos em atenção: ${assets.join(" · ")}` : ""]
-                    .filter(Boolean).join(" ")
-            };
-        }));
+        const impacts = Array.isArray(response.impact_assessments) ? response.impact_assessments : [];
+        const priorities = Array.isArray(response.priorities) ? response.priorities : [];
+        const combined = impacts.map((impact) => ({
+            title: impact.title,
+            summary: impact.summary
+        })).concat(priorities.map((priority) => ({
+            title: priority.title,
+            summary: priority.summary || priority.reason
+        })));
 
         const seen = new Set();
         return combined.filter((entry) => {
             const key = clean(entry.title).toLowerCase();
-            if (!key || seen.has(key)) {
-                return false;
-            }
+            if (!key || seen.has(key)) return false;
             seen.add(key);
             return true;
         });
     }
 
-    function renderOwnerStatus(containerId, ownerName) {
-        const container = panel(containerId);
-        if (!container) {
-            return;
-        }
-        container.replaceChildren();
-        container.appendChild(item(
-            `A posição mais recente de ${ownerName} será usada como referência inicial.`,
-            "Ao aprofundar, o ARGOS permitirá confirmar ou atualizar os dados antes da análise individual."
-        ));
+    function ownerForAsset(asset) {
+        const normalized = normalizeAsset(asset);
+        if (OWNER_ASSETS.nei.has(normalized)) return "nei";
+        if (OWNER_ASSETS.jolika.has(normalized)) return "jolika";
+        return null;
+    }
+
+    function renderOwnerImpacts(response) {
+        const containers = {
+            nei: panel("neiInvestmentImpact"),
+            jolika: panel("jolikaInvestmentImpact")
+        };
+        Object.values(containers).forEach((container) => container?.replaceChildren());
+
+        const impacts = Array.isArray(response.impact_assessments) ? response.impact_assessments : [];
+        const grouped = { nei: [], jolika: [] };
+
+        impacts.forEach((impact) => {
+            assetNames(impact).forEach((asset) => {
+                const owner = ownerForAsset(asset);
+                if (owner && grouped[owner].length < LIMITS.ownerImpacts) {
+                    grouped[owner].push({ asset, impact });
+                }
+            });
+        });
+
+        ["nei", "jolika"].forEach((owner) => {
+            const container = containers[owner];
+            if (!container) return;
+            if (grouped[owner].length) {
+                grouped[owner].forEach(({ asset, impact }) => container.appendChild(impactCard(asset, impact)));
+            } else {
+                const ownerName = owner === "nei" ? "Nei" : "Jolika";
+                container.appendChild(item(
+                    `Nenhuma implicação específica foi identificada para ${ownerName} nesta leitura.`,
+                    "A posição mais recente permanece como referência."
+                ));
+            }
+        });
     }
 
     function bindDecisionActions() {
@@ -177,18 +231,11 @@ const DailyExperienceRenderer = (() => {
         panel("lastUpdate").textContent = updateTime ? `hoje às ${updateTime}` : "";
 
         const factsSection = panel("daily-facts");
-        const factsHeading = factsSection ? factsSection.querySelector("h2") : null;
-        if (factsHeading) {
-            factsHeading.textContent = "O que aconteceu nas últimas 24 horas";
-        }
-
         const factsRendered = renderList(
             "daily-facts", "importantFacts", "factsCount",
             response.facts, LIMITS.facts,
-            (fact) => ({
-                title: fact.title || fact.text,
-                summary: fact.summary
-            })
+            (fact) => ({ title: fact.title || fact.text, summary: fact.summary }),
+            "daily-flow-item-featured"
         );
 
         if (factsRendered === 0 && factsSection) {
@@ -198,21 +245,16 @@ const DailyExperienceRenderer = (() => {
                 "A leitura do mercado aparece somente depois desta verificação."
             ));
             factsSection.hidden = false;
-            const factsCount = panel("factsCount");
-            if (factsCount) {
-                factsCount.textContent = "";
-            }
         }
 
         renderList(
             "daily-market-reaction", "marketReaction", "marketReactionCount",
             marketItems(response), LIMITS.market,
-            (entry) => entry
+            (entry) => entry,
+            "daily-flow-item-market"
         );
 
-        renderOwnerStatus("neiInvestmentImpact", "Nei");
-        renderOwnerStatus("jolikaInvestmentImpact", "Jolika");
-
+        renderOwnerImpacts(response);
         panel("daily-investment-impact").hidden = false;
         panel("daily-decision").hidden = false;
         bindDecisionActions();
