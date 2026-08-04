@@ -23,6 +23,12 @@ const DailyExperienceRenderer = (() => {
             .trim();
     }
 
+    function assetNames(value) {
+        return Array.isArray(value?.affected_assets)
+            ? value.affected_assets.filter((asset) => typeof asset === "string" && asset.trim())
+            : [];
+    }
+
     function item(title, summary = "") {
         const row = document.createElement("article");
         row.className = "daily-flow-item";
@@ -90,13 +96,21 @@ const DailyExperienceRenderer = (() => {
         const priorities = Array.isArray(response.priorities)
             ? response.priorities : [];
 
-        const combined = impacts.map((impact) => ({
-            title: impact.title,
-            summary: impact.summary
-        })).concat(priorities.map((priority) => ({
-            title: priority.title,
-            summary: priority.summary || priority.reason
-        })));
+        const combined = impacts.map((impact) => {
+            const assets = assetNames(impact);
+            return {
+                title: impact.title,
+                summary: [impact.summary, assets.length ? `Ativos em atenção: ${assets.join(" · ")}` : ""]
+                    .filter(Boolean).join(" ")
+            };
+        }).concat(priorities.map((priority) => {
+            const assets = assetNames(priority);
+            return {
+                title: priority.title,
+                summary: [priority.summary || priority.reason, assets.length ? `Ativos em atenção: ${assets.join(" · ")}` : ""]
+                    .filter(Boolean).join(" ")
+            };
+        }));
 
         const seen = new Set();
         return combined.filter((entry) => {
@@ -135,10 +149,8 @@ const DailyExperienceRenderer = (() => {
         if (notNow && !notNow.dataset.bound) {
             notNow.dataset.bound = "true";
             notNow.addEventListener("click", () => {
-                const decision = panel("daily-decision");
-                if (decision) {
-                    decision.hidden = true;
-                }
+                notNow.textContent = "Continuar depois";
+                notNow.setAttribute("aria-label", "A análise poderá ser aprofundada depois");
             });
         }
     }
