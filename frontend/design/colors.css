@@ -1,0 +1,38 @@
+:root {
+    color-scheme: dark;
+
+    --argos-bg: #111315;
+    --argos-bg-elevated: #171a1d;
+    --argos-bg-soft: #1d2125;
+    --argos-bg-hover: #23282d;
+
+    --argos-line: rgba(255, 255, 255, 0.09);
+    --argos-line-strong: rgba(255, 255, 255, 0.16);
+
+    --argos-text: #ecebe7;
+    --argos-text-secondary: #b9b7b0;
+    --argos-text-muted: #817f79;
+
+    --argos-accent: #b79a62;
+    --argos-accent-soft: rgba(183, 154, 98, 0.12);
+    --argos-accent-line: rgba(183, 154, 98, 0.34);
+
+    --argos-success: #7fa98f;
+    --argos-warning: #c69a63;
+    --argos-danger: #bd7d78;
+
+    --background: var(--argos-bg);
+    --sidebar: #0e1012;
+    --surface: var(--argos-bg-elevated);
+    --surface-soft: var(--argos-bg-soft);
+    --surface-hover: var(--argos-bg-hover);
+    --border: var(--argos-line-strong);
+    --border-soft: var(--argos-line);
+    --text-primary: var(--argos-text);
+    --text-secondary: var(--argos-text-secondary);
+    --text-muted: var(--argos-text-muted);
+    --accent: var(--argos-accent);
+    --accent-soft: var(--argos-accent-soft);
+    --success: var(--argos-success);
+    --warning: var(--argos-warning);
+}
