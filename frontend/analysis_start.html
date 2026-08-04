@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ARGOS - Aprofundar análise">
+    <title>ARGOS — Aprofundar análise</title>
+    <link rel="stylesheet" href="design/colors.css">
+    <link rel="stylesheet" href="design/typography.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="argos_editorial.css">
+    <link rel="stylesheet" href="design/layout.css">
+    <link rel="stylesheet" href="design/components.css">
+    <link rel="stylesheet" href="analysis_start.css">
+</head>
+<body>
+<div class="analysis-shell">
+    <aside class="analysis-sidebar">
+        <a class="analysis-brand" href="/" aria-label="Voltar ao Diário">
+            <span class="analysis-brand-mark">A</span>
+            <span><strong>ARGOS</strong><small>Caderno executivo</small></span>
+        </a>
+        <ol class="analysis-steps" aria-label="Etapas do aprofundamento">
+            <li class="active"><span>1</span><div><strong>Carteira</strong><small>Escolha a base da análise</small></div></li>
+            <li><span>2</span><div><strong>Patrimônio</strong><small>Nei ou Jolika</small></div></li>
+            <li><span>3</span><div><strong>Instituições</strong><small>Análise individual</small></div></li>
+        </ol>
+        <a class="analysis-back" href="/">← Voltar ao Diário</a>
+    </aside>
+
+    <main class="analysis-main">
+        <header class="analysis-header">
+            <p class="analysis-kicker">APROFUNDAMENTO</p>
+            <h1>Aprofundar análise</h1>
+            <p>Escolha a posição que servirá de base. A análise será feita por instituição e qualquer consolidação permanecerá restrita ao mesmo titular.</p>
+        </header>
+
+        <section class="analysis-methods" aria-label="Escolher origem da carteira">
+            <button class="analysis-method" type="button" data-method="previous">
+                <span class="analysis-method-number">01</span>
+                <strong>Usar a última carteira</strong>
+                <small id="previousPortfolioStatus">Verificando a última posição disponível…</small>
+            </button>
+            <button class="analysis-method" type="button" data-method="paste">
+                <span class="analysis-method-number">02</span>
+                <strong>Colar carteira</strong>
+                <small>Cole a posição exportada do banco ou da corretora.</small>
+            </button>
+            <button class="analysis-method" type="button" data-method="upload">
+                <span class="analysis-method-number">03</span>
+                <strong>Anexar carteira</strong>
+                <small>Arquivos PDF, Excel ou CSV.</small>
+            </button>
+        </section>
+
+        <section id="methodPanel" class="analysis-panel" hidden>
+            <div id="previousPanel" class="analysis-method-panel" hidden>
+                <h2>Última carteira disponível</h2>
+                <p id="previousPortfolioSummary"></p>
+                <button id="usePreviousPortfolio" class="analysis-primary" type="button">Usar esta carteira</button>
+            </div>
+
+            <div id="pastePanel" class="analysis-method-panel" hidden>
+                <label for="portfolioPaste">Cole a posição da carteira</label>
+                <textarea id="portfolioPaste" rows="10" placeholder="Cole aqui os dados exportados da instituição."></textarea>
+                <button id="usePastedPortfolio" class="analysis-primary" type="button" disabled>Continuar</button>
+            </div>
+
+            <div id="uploadPanel" class="analysis-method-panel" hidden>
+                <label class="analysis-upload" for="analysisFiles">
+                    <strong>Selecionar arquivos</strong>
+                    <small>PDF, XLSX ou CSV</small>
+                </label>
+                <input id="analysisFiles" type="file" multiple accept=".pdf,.xlsx,.csv,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                <p id="analysisFileStatus">Nenhum arquivo selecionado.</p>
+                <button id="useUploadedPortfolio" class="analysis-primary" type="button" disabled>Continuar</button>
+            </div>
+        </section>
+
+        <section id="ownerStage" class="analysis-stage" hidden>
+            <div class="analysis-stage-heading">
+                <p class="analysis-kicker">PATRIMÔNIO</p>
+                <h2>Qual patrimônio deseja analisar?</h2>
+            </div>
+            <div id="ownerOptions" class="analysis-owner-options"></div>
+        </section>
+
+        <section id="institutionStage" class="analysis-stage" hidden>
+            <div class="analysis-stage-heading">
+                <p class="analysis-kicker">INSTITUIÇÕES</p>
+                <h2>Instituições encontradas</h2>
+                <p>O ARGOS analisará uma instituição por vez. A consolidação será oferecida somente após a conclusão das análises individuais.</p>
+            </div>
+            <div id="institutionList" class="analysis-institution-list"></div>
+            <button id="startIndividualAnalysis" class="analysis-primary" type="button">Iniciar análise individual</button>
+        </section>
+    </main>
+</div>
+<script src="analysis_context.js"></script>
+<script src="analysis_start.js"></script>
+</body>
+</html>
