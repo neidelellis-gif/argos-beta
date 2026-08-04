@@ -1,0 +1,45 @@
+:root {
+    --argos-sidebar-width: 220px;
+    --argos-content-width: 1240px;
+    --argos-page-x: clamp(24px, 4vw, 56px);
+    --argos-page-y: clamp(28px, 4vw, 48px);
+    --argos-space-1: 6px;
+    --argos-space-2: 10px;
+    --argos-space-3: 16px;
+    --argos-space-4: 24px;
+    --argos-space-5: 32px;
+    --argos-space-6: 48px;
+    --argos-space-7: 72px;
+}
+
+.app-shell {
+    grid-template-columns: var(--argos-sidebar-width) minmax(0, 1fr);
+}
+
+.sidebar {
+    padding: 28px 18px;
+}
+
+.notebook-page {
+    padding: var(--argos-page-y) var(--argos-page-x);
+}
+
+.page-header,
+.daily-flow,
+.portfolio-page-header,
+.portfolio-workspace,
+.portfolio-import-drawer {
+    width: min(100%, var(--argos-content-width));
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.page-header {
+    margin-bottom: 26px;
+}
+
+@media (max-width: 900px) {
+    :root {
+        --argos-sidebar-width: 188px;
+    }
+}
