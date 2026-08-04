@@ -207,6 +207,38 @@ body {
     color: rgba(232, 232, 230, 0.64);
 }
 
+.analysis-guidance {
+    margin: 20px 0 24px;
+    padding: 20px 22px;
+    border-left: 2px solid rgba(197, 163, 95, 0.72);
+    background: rgba(197, 163, 95, 0.055);
+}
+
+.analysis-guidance > strong {
+    display: block;
+    margin-bottom: 10px;
+    color: #d5b875;
+    font-size: 0.84rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.analysis-guidance ol {
+    margin: 0;
+    padding-left: 20px;
+    color: rgba(232, 232, 230, 0.72);
+    line-height: 1.65;
+}
+
+.analysis-guidance li + li {
+    margin-top: 6px;
+}
+
+.analysis-guidance p {
+    margin: 12px 0 0;
+    font-size: 0.9rem;
+}
+
 .analysis-method-panel label {
     display: block;
     margin-bottom: 12px;
