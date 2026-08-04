@@ -4,6 +4,7 @@ const AnalysisStart = (() => {
     let dashboard = null;
     let selectedMethod = null;
     let selectedOwner = null;
+    let selectedInstitutions = [];
 
     function $(id) {
         return document.getElementById(id);
@@ -89,11 +90,11 @@ const AnalysisStart = (() => {
         const list = $("institutionList");
         list.replaceChildren();
         const available = institutionDataFor(selectedOwner);
-        const names = selectedMethod === "previous" && available.length
+        selectedInstitutions = selectedMethod === "previous" && available.length
             ? available.map((item) => ({ name: item.name, detail: `${item.position_count || 0} posições` }))
             : selectedOwner.institutions.map((name) => ({ name, detail: "A confirmar após a leitura da carteira" }));
 
-        names.forEach((item, index) => {
+        selectedInstitutions.forEach((item, index) => {
             const row = document.createElement("div");
             row.className = "analysis-institution-row";
             row.innerHTML = `<strong>${String(index + 1).padStart(2, "0")} · ${item.name}</strong><span>${item.detail}</span>`;
@@ -106,6 +107,18 @@ const AnalysisStart = (() => {
 
     function continueToOwners() {
         renderOwners();
+    }
+
+    function openFirstInstitution() {
+        if (!selectedOwner || !selectedInstitutions.length) {
+            window.alert("Selecione um patrimônio antes de iniciar a análise.");
+            return;
+        }
+        const query = new URLSearchParams({
+            owner: selectedOwner.id,
+            institution: selectedInstitutions[0].name
+        });
+        window.location.href = `/institution_analysis.html?${query.toString()}`;
     }
 
     function setupMethods() {
@@ -130,11 +143,7 @@ const AnalysisStart = (() => {
             $("useUploadedPortfolio").disabled = names.length === 0;
         });
         $("useUploadedPortfolio").addEventListener("click", continueToOwners);
-
-        $("startIndividualAnalysis").addEventListener("click", () => {
-            const owner = selectedOwner ? selectedOwner.name : "titular selecionado";
-            window.alert(`A preparação foi concluída para ${owner}. A análise individual por instituição será implementada na Sprint 3.`);
-        });
+        $("startIndividualAnalysis").addEventListener("click", openFirstInstitution);
     }
 
     async function loadDashboard() {
