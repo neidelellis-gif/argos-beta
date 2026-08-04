@@ -151,6 +151,15 @@ const PortfolioExecutive = (() => {
         return row;
     }
 
+    function openInstitutionAnalysis(institutionName) {
+        const owner = ArgosAnalysisContext.getActiveOwner();
+        const query = new URLSearchParams({
+            owner: owner.id,
+            institution: institutionName
+        });
+        window.location.href = `/institution_analysis.html?${query.toString()}`;
+    }
+
     function renderInstitutions(institutions) {
         const container = document.getElementById("portfolioExecutiveInstitutions");
         container.replaceChildren();
@@ -179,9 +188,7 @@ const PortfolioExecutive = (() => {
             const right = element("span", "portfolio-status", "Abrir análise individual →");
             row.append(left, right);
             button.append(row);
-            button.addEventListener("click", () => {
-                window.alert(`A análise individual de ${institution.name} será aberta na próxima etapa da Sprint 2.`);
-            });
+            button.addEventListener("click", () => openInstitutionAnalysis(institution.name));
             list.append(button);
         });
         container.append(list);
