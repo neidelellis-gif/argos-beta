@@ -116,8 +116,8 @@ const DailyExperienceRenderer = (() => {
         }
         container.replaceChildren();
         container.appendChild(item(
-            `Atualize as carteiras de ${ownerName} para calcular os impactos por posição.`,
-            "A análise será feita por instituição e qualquer consolidação permanecerá restrita a este titular."
+            `A posição mais recente de ${ownerName} será usada como referência inicial.`,
+            "Ao aprofundar, o ARGOS permitirá confirmar ou atualizar os dados antes da análise individual."
         ));
     }
 
@@ -128,10 +128,7 @@ const DailyExperienceRenderer = (() => {
         if (analyze && !analyze.dataset.bound) {
             analyze.dataset.bound = "true";
             analyze.addEventListener("click", () => {
-                const portfolioTab = document.querySelector('[data-tab="portfolios"]');
-                if (portfolioTab) {
-                    portfolioTab.click();
-                }
+                window.location.href = "/analysis_start.html";
             });
         }
 
