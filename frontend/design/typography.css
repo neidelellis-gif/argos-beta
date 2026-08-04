@@ -1,0 +1,44 @@
+:root {
+    --argos-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    --argos-font-editorial: Georgia, "Times New Roman", serif;
+
+    --argos-text-xs: 0.72rem;
+    --argos-text-sm: 0.82rem;
+    --argos-text-md: 0.96rem;
+    --argos-text-lg: 1.15rem;
+    --argos-text-xl: 1.55rem;
+    --argos-text-2xl: clamp(2rem, 4.2vw, 3.4rem);
+
+    --argos-leading-tight: 1.08;
+    --argos-leading-body: 1.55;
+}
+
+body {
+    font-family: var(--argos-font-sans);
+    font-size: var(--argos-text-md);
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+    font-family: var(--argos-font-sans);
+    font-weight: 520;
+}
+
+.page-header h1,
+.portfolio-page-header h1,
+.module-empty h1 {
+    font-family: var(--argos-font-editorial);
+    font-weight: 400;
+    letter-spacing: -0.035em;
+}
+
+.current-date,
+.status-label,
+.daily-flow-count,
+.portfolio-float-subtitle,
+.daily-impact-owner-status {
+    letter-spacing: 0.015em;
+}
