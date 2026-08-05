@@ -1,3 +1,4 @@
+import logging
 import re
 import zipfile
 from decimal import Decimal
@@ -21,6 +22,25 @@ supported_extensions = frozenset({".xls", ".xlsx"})
 SUPPORTED_EXTENSIONS = supported_extensions
 SANTANDER_EXCEL_SOURCE = "Santander Excel Export"
 ASSET_SUMMARY_TITLE = "RESUMO DE ATIVOS"
+logger = logging.getLogger("argos.import.santander")
+
+
+def _configure_import_logger():
+    if logger.handlers:
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
+    )
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
+def _log_santander(message, **details):
+    _configure_import_logger()
+    detail_text = " ".join(f"{key}={value!r}" for key, value in sorted(details.items()))
+    logger.info("%s%s", message, f" {detail_text}" if detail_text else "")
 
 
 def _normalize_header(value):
@@ -119,16 +139,29 @@ def _xlsx_sheet_rows(path):
 def inspect_excel_export(file_path):
     """Identifica exportações Santander com a mesma regra da importação."""
     path = Path(file_path)
+    _log_santander(
+        "inspect_excel_export called", file_name=path.name, suffix=path.suffix.lower()
+    )
     if path.suffix.lower() != ".xlsx":
         raise ValueError("O arquivo Santander deve estar em XLSX.")
     if not path.exists():
         raise ValueError(f"Arquivo Santander não encontrado: {path.name}")
 
     rows = _read_rows(path)
+    _log_santander(
+        "inspect_excel_export read rows", file_name=path.name, row_count=len(rows)
+    )
     if not any(_row_contains(row, ASSET_SUMMARY_TITLE) for row in rows):
         raise ValueError("Não encontrei a seção RESUMO DE ATIVOS no arquivo Santander.")
 
-    positions = _parse_positions(rows)
+    positions = _parse_positions(
+        rows, context="inspect_excel_export", source_file=path.name
+    )
+    _log_santander(
+        "inspect_excel_export parsed positions",
+        file_name=path.name,
+        position_count=len(positions),
+    )
     if not positions:
         raise ValueError("Nenhuma posição Santander foi encontrada no arquivo.")
     return {
@@ -351,23 +384,42 @@ def _find_block_headers(rows):
     return headers
 
 
-def _parse_positions(rows):
+def _parse_positions(rows, *, context="load_positions", source_file=None):
     positions = []
-    for header_index in _find_block_headers(rows):
+    block_headers = _find_block_headers(rows)
+    _log_santander(
+        "Santander parser block headers found",
+        context=context,
+        source_file=source_file,
+        block_count=len(block_headers),
+        header_indexes=block_headers,
+    )
+    skipped_rows = {"missing_value": 0, "missing_name": 0, "total_row": 0}
+    for header_index in block_headers:
         header_row = rows[header_index]
         asset_class = _class_from_block_name(header_row[0])
         mapping = _map_block_headers(header_row)
         if "value" not in mapping:
+            _log_santander(
+                "Santander parser skipped block without value header",
+                context=context,
+                source_file=source_file,
+                header_index=header_index,
+                asset_class=asset_class,
+                mapped_columns=mapping,
+            )
             continue
 
         for row in rows[header_index + 1 :]:
             if _is_blank_row(row) or _has_header_markers(row):
                 break
             if _is_total_row(row):
+                skipped_rows["total_row"] += 1
                 continue
 
             value = _parse_number(_safe_get(row, mapping["value"]))
             if value is None:
+                skipped_rows["missing_value"] += 1
                 continue
 
             symbol = str(_safe_get(row, mapping.get("symbol", -1)) or "").strip()
@@ -376,6 +428,7 @@ def _parse_positions(rows):
 
             name = _build_display_name(row, mapping, symbol)
             if not name:
+                skipped_rows["missing_name"] += 1
                 continue
 
             account = str(_safe_get(row, mapping.get("account", -1)) or "").strip()
@@ -399,6 +452,21 @@ def _parse_positions(rows):
             )
 
     total_value = sum(Decimal(str(position["value"])) for position in positions)
+    _log_santander(
+        "Santander parser calculated total value",
+        context=context,
+        source_file=source_file,
+        position_count=len(positions),
+        total_value=str(total_value),
+        skipped_rows=skipped_rows,
+        single_position_reason=(
+            "only one parsed row survived header/value/name filters"
+            if len(positions) == 1
+            else None
+        ),
+        single_position_asset=(positions[0]["name"] if len(positions) == 1 else None),
+        single_position_value=(positions[0]["value"] if len(positions) == 1 else None),
+    )
     if total_value:
         for position in positions:
             if position.get("weight") is None:
@@ -438,6 +506,9 @@ def _to_portfolio_position(position, source_file):
 
 def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
     path = Path(file_path)
+    _log_santander(
+        "load_positions called", file_name=path.name, suffix=path.suffix.lower()
+    )
     if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
         raise UnsupportedExtensionError(
             "O arquivo Santander deve estar em XLS ou XLSX."
@@ -448,25 +519,82 @@ def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
         )
 
     rows = _read_rows(path)
-    if not _find_block_headers(rows):
+    block_headers = _find_block_headers(rows)
+    _log_santander(
+        "load_positions read rows",
+        file_name=path.name,
+        row_count=len(rows),
+        block_count=len(block_headers),
+        recognized_as_santander=bool(block_headers),
+    )
+    if not block_headers:
         raise UnrecognizedFileError(
             "Não encontrei blocos Santander com cabeçalhos esperados."
         )
 
-    positions = _parse_positions(rows)
+    positions = _parse_positions(rows, context="load_positions", source_file=path.name)
+    _log_santander(
+        "load_positions parsed raw positions",
+        file_name=path.name,
+        position_count=len(positions),
+    )
     if not positions:
         raise EmptyPortfolioError(
             "Nenhuma posição Santander foi encontrada no arquivo."
         )
 
-    return tuple(_to_portfolio_position(position, path.name) for position in positions)
+    portfolio_positions = tuple(
+        _to_portfolio_position(position, path.name) for position in positions
+    )
+    total_market_value = sum(position.market_value for position in portfolio_positions)
+    _log_santander(
+        "load_positions returned MPU positions",
+        file_name=path.name,
+        position_count=len(portfolio_positions),
+        total_market_value=str(total_market_value),
+        ten_thousand_sources=[
+            position.asset_name
+            for position in portfolio_positions
+            if position.market_value == Decimal("10000")
+        ],
+    )
+    return portfolio_positions
 
 
 def recognize(path: Path) -> bool:
     path = Path(path)
+    _log_santander(
+        "recognize called",
+        file_name=path.name,
+        suffix=path.suffix.lower(),
+        exists=path.exists(),
+    )
     if path.suffix.lower() not in supported_extensions or not path.exists():
+        _log_santander(
+            "recognize result",
+            file_name=path.name,
+            recognized_as_santander=False,
+            reason="unsupported extension or missing file",
+        )
         return False
     try:
-        return bool(_find_block_headers(_read_rows(path)))
-    except (OSError, ValueError):
+        rows = _read_rows(path)
+        block_headers = _find_block_headers(rows)
+        recognized = bool(block_headers)
+        _log_santander(
+            "recognize result",
+            file_name=path.name,
+            recognized_as_santander=recognized,
+            row_count=len(rows),
+            block_count=len(block_headers),
+            header_indexes=block_headers,
+        )
+        return recognized
+    except (OSError, ValueError) as exc:
+        _log_santander(
+            "recognize result",
+            file_name=path.name,
+            recognized_as_santander=False,
+            reason=str(exc),
+        )
         return False
