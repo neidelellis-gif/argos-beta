@@ -160,34 +160,37 @@ function formatProfileDate(value) {
     return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "long", year: "numeric" }).format(date);
 }
 
-function renderInvestorProfileSummary(stored = readInvestorProfile()) {
+function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
     const status = document.getElementById("investorProfileStatus");
     const summary = document.getElementById("investorProfileSummary");
     const form = document.getElementById("investorProfileForm");
-    if (!status || !summary) return;
-    if (!stored) {
+    if (!status || !summary || !form) return;
+
+    const isConfirmed = state === "confirmed" && stored;
+    form.hidden = Boolean(isConfirmed);
+    summary.hidden = !isConfirmed;
+
+    if (!isConfirmed) {
         status.textContent = "Perfil não preenchido";
         status.className = "status-badge status-pending";
-        if (form) form.hidden = false;
-        summary.hidden = true;
         summary.replaceChildren();
+        restoreInvestorProfileForm(form, stored);
         return;
     }
+
     status.textContent = "Perfil vigente";
     status.className = "status-badge status-ready";
-    if (form) form.hidden = true;
-    summary.hidden = false;
     const savedAt = stored.saved_at ? formatProfileDate(stored.saved_at.slice(0, 10)) : "Não registrada";
     const reviewDate = formatProfileDate(stored.profile?.review_date);
     summary.innerHTML = `<div class="profile-summary-heading"><h2>Perfil Estratégico</h2><p>Diretriz patrimonial vigente para orientar decisões com clareza, disciplina e horizonte.</p></div><dl class="profile-summary-details"><div><dt>Última atualização</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão anual</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Atualizar Perfil</button>`;
     const updateButton = summary.querySelector("#updateInvestorProfile");
-    if (updateButton && form) {
-        updateButton.addEventListener("click", () => {
-            form.hidden = false;
-            summary.hidden = true;
-            restoreInvestorProfileForm(form, stored);
-        });
+    if (updateButton) {
+        updateButton.addEventListener("click", () => setInvestorProfileViewState("editing", stored));
     }
+}
+
+function renderInvestorProfileSummary(stored = readInvestorProfile()) {
+    setInvestorProfileViewState(stored ? "confirmed" : "first-access", stored);
 }
 
 function collectInvestorProfileAnswers(form) {

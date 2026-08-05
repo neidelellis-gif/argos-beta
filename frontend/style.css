@@ -959,6 +959,12 @@ h3 {
     box-shadow: 0 22px 42px rgba(0, 0, 0, 0.24);
 }
 
+
+.profile-form[hidden],
+.profile-summary[hidden] {
+    display: none;
+}
+
 .profile-summary {
     display: grid;
     gap: 30px;
