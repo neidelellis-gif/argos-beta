@@ -211,28 +211,22 @@ test("identifies the real UBS holdings export structure", () => {
     assert.equal(context.identifyFileSource(csvData), "Exportação de posições UBS");
 });
 
-test("identifies the real Santander Excel export filename", () => {
-    assert.equal(
-        context.identifySantanderExcelSource(
-            "your-positions-4005106-38.xlsx"
-        ),
-        "Exportação de posições Santander"
-    );
-});
-
-test("identifies the Santander Excel export extension case-insensitively", () => {
-    assert.equal(
-        context.identifySantanderExcelSource(
-            "YOUR-POSITIONS-4005106-38.XLSX"
-        ),
-        "Exportação de posições Santander"
-    );
+test("identifies Santander Excel export filenames including macOS renames", () => {
+    [
+        "your-positions-4005106-17.xlsx",
+        "your-positions-4005106-17 2.xlsx",
+        "your-positions-4005106-17 (2).xlsx",
+        "YOUR-POSITIONS-4005106-17.XLSX"
+    ].forEach((fileName) => {
+        assert.equal(
+            context.identifySantanderExcelSource(fileName),
+            "Exportação de posições Santander"
+        );
+    });
 });
 
 test("does not identify similar filenames as Santander Excel exports", () => {
     [
-        "your-positions-4005106.xlsx",
-        "your-positions-account-38.xlsx",
         "your-positions-4005106-38.xls",
         "copy-your-positions-4005106-38.xlsx"
     ].forEach((fileName) => {
@@ -541,6 +535,87 @@ test("shows Santander source and count after selecting its Excel", async () => {
         [
             "Origem identificada: Exportação de posições Santander",
             "Quantidade de posições encontradas: 23"
+        ]
+    );
+});
+
+
+test("inspects every selected Santander Excel candidate", async () => {
+    const elements = new Map();
+    const files = [
+        {
+            name: "your-positions-4005106-17.xlsx",
+            async arrayBuffer() { return Uint8Array.from([1]).buffer; }
+        },
+        {
+            name: "your-positions-4005106-17 (2).xlsx",
+            async arrayBuffer() { return Uint8Array.from([2]).buffer; }
+        }
+    ];
+    const fileInput = {
+        files,
+        addEventListener(_event, listener) { this.changeListener = listener; }
+    };
+    elements.set("portfolioFile", fileInput);
+    elements.set("portfolioFileName", { textContent: "" });
+    elements.set("portfolioFileSummary", createElement("div"));
+    elements.set("tipRanksPreview", { hidden: false });
+    elements.set("tipRanksPreviewContent", createElement("div"));
+    context.document.getElementById = (id) => elements.get(id);
+    context.document.createElement = createElement;
+    context.btoa = (value) => Buffer.from(value, "binary").toString("base64");
+    const inspectedNames = [];
+    context.fetch = async (_url, options) => {
+        inspectedNames.push(JSON.parse(options.body).file.name);
+        return {
+            ok: true,
+            async json() { return { ok: true, position_count: 2 }; }
+        };
+    };
+
+    context.setupPortfolioFilePicker();
+    await fileInput.changeListener();
+
+    assert.deepEqual(inspectedNames, files.map((file) => file.name));
+    assert.deepEqual(
+        elements.get("portfolioFileSummary").children.map((child) => child.textContent),
+        [
+            "Origem identificada: Exportação de posições Santander",
+            "Quantidade de posições encontradas: 4"
+        ]
+    );
+});
+
+test("does not treat an invalid Santander xlsx as CSV", async () => {
+    const elements = new Map();
+    const fileInput = {
+        files: [{
+            name: "your-positions-4005106-17.xlsx",
+            async arrayBuffer() { return Uint8Array.from([9]).buffer; }
+        }],
+        addEventListener(_event, listener) { this.changeListener = listener; }
+    };
+    elements.set("portfolioFile", fileInput);
+    elements.set("portfolioFileName", { textContent: "" });
+    elements.set("portfolioFileSummary", createElement("div"));
+    elements.set("tipRanksPreview", { hidden: false });
+    elements.set("tipRanksPreviewContent", createElement("div"));
+    context.document.getElementById = (id) => elements.get(id);
+    context.document.createElement = createElement;
+    context.btoa = (value) => Buffer.from(value, "binary").toString("base64");
+    context.fetch = async () => ({
+        ok: false,
+        async json() { return { ok: false, error: "inválido" }; }
+    });
+
+    context.setupPortfolioFilePicker();
+    await fileInput.changeListener();
+
+    assert.deepEqual(
+        elements.get("portfolioFileSummary").children.map((child) => child.textContent),
+        [
+            "Origem identificada: Exportação de posições Santander",
+            "Não foi possível ler o Excel do Santander."
         ]
     );
 });
