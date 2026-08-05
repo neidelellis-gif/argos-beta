@@ -129,93 +129,172 @@ const InstitutionAnalysis = (() => {
             ));
     }
 
-    function buildSummary(institution) {
+    function dailyFacts() {
+        return Array.isArray(dashboard?.daily?.important_facts)
+            ? dashboard.daily.important_facts
+            : [];
+    }
+
+    function dailyAnalyses() {
+        return Array.isArray(dashboard?.daily?.analyses)
+            ? dashboard.daily.analyses
+            : [];
+    }
+
+    function relevantDailyItems(institution) {
+        const name = normalize(institution?.name);
+        const facts = dailyFacts().filter((fact) => {
+            const context = normalize(fact.context || "");
+            const source = normalize(fact.source || "");
+            return fact.context_type === "portfolio"
+                || fact.context_type === "macro"
+                || context.includes("carteira")
+                || context.includes(name)
+                || source.includes(name);
+        });
+        const analyses = dailyAnalyses().filter((analysis) => {
+            const status = normalize(analysis.status || "");
+            const related = normalize(analysis.related_to || "");
+            return status.includes("carteira")
+                || status.includes(name)
+                || related.length > 0;
+        });
+        return { facts, analyses };
+    }
+
+    function profileDescription() {
+        if (owner?.id === "jolika") {
+            return "perfil institucional, com foco em preservação patrimonial, controle de risco e clareza para prestação de contas";
+        }
+        if (owner?.id === "personal") {
+            return "perfil pessoal mais arrojado, desde que cada risco tenha função clara na carteira";
+        }
+        return "perfil cadastrado para este patrimônio";
+    }
+
+    function sourceLabel(item) {
+        if (item?.source) return `Fonte: ${item.source}.`;
+        if (item?.updated_at || item?.occurred_at) return "Fonte: análise diária do ARGOS.";
+        return "Evidência: diagnóstico interno da carteira.";
+    }
+
+    function firstRelevantReason(institution) {
+        const { analyses, facts } = relevantDailyItems(institution);
+        const analysis = analyses[0];
+        if (analysis?.reason) return `${analysis.reason} ${sourceLabel(analysis)}`;
+        const fact = facts[0];
+        if (fact?.summary) return `${fact.summary} ${sourceLabel(fact)}`;
+        const lookback = dashboard?.daily?.lookback_hours || 48;
+        return `As análises em segundo plano não destacaram fato externo relevante para esta instituição nas últimas ${lookback} horas.`;
+    }
+
+    function buildHealthReport(institution) {
         const positions = Number(institution.position_count || 0);
         const currencies = Array.isArray(institution.currencies) ? institution.currencies : [];
         const warnings = warningTexts(institution);
-        if (isImportIncomplete(institution)) {
-            return `Dados insuficientes. A carteira de ${institution.name} ainda não foi importada corretamente. Complete uma nova importação válida antes de avaliar riscos, oportunidades ou consolidação.`;
+        const incomplete = isImportIncomplete(institution);
+        const { facts, analyses } = relevantDailyItems(institution);
+        const hasPortfolioSignal = facts.some((fact) => fact.context_type === "portfolio" || (fact.matched_portfolio_assets || []).length)
+            || analyses.some((analysis) => analysis.related_to);
+        const hasHighPriority = facts.some((fact) => fact.priority === "Alta")
+            || (dashboard?.daily?.priorities || []).some((priority) => priority.level === "Alta");
+        const hasMacroSignal = facts.some((fact) => fact.context_type === "macro")
+            || analyses.some((analysis) => normalize(analysis.status).includes("macro"));
+        const repeatedAssets = Number(dashboard?.consolidated?.repeated_asset_count || 0);
+
+        if (incomplete) {
+            return {
+                situation: "Dados insuficientes",
+                summary: `Dados insuficientes. A carteira de ${institution.name} ainda não foi importada corretamente; o Motor de Saúde não usa dados antigos para concluir coerência, riscos ou necessidade de ação.`,
+                attention: [{
+                    title: "Dados insuficientes",
+                    description: "Ainda não há base atual confiável para responder como está a carteira. Complete uma importação válida antes de avaliar saúde, riscos ou mudanças."
+                }],
+                risks: [{
+                    title: "Dados insuficientes",
+                    description: "O maior risco agora é operacional: decidir com informação incompleta ou antiga."
+                }],
+                theses: [{
+                    title: "Dados insuficientes",
+                    description: "Nenhuma tese deve ser avaliada enquanto a base desta instituição estiver incompleta."
+                }],
+                changes: [{
+                    title: "O que mudou desde a última análise?",
+                    description: "A mudança relevante é que esta instituição ainda não possui uma importação válida para a análise atual."
+                }]
+            };
         }
-        if (warnings.length) {
-            return `${institution.name} tem ${positions} posições carregadas. Antes de decidir, revise os pontos de atenção da importação e confirme se a base representa a carteira atual.`;
-        }
-        const currencyText = currencies.length ? `, com exposição em ${currencies.join(" e ")}` : "";
-        return `${institution.name} tem ${positions} posições carregadas${currencyText}. A base está suficiente para uma leitura executiva inicial, ainda sem substituir a validação individual dos ativos.`;
+
+        const riskDescriptions = [];
+        if (warnings.length) riskDescriptions.push("há pontos de qualidade da importação que precisam ser conferidos antes de qualquer conclusão fina");
+        if (positions === 1) riskDescriptions.push("a carteira está concentrada em uma única posição identificada");
+        if (positions > 30) riskDescriptions.push("a carteira está muito fragmentada e pode exigir acompanhamento excessivo");
+        if (currencies.length > 1) riskDescriptions.push(`existe exposição a mais de uma moeda (${currencies.join(" e ")})`);
+        if (hasMacroSignal) riskDescriptions.push("o contexto macro apareceu nas análises de fundo e pode afetar a leitura da carteira");
+        if (repeatedAssets > 0) riskDescriptions.push("há ativos repetidos em mais de uma instituição do patrimônio, o que deve ser observado na consolidação");
+
+        const coherent = !warnings.length && positions > 1 && !hasHighPriority;
+        const actionNeeded = hasHighPriority || warnings.length || positions === 1;
+        const situation = actionNeeded ? "Atenção" : hasPortfolioSignal || hasMacroSignal ? "Em observação" : "Saudável";
+        const currencyText = currencies.length ? `, distribuída em ${currencies.join(" e ")}` : "";
+        const summary = `${institution.name} está ${situation.toLowerCase()}: ${positions} investimentos foram identificados${currencyText}. A carteira ${coherent ? "continua coerente" : "merece revisão pontual"} com o ${profileDescription()}; ${actionNeeded ? "há pontos que pedem atenção, mas sem recomendação de compra ou venda." : "não há sinal suficiente para exigir ação imediata."}`;
+
+        return {
+            situation,
+            summary,
+            attention: [
+                {
+                    title: "Como está minha carteira?",
+                    description: `${positions} investimentos foram identificados nesta instituição. ${warnings.length ? "A leitura é válida, mas contém ressalvas operacionais." : "A leitura é suficiente para um diagnóstico executivo simples."}`
+                },
+                {
+                    title: "Ela continua coerente com meu perfil?",
+                    description: coherent
+                        ? `Sim, com a evidência disponível ela permanece compatível com o ${profileDescription()}.`
+                        : `Parcialmente. Ela pode continuar compatível com o ${profileDescription()}, mas os pontos abaixo precisam ser acompanhados antes de uma conclusão confortável.`
+                },
+                {
+                    title: "Preciso agir agora?",
+                    description: actionNeeded
+                        ? "Não há recomendação automática de compra ou venda. O que existe é necessidade de revisar os pontos marcados antes de decidir."
+                        : "Não. O diagnóstico atual indica acompanhamento, sem ação imediata necessária."
+                }
+            ],
+            risks: riskDescriptions.length ? riskDescriptions.slice(0, 4).map((description) => ({
+                title: "Risco relevante",
+                description: `${description}. Evidência: carteira importada e análises em segundo plano do ARGOS.`
+            })) : [{
+                title: "Nenhum risco dominante identificado",
+                description: "As análises atuais não destacaram concentração, incoerência operacional ou evento externo dominante para esta instituição."
+            }],
+            theses: (analyses.length || facts.length) ? [...analyses, ...facts].slice(0, 3).map((item) => ({
+                title: item.title || "Tese em observação",
+                description: `${item.reason || item.summary || item.context || "Ponto acompanhado pelas análises em segundo plano."} ${sourceLabel(item)}`
+            })) : [{
+                title: "Nenhuma tese exige atenção imediata",
+                description: "Macro, notícias, indicadores quantitativos, ativos e carteira não apontaram uma tese prioritária para esta instituição agora."
+            }],
+            changes: [{
+                title: "O que mudou desde a última análise?",
+                description: firstRelevantReason(institution)
+            }]
+        };
+    }
+
+    function buildSummary(institution) {
+        return buildHealthReport(institution).summary;
     }
 
     function attentionItems(institution) {
-        const items = [];
-        const warnings = warningTexts(institution);
-        if (isImportIncomplete(institution)) {
-            return [{
-                title: "Dados insuficientes",
-                description: "A carteira ainda não foi importada corretamente. O ARGOS não vai usar dados anteriores como base atual nem concluir a análise desta instituição."
-            }];
-        }
-        warnings.slice(0, 4).forEach((warning) => {
-            items.push({ title: "Ponto informado pela instituição", description: String(warning) });
-        });
-        if (Number(institution.position_count || 0) > 25) {
-            items.push({
-                title: "Quantidade elevada de posições",
-                description: "A carteira possui muitos ativos. Vale verificar se todos continuam cumprindo uma função clara."
-            });
-        }
-        const currencies = Array.isArray(institution.currencies) ? institution.currencies : [];
-        if (currencies.length > 1) {
-            items.push({
-                title: "Exposição em mais de uma moeda",
-                description: `A carteira está distribuída entre ${currencies.join(" e ")}. O efeito cambial precisa ser considerado.`
-            });
-        }
-        if (!items.length) {
-            items.push({
-                title: "Nenhum alerta operacional imediato",
-                description: "A análise detalhada dos ativos ainda é necessária antes de concluir o diagnóstico desta instituição."
-            });
-        }
-        return items.slice(0, 5);
+        return buildHealthReport(institution).attention;
     }
 
     function riskItems(institution) {
-        if (isImportIncomplete(institution)) {
-            return [{
-                title: "Dados insuficientes",
-                description: "A carteira ainda não foi importada corretamente; por isso o ARGOS não emite conclusão sobre concentração, liquidez ou risco."
-            }];
-        }
-        const risks = [];
-        const positions = Number(institution.position_count || 0);
-        if (positions === 1) {
-            risks.push({ title: "Concentração elevada", description: "A posição está concentrada em apenas um ativo." });
-        } else if (positions > 30) {
-            risks.push({ title: "Carteira muito fragmentada", description: "Muitas posições podem dificultar o acompanhamento e diluir as melhores teses." });
-        }
-        const totals = Object.entries(institution.totals_by_currency || {});
-        if (!totals.length) {
-            risks.push({ title: "Valor patrimonial incompleto", description: "O arquivo não apresentou valores suficientes para medir pesos e concentrações." });
-        }
-        return risks;
+        return buildHealthReport(institution).risks;
     }
 
     function favorableItems(institution) {
-        if (isImportIncomplete(institution)) {
-            return [{
-                title: "Dados insuficientes",
-                description: "A carteira ainda não foi importada corretamente; por isso o ARGOS não confirma pontos favoráveis com base antiga."
-            }];
-        }
-        const items = [];
-        if (Number(institution.position_count || 0) > 1) {
-            items.push({ title: "Mais de uma posição identificada", description: "Existe base para avaliar distribuição e concentração dentro da instituição." });
-        }
-        if (Array.isArray(institution.currencies) && institution.currencies.length) {
-            items.push({ title: "Moeda identificada", description: `A carteira está registrada em ${institution.currencies.join(" e ")}.` });
-        }
-        if (!(institution.warnings || []).length) {
-            items.push({ title: "Sem avisos de importação", description: "A leitura da carteira não apresentou inconsistências operacionais aparentes." });
-        }
-        return items;
+        return buildHealthReport(institution).theses;
     }
 
     function renderAllocation(institution) {
@@ -242,31 +321,6 @@ const InstitutionAnalysis = (() => {
             const percent = element("span", "", `${percentage.toFixed(1)}%`);
             row.append(label, track, percent);
             container.append(row);
-        });
-    }
-
-    function renderAssets(institution) {
-        const container = $("assetList");
-        container.replaceChildren();
-        if (isImportIncomplete(institution)) {
-            container.append(element("p", "institution-empty", "Os ativos aparecerão aqui após uma importação válida desta instituição."));
-            return;
-        }
-        const positions = Number(institution.position_count || 0);
-        const suggested = [];
-        if (positions) suggested.push("Concentração", "Liquidez", "Custos", "Desempenho");
-        if ((institution.currencies || []).length > 1) suggested.push("Câmbio");
-        if (!suggested.length) {
-            container.append(element("p", "institution-empty", "Os ativos aparecerão aqui após a leitura detalhada das posições."));
-            return;
-        }
-        suggested.forEach((label) => {
-            const button = element("button", "institution-asset", label);
-            button.type = "button";
-            button.addEventListener("click", () => {
-                window.alert(`${label}: o detalhamento desta dimensão será conectado ao motor de análise nas próximas etapas da Sprint 3.`);
-            });
-            container.append(button);
         });
     }
 
@@ -302,8 +356,9 @@ const InstitutionAnalysis = (() => {
         $("metricValue").textContent = incomplete ? "Não disponível" : institutionValue(institution);
         $("metricPositions").textContent = incomplete ? "—" : String(institution.position_count || 0);
         $("metricCurrencies").textContent = incomplete ? "—" : (institution.currencies || []).join(" · ") || "—";
-        $("metricSituation").textContent = incomplete ? "Dados insuficientes" : (institution.warnings || []).length ? "Atenção" : "Regular";
-        $("attentionCount").textContent = `${attentionItems(institution).length} pontos`;
+        const healthReport = buildHealthReport(institution);
+        $("metricSituation").textContent = healthReport.situation;
+        $("attentionCount").textContent = `${healthReport.attention.length} respostas`;
 
         const status = $("institutionStatus");
         status.textContent = done ? "Concluída" : "Em análise";
@@ -311,11 +366,11 @@ const InstitutionAnalysis = (() => {
         $("completeInstitution").textContent = incomplete ? "Complete a importação para concluir" : done ? "Ir para a próxima instituição →" : "Concluir análise desta instituição →";
         $("completeInstitution").disabled = incomplete;
 
-        renderList("attentionList", attentionItems(institution), "Nenhum ponto de atenção foi identificado.");
-        renderList("riskList", riskItems(institution), "Nenhum risco específico foi identificado com os dados disponíveis.");
-        renderList("favorableList", favorableItems(institution), "Nenhum ponto favorável específico foi confirmado ainda.");
+        renderList("attentionList", healthReport.attention, "Nenhuma resposta prioritária foi gerada.");
+        renderList("riskList", healthReport.risks, "Nenhum risco específico foi identificado com os dados disponíveis.");
+        renderList("favorableList", healthReport.theses, "Nenhuma tese específica foi confirmada ainda.");
+        renderList("assetList", healthReport.changes, "Nenhuma mudança relevante foi identificada desde a última análise.");
         renderAllocation(institution);
-        renderAssets(institution);
         renderNavigation();
         $("previousInstitution").disabled = currentIndex === 0;
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -341,7 +396,7 @@ const InstitutionAnalysis = (() => {
                 return;
             }
             render();
-            window.alert(`Todas as instituições de ${owner.name} foram analisadas. A consolidação será oferecida na Sprint 4.`);
+            window.alert(`Todas as instituições de ${owner.name} foram analisadas pelo Motor de Saúde da Carteira.`);
         });
     }
 
