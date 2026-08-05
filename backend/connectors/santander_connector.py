@@ -36,48 +36,6 @@ def _row_contains(row, expected):
     return any(_normalize_header(value) == expected for value in row)
 
 
-def _count_asset_summary_positions(rows, title_index):
-    header_index = next(
-        (
-            index
-            for index in range(title_index + 1, len(rows))
-            if _has_header_markers(rows[index])
-        ),
-        None,
-    )
-    if header_index is None:
-        raise ValueError(
-            "Não encontrei o início da tabela de posições em RESUMO DE ATIVOS."
-        )
-
-    mapping = _map_block_headers(rows[header_index])
-    value_index = mapping.get("value")
-    if value_index is None:
-        raise ValueError(
-            "Não encontrei a coluna de valor da tabela em RESUMO DE ATIVOS."
-        )
-
-    count = 0
-    table_started = False
-    for row in rows[header_index + 1 :]:
-        if _is_total_row(row):
-            return count
-        if _is_blank_row(row):
-            if table_started:
-                return count
-            continue
-        if _has_header_markers(row):
-            break
-
-        table_started = True
-        if _parse_number(_safe_get(row, value_index)) is not None:
-            count += 1
-
-    if not table_started:
-        raise ValueError("A tabela RESUMO DE ATIVOS não contém posições.")
-    return count
-
-
 def _xlsx_sheet_rows(path):
     main_namespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
     relationship_namespace = (
@@ -109,21 +67,18 @@ def _xlsx_sheet_rows(path):
         }
         shared_strings = []
         if "xl/sharedStrings.xml" in archive.namelist():
-            shared_root = ElementTree.fromstring(
-                archive.read("xl/sharedStrings.xml")
-            )
+            shared_root = ElementTree.fromstring(archive.read("xl/sharedStrings.xml"))
             for item in shared_root.findall(f"{{{main_namespace}}}si"):
-                shared_strings.append("".join(
-                    node.text or ""
-                    for node in item.iter(f"{{{main_namespace}}}t")
-                ))
+                shared_strings.append(
+                    "".join(
+                        node.text or "" for node in item.iter(f"{{{main_namespace}}}t")
+                    )
+                )
 
         for sheet in workbook.findall(f".//{{{main_namespace}}}sheet"):
             relationship_id = sheet.attrib[f"{{{relationship_namespace}}}id"]
             target = targets[relationship_id].lstrip("/")
-            worksheet_path = (
-                target if target.startswith("xl/") else f"xl/{target}"
-            )
+            worksheet_path = target if target.startswith("xl/") else f"xl/{target}"
             worksheet = ElementTree.fromstring(archive.read(worksheet_path))
             rows = []
             for row_node in worksheet.findall(f".//{{{main_namespace}}}row"):
@@ -131,9 +86,7 @@ def _xlsx_sheet_rows(path):
                 for cell in row_node.findall(f"{{{main_namespace}}}c"):
                     reference = cell.attrib.get("r", "A1")
                     letters = "".join(
-                        character
-                        for character in reference
-                        if character.isalpha()
+                        character for character in reference if character.isalpha()
                     )
                     column = 0
                     for letter in letters.upper():
@@ -164,31 +117,24 @@ def _xlsx_sheet_rows(path):
 
 
 def inspect_excel_export(file_path):
-    """Identifica a tabela RESUMO DE ATIVOS sem converter suas posições."""
+    """Identifica exportações Santander com a mesma regra da importação."""
     path = Path(file_path)
     if path.suffix.lower() != ".xlsx":
         raise ValueError("O arquivo Santander deve estar em XLSX.")
     if not path.exists():
         raise ValueError(f"Arquivo Santander não encontrado: {path.name}")
 
-    for _sheet_name, rows in _xlsx_sheet_rows(path):
-        title_index = next(
-            (
-                index
-                for index, row in enumerate(rows)
-                if _row_contains(row, ASSET_SUMMARY_TITLE)
-            ),
-            None,
-        )
-        if title_index is not None:
-            return {
-                "source": SANTANDER_EXCEL_SOURCE,
-                "position_count": _count_asset_summary_positions(
-                    rows, title_index
-                ),
-            }
+    rows = _read_rows(path)
+    if not any(_row_contains(row, ASSET_SUMMARY_TITLE) for row in rows):
+        raise ValueError("Não encontrei a seção RESUMO DE ATIVOS no arquivo Santander.")
 
-    raise ValueError("Não encontrei a seção RESUMO DE ATIVOS no arquivo Santander.")
+    positions = _parse_positions(rows)
+    if not positions:
+        raise ValueError("Nenhuma posição Santander foi encontrada no arquivo.")
+    return {
+        "source": SANTANDER_EXCEL_SOURCE,
+        "position_count": len(positions),
+    }
 
 
 def _read_rows(path: Path):
@@ -201,29 +147,23 @@ def _read_rows(path: Path):
 
 def _has_header_markers(row):
     normalized = [_normalize_header(value) for value in row]
-    has_value = any(
-        "SALDO MOEDA REFERÊNCIA" in value or
-        "SALDO NA MOEDA DE REFERÊNCIA" in value
-        for value in normalized
-    )
-    has_weight = any(
-        "PESO DA CONTA (%)" in value or "% DO TOTAL" in value
-        for value in normalized
-    )
+    has_value = any(_is_value_header(value) for value in normalized)
     has_name = any(
-        value in {
+        value
+        in {
             "NOME DA CARTEIRA",
             "NOME DO ATIVO",
             "ISIN",
-            "VALOR DO MERCADO",
-            "PREÇO ATUAL",
+            "TICKER",
+            "CÓDIGO",
+            "CODIGO",
+            "TICKER/ISIN",
             "NUMERO DE CONTA",
             "NÚMERO DE CONTA",
-            "SALDO",
         }
         for value in normalized
     )
-    return has_value and has_weight and has_name
+    return has_value and has_name
 
 
 def _is_blank_row(row):
@@ -233,6 +173,34 @@ def _is_blank_row(row):
 def _is_total_row(row):
     first = str(row[0] or "").strip().upper() if row else ""
     return first.startswith("TOTAL")
+
+
+def _is_value_header(value: str) -> bool:
+    return value in {
+        "VALOR DO MERCADO",
+        "SALDO MOEDA REFERÊNCIA",
+        "SALDO NA MOEDA DE REFERÊNCIA",
+        "VALOR ESTIMADO",
+        "VALOR INVESTIDO",
+        "SALDO",
+    }
+
+
+def _is_santander_block_title(value) -> bool:
+    text = str(value or "").strip().upper()
+    return (
+        (
+            text.startswith("RENDA FIXA")
+            and ("TÍTULOS" in text or "TITULOS" in text or "FUNDOS" in text)
+        )
+        or (
+            text.startswith("RENDA VARIÁVEL")
+            and ("AÇÕES" in text or "ACOES" in text or "FUNDOS" in text)
+        )
+        or text.startswith("FUNDOS ALTERNATIVOS")
+        or text.startswith("FUNDOS DE MERCADOS PRIVADOS")
+        or text.startswith("LIQUIDEZ")
+    )
 
 
 def _class_from_block_name(title: str) -> str:
@@ -254,24 +222,47 @@ def _class_from_block_name(title: str) -> str:
 
 def _map_block_headers(header):
     mapping = {}
+    value_priority = {
+        "SALDO MOEDA REFERÊNCIA": 0,
+        "SALDO NA MOEDA DE REFERÊNCIA": 0,
+        "SALDO": 0,
+        "VALOR DO MERCADO": 1,
+        "VALOR ESTIMADO": 2,
+        "VALOR INVESTIDO": 3,
+    }
+    selected_value_priority = None
+    if header and _is_santander_block_title(header[0]):
+        mapping["description"] = 0
     for index, value in enumerate(header):
         normalized = _normalize_header(value)
         if normalized in {"ISIN", "TICKER", "CÓDIGO", "CODIGO", "TICKER/ISIN"}:
             mapping["symbol"] = index
-        elif normalized in {"NOME DA CARTEIRA", "NOME DO ATIVO", "ATIVO", "DESCRIÇÃO", "DESCRICAO"}:
-            mapping["description"] = index
-        elif normalized in {"SALDO MOEDA REFERÊNCIA", "SALDO NA MOEDA DE REFERÊNCIA", "SALDO"}:
-            mapping["value"] = index
+        elif normalized in {
+            "NOME DA CARTEIRA",
+            "NOME DO ATIVO",
+            "ATIVO",
+            "DESCRIÇÃO",
+            "DESCRICAO",
+        }:
+            mapping.setdefault("description", index)
+        elif normalized in value_priority:
+            priority = value_priority[normalized]
+            if selected_value_priority is None or priority < selected_value_priority:
+                mapping["value"] = index
+                selected_value_priority = priority
         elif normalized in {"PESO DA CONTA (%)", "% DO TOTAL"}:
             mapping["weight"] = index
-        elif normalized in {"NUMERO DE CONTA", "NÚMERO DE CONTA", "ACCOUNT", "ACCOUNT NUMBER"}:
+        elif normalized in {
+            "NUMERO DE CONTA",
+            "NÚMERO DE CONTA",
+            "ACCOUNT",
+            "ACCOUNT NUMBER",
+        }:
             mapping["account"] = index
         elif normalized == "MOEDA":
             mapping.setdefault("currency_candidates", []).append(index)
         elif normalized in {"ASSET CLASS", "CLASS", "CATEGORIA", "CATEGORY"}:
             mapping["asset_class"] = index
-        elif normalized in {"VALOR DO MERCADO", "VALOR ESTIMADO", "VALOR INVESTIDO"} and "value" not in mapping:
-            mapping["value"] = index
     return mapping
 
 
@@ -299,7 +290,14 @@ def _looks_like_account_or_category(value) -> bool:
         return True
     if "ADVISORY" in text or "ACCOUNT" in text or "CARTEIRA" in text:
         return True
-    if text in {"RENDA FIXA", "RENDA VARIÁVEL", "ALTERNATIVOS", "CURTO PRAZO", "LIQUIDEZ", "TOTAL"}:
+    if text in {
+        "RENDA FIXA",
+        "RENDA VARIÁVEL",
+        "ALTERNATIVOS",
+        "CURTO PRAZO",
+        "LIQUIDEZ",
+        "TOTAL",
+    }:
         return True
     return False
 
@@ -348,10 +346,66 @@ def _find_block_headers(rows):
     for index, row in enumerate(rows):
         if not row:
             continue
-        first = str(row[0] or "").strip().upper()
-        if _has_header_markers(row) and first:
+        if _is_santander_block_title(row[0]) and _has_header_markers(row):
             headers.append(index)
     return headers
+
+
+def _parse_positions(rows):
+    positions = []
+    for header_index in _find_block_headers(rows):
+        header_row = rows[header_index]
+        asset_class = _class_from_block_name(header_row[0])
+        mapping = _map_block_headers(header_row)
+        if "value" not in mapping:
+            continue
+
+        for row in rows[header_index + 1 :]:
+            if _is_blank_row(row) or _has_header_markers(row):
+                break
+            if _is_total_row(row):
+                continue
+
+            value = _parse_number(_safe_get(row, mapping["value"]))
+            if value is None:
+                continue
+
+            symbol = str(_safe_get(row, mapping.get("symbol", -1)) or "").strip()
+            if not symbol or symbol.upper() == "N/A":
+                symbol = str(_safe_get(row, 0) or "").strip() or ""
+
+            name = _build_display_name(row, mapping, symbol)
+            if not name:
+                continue
+
+            account = str(_safe_get(row, mapping.get("account", -1)) or "").strip()
+            currency = _find_currency(
+                row, mapping["value"], mapping.get("currency_candidates", [])
+            )
+            weight = _parse_number(_safe_get(row, mapping.get("weight")))
+
+            positions.append(
+                {
+                    "institution": "Santander",
+                    "account": account,
+                    "symbol": symbol,
+                    "name": name,
+                    "description": name,
+                    "asset_class": asset_class,
+                    "currency": currency,
+                    "value": value,
+                    "weight": weight,
+                }
+            )
+
+    total_value = sum(Decimal(str(position["value"])) for position in positions)
+    if total_value:
+        for position in positions:
+            if position.get("weight") is None:
+                position["weight"] = (
+                    Decimal(str(position["value"])) / total_value * Decimal("100")
+                )
+    return positions
 
 
 def _to_portfolio_position(position, source_file):
@@ -394,63 +448,18 @@ def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
         )
 
     rows = _read_rows(path)
-    block_headers = _find_block_headers(rows)
-    if not block_headers:
+    if not _find_block_headers(rows):
         raise UnrecognizedFileError(
             "Não encontrei blocos Santander com cabeçalhos esperados."
         )
 
-    positions = []
-    for header_index in block_headers:
-        header_row = rows[header_index]
-        asset_class = _class_from_block_name(header_row[0])
-        mapping = _map_block_headers(header_row)
-        if "value" not in mapping or "weight" not in mapping:
-            continue
-
-        for row in rows[header_index + 1 :]:
-            if _is_blank_row(row) or _has_header_markers(row):
-                break
-            if _is_total_row(row):
-                continue
-
-            value = _parse_number(_safe_get(row, mapping["value"]))
-            if value is None:
-                continue
-
-            symbol = str(_safe_get(row, mapping.get("symbol", -1)) or "").strip()
-            if not symbol or symbol.upper() == "N/A":
-                symbol = str(_safe_get(row, 0) or "").strip() or ""
-
-            name = _build_display_name(row, mapping, symbol)
-            if not name:
-                continue
-
-            account = str(_safe_get(row, mapping.get("account", -1)) or "").strip()
-            currency = _find_currency(row, mapping["value"], mapping.get("currency_candidates", []))
-            weight = _parse_number(_safe_get(row, mapping["weight"]))
-
-            positions.append({
-                "institution": "Santander",
-                "account": account,
-                "symbol": symbol,
-                "name": name,
-                "description": name,
-                "asset_class": asset_class,
-                "currency": currency,
-                "value": value,
-                "weight": weight,
-            })
-
+    positions = _parse_positions(rows)
     if not positions:
         raise EmptyPortfolioError(
             "Nenhuma posição Santander foi encontrada no arquivo."
         )
 
-    return tuple(
-        _to_portfolio_position(position, path.name)
-        for position in positions
-    )
+    return tuple(_to_portfolio_position(position, path.name) for position in positions)
 
 
 def recognize(path: Path) -> bool:

@@ -4,7 +4,11 @@ import zipfile
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from backend.connectors.santander_connector import inspect_excel_export, load_positions, recognize
+from backend.connectors.santander_connector import (
+    inspect_excel_export,
+    load_positions,
+    recognize,
+)
 
 
 class SantanderExcelInspectionTests(unittest.TestCase):
@@ -37,7 +41,9 @@ class SantanderExcelInspectionTests(unittest.TestCase):
                                 f'<c r="{column}{row_index}" t="inlineStr"><is><t>{escape(value)}</t></is></c>'
                             )
                         else:
-                            cells.append(f'<c r="{column}{row_index}"><v>{value}</v></c>')
+                            cells.append(
+                                f'<c r="{column}{row_index}"><v>{value}</v></c>'
+                            )
                     row_xml.append(f'<row r="{row_index}">{"".join(cells)}</row>')
                 archive.writestr(
                     f"xl/worksheets/sheet{sheet_index}.xml",
@@ -64,49 +70,118 @@ class SantanderExcelInspectionTests(unittest.TestCase):
         return path
 
     def test_counts_only_positions_between_header_and_total(self):
-        path = self.create_workbook([
-            ("Capa", [["Relatório Santander"]]),
-            ("Posições", [
-                ["RESUMO DE ATIVOS"],
-                ["Observação"],
-                ["NOME DO ATIVO", "SALDO MOEDA REFERÊNCIA", "PESO DA CONTA (%)"],
-                ["Ativo A", 100, 10],
-                ["Ativo B", 200, 20],
-                ["Ativo sem saldo", None, 0],
-                ["TOTAL", 300, 30],
-                ["Fora da tabela", 999, 99],
-            ]),
-        ])
+        path = self.create_workbook(
+            [
+                ("Capa", [["Relatório Santander"]]),
+                (
+                    "Posições",
+                    [
+                        ["RESUMO DE ATIVOS"],
+                        ["Observação"],
+                        [
+                            "RENDA FIXA INVESTMENT GRADE TÍTULOS",
+                            "ISIN",
+                            "FREQUÊNCIA",
+                            "NOME DA CARTEIRA",
+                            "VALOR DO MERCADO",
+                            "MOEDA",
+                            "SALDO MOEDA REFERÊNCIA",
+                        ],
+                        [
+                            "Ativo A",
+                            "US0000000001",
+                            "5.00%",
+                            "Carteira",
+                            90,
+                            "USD",
+                            100,
+                        ],
+                        [
+                            "Ativo B",
+                            "US0000000002",
+                            "6.00%",
+                            "Carteira",
+                            190,
+                            "USD",
+                            200,
+                        ],
+                        [
+                            "Ativo sem saldo",
+                            "US0000000003",
+                            "7.00%",
+                            "Carteira",
+                            None,
+                            "USD",
+                            None,
+                        ],
+                        ["TOTAL", None, None, None, 280, "USD", 300],
+                        ["Fora da tabela", 999, 99],
+                    ],
+                ),
+            ]
+        )
 
-        self.assertEqual(inspect_excel_export(path), {
-            "source": "Santander Excel Export",
-            "position_count": 2,
-        })
+        self.assertEqual(
+            inspect_excel_export(path),
+            {
+                "source": "Santander Excel Export",
+                "position_count": 2,
+            },
+        )
 
     def test_stops_counting_at_first_blank_row_after_table_starts(self):
-        path = self.create_workbook([("Export", [
-            ["RESUMO DE ATIVOS"],
-            ["NOME DO ATIVO", "SALDO NA MOEDA DE REFERÊNCIA", "% DO TOTAL"],
-            ["Ativo A", 100, 10],
-            [None, None, None],
-            ["Outra seção", 200, 20],
-        ])])
+        path = self.create_workbook(
+            [
+                (
+                    "Export",
+                    [
+                        ["RESUMO DE ATIVOS"],
+                        [
+                            "RENDA VARIÁVEL AÇÕES",
+                            "ISIN",
+                            "VALOR DO MERCADO",
+                            "SALDO NA MOEDA DE REFERÊNCIA",
+                        ],
+                        ["Ativo A", "US0000000001", 90, 100],
+                        [None, None, None],
+                        ["Outra seção", 200, 20],
+                    ],
+                )
+            ]
+        )
 
         self.assertEqual(inspect_excel_export(path)["position_count"], 1)
 
     def test_official_connector_reads_xlsx_with_its_internal_parser(self):
-        path = self.create_workbook([("Posições", [
-            ["RESUMO DE ATIVOS"],
+        path = self.create_workbook(
             [
-                "NOME DO ATIVO",
-                "ISIN",
-                "SALDO MOEDA REFERÊNCIA",
-                "PESO DA CONTA (%)",
-                "MOEDA",
-            ],
-            ["Ativo sintético", "US0000000001", 250.25, 100, "USD"],
-            ["TOTAL", None, 250.25, 100, "USD"],
-        ])])
+                (
+                    "Posições",
+                    [
+                        ["RESUMO DE ATIVOS"],
+                        [
+                            "RENDA FIXA INVESTMENT GRADE TÍTULOS",
+                            "ISIN",
+                            "FREQUÊNCIA",
+                            "NOME DA CARTEIRA",
+                            "VALOR DO MERCADO",
+                            "MOEDA",
+                            "SALDO MOEDA REFERÊNCIA",
+                        ],
+                        [
+                            "Ativo sintético",
+                            "US0000000001",
+                            "5.00%",
+                            "Carteira",
+                            200,
+                            "USD",
+                            250.25,
+                        ],
+                        ["TOTAL", None, None, None, 200, "USD", 250.25],
+                    ],
+                )
+            ]
+        )
 
         self.assertTrue(recognize(path))
         positions = load_positions(path)

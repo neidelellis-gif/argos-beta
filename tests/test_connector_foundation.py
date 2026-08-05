@@ -1,7 +1,10 @@
 import pytest
 
 from backend.connectors import (
-    bradesco_connector, registry, santander_connector, tipranks_connector,
+    bradesco_connector,
+    registry,
+    santander_connector,
+    tipranks_connector,
     ubs_connector,
 )
 from backend.connectors.contract import PortfolioConnector
@@ -15,9 +18,11 @@ from backend.connectors.errors import (
 from backend.connectors.registry import ConnectorRegistry
 from backend.models import PortfolioOwner
 
-
 CONNECTORS = (
-    ubs_connector, santander_connector, bradesco_connector, tipranks_connector,
+    ubs_connector,
+    santander_connector,
+    bradesco_connector,
+    tipranks_connector,
 )
 
 
@@ -32,10 +37,15 @@ def test_connectors_implement_official_contract(connector):
 
 def test_registry_lists_all_connectors_but_keeps_tipranks_out_of_active_upload():
     assert [connector.connector_id for connector in registry.all()] == [
-        "ubs", "santander", "bradesco", "tipranks"
+        "ubs",
+        "santander",
+        "bradesco",
+        "tipranks",
     ]
     assert [connector.connector_id for connector in registry.active()] == [
-        "ubs", "santander", "bradesco"
+        "ubs",
+        "santander",
+        "bradesco",
     ]
     assert tipranks_connector in registry.for_extension(".csv")
     assert tipranks_connector not in registry.for_extension(".csv", active_only=True)
@@ -53,14 +63,20 @@ def test_connector_owner_metadata_is_used(connector, monkeypatch):
     monkeypatch.setattr(connector, "owner", PortfolioOwner.NEI)
     raw = {"institution": connector.institution}
     if connector is ubs_connector:
-        raw.update(name="Asset", symbol="A", asset_class="Ação", currency="USD", value=1)
+        raw.update(
+            name="Asset", symbol="A", asset_class="Ação", currency="USD", value=1
+        )
     elif connector is santander_connector:
-        raw.update(name="Asset", symbol="A", asset_class="Ação", currency="USD", value=1)
+        raw.update(
+            name="Asset", symbol="A", asset_class="Ação", currency="USD", value=1
+        )
     elif connector is tipranks_connector:
         raw.update(name="Asset", ticker="A")
     else:
         raw.update(name="Asset", quantity=1, price=1, gross=1, weight=1)
-    assert connector._to_portfolio_position(raw, "source.csv").owner is PortfolioOwner.NEI
+    assert (
+        connector._to_portfolio_position(raw, "source.csv").owner is PortfolioOwner.NEI
+    )
 
 
 @pytest.mark.parametrize("connector", CONNECTORS)
@@ -113,19 +129,29 @@ def test_load_positions_returns_tuple(connector, monkeypatch, tmp_path):
     path = tmp_path / f"portfolio{suffix}"
     path.touch()
     if connector is ubs_connector:
-        monkeypatch.setattr(connector, "_read_rows", lambda _: [
-            ["ACCOUNT NUMBER", "DESCRIPTION", "SYMBOL", "VALUE"],
-            ["1", "Asset", "A", 1],
-        ])
+        monkeypatch.setattr(
+            connector,
+            "_read_rows",
+            lambda _: [
+                ["ACCOUNT NUMBER", "DESCRIPTION", "SYMBOL", "VALUE"],
+                ["1", "Asset", "A", 1],
+            ],
+        )
     elif connector is santander_connector:
-        monkeypatch.setattr(connector, "_read_rows", lambda _: [
-            ["NOME DO ATIVO", "ISIN", "SALDO MOEDA REFERÊNCIA", "PESO DA CONTA (%)"],
-            ["Asset", "A", 1, 100],
-        ])
+        monkeypatch.setattr(
+            connector,
+            "_read_rows",
+            lambda _: [
+                ["RENDA VARIÁVEL AÇÕES", "ISIN", "SALDO MOEDA REFERÊNCIA"],
+                ["Asset", "A", 1],
+            ],
+        )
     elif connector is tipranks_connector:
-        monkeypatch.setattr(connector, "_read_positions", lambda _: [{
-            "institution": "TipRanks", "ticker": "A", "name": "Asset"
-        }])
+        monkeypatch.setattr(
+            connector,
+            "_read_positions",
+            lambda _: [{"institution": "TipRanks", "ticker": "A", "name": "Asset"}],
+        )
     else:
         path.write_text(
             "Posição Detalhada dos Investimentos\nRENDA FIXA\nPÓS-FIXADO\n"
