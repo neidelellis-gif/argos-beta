@@ -84,10 +84,10 @@ let dailyExperienceLoading = false;
 const INVESTOR_PROFILE_KEY = "argos.investor-profile";
 
 const INVESTOR_PROFILE_LABELS = Object.freeze({
-    primaryGoal: { preservation: "Preservar patrimônio", income: "Gerar renda", growth: "Crescer patrimônio" },
-    riskTolerance: { low: "Prefiro estabilidade", moderate: "Aceito oscilações moderadas", high: "Aceito oscilações maiores" },
-    horizon: { short: "Até 2 anos", medium: "2 a 5 anos", long: "Mais de 5 anos" },
-    liquidity: { high: "Alta liquidez", moderate: "Liquidez moderada", low: "Baixa liquidez" }
+    primaryGoal: { preservation: "Preservar o patrimônio construído", growth: "Fazer o patrimônio crescer de forma consistente", income: "Gerar renda recorrente", balance: "Equilibrar crescimento e preservação" },
+    riskTolerance: { low: "Reduziria risco para preservar patrimônio", moderate: "Manteria a estratégia", high: "Aproveitaria para aumentar posições" },
+    horizon: { short: "Nos próximos 2 anos", medium: "Entre 2 e 5 anos", long: "Acima de 5 anos" },
+    liquidity: { high: "Grande parte", moderate: "Apenas uma parcela", low: "Não tenho necessidade relevante de liquidez" }
 });
 
 function investorProfileReviewDate() {
@@ -103,13 +103,14 @@ function buildDecisionProfile(answers) {
     const objectiveMap = {
         preservation: "CAPITAL_PRESERVATION",
         income: "INCOME",
-        growth: "CAPITAL_GROWTH"
+        growth: "CAPITAL_GROWTH",
+        balance: "DIVERSIFICATION"
     };
-    const preservationMap = { preservation: "CRITICAL", income: "HIGH", growth: "MODERATE" };
+    const preservationMap = { preservation: "CRITICAL", income: "HIGH", growth: "MODERATE", balance: "HIGH" };
     const primaryObjective = objectiveMap[answers.primaryGoal];
     return {
         profile_id: "investor-first-access",
-        profile_name: "Perfil do Investidor — Primeiro acesso",
+        profile_name: "Perfil Estratégico",
         portfolio_scope: "CONSOLIDATED",
         risk_level: riskMap[answers.riskTolerance],
         investment_horizon: horizonMap[answers.horizon],
@@ -127,9 +128,9 @@ function buildDecisionProfile(answers) {
         base_currency: "BRL",
         decision_frequency: "EVENT_DRIVEN",
         review_date: investorProfileReviewDate(),
-        source_name: "Fluxo oficial de primeiro acesso",
-        source_reference: "Entrega 4.2 — Perfil do Investidor",
-        notes: "Perfil gerado pelas quatro perguntas oficiais do primeiro acesso."
+        source_name: "Fluxo oficial do Perfil Estratégico",
+        source_reference: "Sprint 6.1 — Perfil Estratégico",
+        notes: "Perfil Estratégico confirmado pelas quatro perguntas oficiais."
     };
 }
 
@@ -152,21 +153,41 @@ function saveInvestorProfileLocally(answers, profile) {
     }));
 }
 
+function formatProfileDate(value) {
+    if (!value) return "Não registrada";
+    const date = new Date(`${value}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) return "Não registrada";
+    return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "long", year: "numeric" }).format(date);
+}
+
 function renderInvestorProfileSummary(stored = readInvestorProfile()) {
     const status = document.getElementById("investorProfileStatus");
     const summary = document.getElementById("investorProfileSummary");
+    const form = document.getElementById("investorProfileForm");
     if (!status || !summary) return;
     if (!stored) {
         status.textContent = "Perfil não preenchido";
         status.className = "status-badge status-pending";
+        if (form) form.hidden = false;
         summary.hidden = true;
         summary.replaceChildren();
         return;
     }
-    status.textContent = "Perfil salvo";
+    status.textContent = "Perfil vigente";
     status.className = "status-badge status-ready";
+    if (form) form.hidden = true;
     summary.hidden = false;
-    summary.innerHTML = `<h2>Perfil usado pelo Motor de Saúde</h2><ul>${["primaryGoal", "riskTolerance", "horizon", "liquidity"].map((key) => `<li>${INVESTOR_PROFILE_LABELS[key][stored.answers[key]]}</li>`).join("")}</ul>`;
+    const savedAt = stored.saved_at ? formatProfileDate(stored.saved_at.slice(0, 10)) : "Não registrada";
+    const reviewDate = formatProfileDate(stored.profile?.review_date);
+    summary.innerHTML = `<div class="profile-summary-heading"><p class="eyebrow">REFERÊNCIA PATRIMONIAL</p><h2>Perfil Estratégico</h2><p>Este perfil fica reservado para revisões relevantes. No uso diário, a carteira permanece em primeiro plano.</p></div><dl class="profile-summary-details"><div><dt>Última atualização</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão anual</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Atualizar Perfil</button>`;
+    const updateButton = summary.querySelector("#updateInvestorProfile");
+    if (updateButton && form) {
+        updateButton.addEventListener("click", () => {
+            form.hidden = false;
+            summary.hidden = true;
+            restoreInvestorProfileForm(form, stored);
+        });
+    }
 }
 
 function collectInvestorProfileAnswers(form) {
