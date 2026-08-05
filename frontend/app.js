@@ -95,8 +95,12 @@ function renderInvestorProfileStep(form, step = investorProfileStep) {
     fieldsets.forEach((fieldset, index) => {
         fieldset.hidden = index !== investorProfileStep;
     });
-    const progress = form.querySelector(".profile-step-meta");
-    if (progress) progress.textContent = `${investorProfileStep + 1} de ${fieldsets.length}`;
+    form.querySelectorAll("[data-profile-step-label]").forEach((label, index) => {
+        label.classList.toggle("is-complete", index < investorProfileStep);
+        label.classList.toggle("is-current", index === investorProfileStep);
+        if (index === investorProfileStep) label.setAttribute("aria-current", "step");
+        else label.removeAttribute("aria-current");
+    });
     const backButton = document.getElementById("investorProfileBack");
     if (backButton) backButton.hidden = investorProfileStep === 0;
     const nextButton = document.getElementById("investorProfileNext");
@@ -114,6 +118,19 @@ const INVESTOR_PROFILE_LABELS = Object.freeze({
     horizon: { short: "Em até 2 anos", medium: "Entre 2 e 5 anos", long: "Acima de 5 anos" },
     liquidity: { high: "Parcela ampla, com alta disponibilidade", moderate: "Parcela moderada, sem comprometer a estratégia", low: "Parcela reduzida, com baixa necessidade de liquidez" }
 });
+
+const INVESTOR_PROFILE_SUMMARY = Object.freeze({
+    primaryGoal: { preservation: "à preservação disciplinada", growth: "ao crescimento consistente", income: "à geração recorrente de renda", balance: "ao equilíbrio entre preservação, renda e crescimento" },
+    riskTolerance: { low: "com redução de exposição diante de oscilações", moderate: "com manutenção da estratégia diante de oscilações", high: "com avaliação de aumentos seletivos diante de oscilações" },
+    horizon: { short: "horizonte de até dois anos", medium: "horizonte entre dois e cinco anos", long: "horizonte superior a cinco anos" },
+    liquidity: { high: "alta necessidade de liquidez", moderate: "necessidade moderada de liquidez", low: "baixa necessidade de liquidez" }
+});
+
+function buildInvestorProfileSummary(answers = {}) {
+    const parts = INVESTOR_PROFILE_STEPS.map((name) => INVESTOR_PROFILE_SUMMARY[name][answers[name]]);
+    if (parts.some((part) => !part)) return "Síntese indisponível até a próxima atualização do perfil.";
+    return `Patrimônio orientado ${parts[0]}, ${parts[1]}, ${parts[2]} e ${parts[3]}.`;
+}
 
 function investorProfileReviewDate() {
     const date = new Date();
@@ -182,7 +199,7 @@ function formatProfileDate(value) {
     if (!value) return "Não registrada";
     const date = new Date(`${value}T00:00:00Z`);
     if (Number.isNaN(date.getTime())) return "Não registrada";
-    return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "long", year: "numeric" }).format(date);
+    return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "numeric", month: "long", year: "numeric" }).format(date);
 }
 
 function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
@@ -208,7 +225,8 @@ function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
     status.className = "status-badge status-ready";
     const savedAt = stored.saved_at ? formatProfileDate(stored.saved_at.slice(0, 10)) : "Não registrada";
     const reviewDate = formatProfileDate(stored.profile?.review_date);
-    summary.innerHTML = `<div class="profile-summary-heading"><h2>Perfil Estratégico</h2><p>Diretriz patrimonial vigente para orientar decisões com clareza, disciplina e horizonte.</p></div><dl class="profile-summary-details"><div><dt>Última atualização</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão anual</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Atualizar Perfil</button>`;
+    const profileSummary = buildInvestorProfileSummary(stored.answers);
+    summary.innerHTML = `<div class="profile-summary-heading"><p class="eyebrow">Perfil Estratégico</p><h2>${profileSummary}</h2><p>Este perfil permanece vigente até a revisão anual ou até que uma mudança relevante justifique sua atualização.</p></div><dl class="profile-summary-details"><div><dt>Última revisão</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão recomendada</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Atualizar Perfil</button>`;
     const updateButton = summary.querySelector("#updateInvestorProfile");
     if (updateButton) {
         updateButton.addEventListener("click", () => setInvestorProfileViewState("editing", readInvestorProfile() || stored));
