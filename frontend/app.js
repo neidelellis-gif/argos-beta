@@ -80,6 +80,63 @@ let importedPortfolioPositions = [];
 let canonicalPortfolioPositions = [];
 let dashboardValuesVisible = false;
 let dailyExperienceLoading = false;
+const IMPORT_STATUS_KEY = "argos.institution-import-status";
+
+function normalizeInstitutionKey(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase();
+}
+
+function readInstitutionImportStatus() {
+    try {
+        if (typeof window === "undefined" || !window.localStorage) return {};
+        return JSON.parse(window.localStorage.getItem(IMPORT_STATUS_KEY) || "{}");
+    } catch (_) {
+        return {};
+    }
+}
+
+function writeInstitutionImportStatus(status) {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.setItem(IMPORT_STATUS_KEY, JSON.stringify(status));
+}
+
+function setInstitutionImportError(institutionNames, message, reason = "import_failed") {
+    const names = Array.from(new Set((institutionNames || []).map(normalizeInstitutionKey).filter(Boolean)));
+    if (!names.length) return;
+    const status = readInstitutionImportStatus();
+    const now = new Date().toISOString();
+    names.forEach((name) => {
+        status[name] = { status: "error", reason, message, updated_at: now };
+    });
+    writeInstitutionImportStatus(status);
+}
+
+function clearInstitutionImportError(institutionNames) {
+    const names = Array.from(new Set((institutionNames || []).map(normalizeInstitutionKey).filter(Boolean)));
+    if (!names.length) return;
+    const status = readInstitutionImportStatus();
+    names.forEach((name) => {
+        delete status[name];
+    });
+    writeInstitutionImportStatus(status);
+}
+
+function inferInstitutionFromFile(fileName, source = null) {
+    const normalized = normalizeInstitutionKey(`${fileName} ${source || ""}`);
+    if (normalized.includes("santander")) return "Santander";
+    if (normalized.includes("ubs")) return "UBS";
+    return null;
+}
+
+function inferInstitutionsFromFiles(files) {
+    return Array.from(new Set((files || [])
+        .map((file) => inferInstitutionFromFile(file.name))
+        .filter(Boolean)));
+}
 
 function activateNotebookTab(tabName, navigationItems, panels) {
     navigationItems.forEach((item) => {
@@ -252,17 +309,24 @@ function setupPortfolioFilePicker() {
                 if (!response.ok || !result.ok) {
                     throw new Error(result.error || "Arquivo Santander inválido.");
                 }
+                clearInstitutionImportError(["Santander"]);
                 renderSantanderPositionCount(
                     fileSummary,
                     result.position_count
                 );
             } catch (error) {
+                setInstitutionImportError(["Santander"], "A carteira ainda não foi importada corretamente.", "import_failed");
                 renderSantanderExcelError(fileSummary);
             }
             return;
         }
 
         if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
+            setInstitutionImportError(
+                [inferInstitutionFromFile(selectedFile.name)].filter(Boolean),
+                "Arquivo não reconhecido para importação da carteira.",
+                "unrecognized_file"
+            );
             renderPortfolioFileError(fileSummary);
             return;
         }
@@ -286,6 +350,14 @@ function setupPortfolioFilePicker() {
                 );
             }
 
+            const institutionName = inferInstitutionFromFile(selectedFile.name, source);
+            if (!source) {
+                setInstitutionImportError(
+                    [institutionName].filter(Boolean),
+                    "Arquivo não reconhecido para importação da carteira.",
+                    "unrecognized_file"
+                );
+            }
             renderPortfolioFileSummary(
                 fileSummary,
                 dataRows.length,
@@ -293,6 +365,11 @@ function setupPortfolioFilePicker() {
                 source
             );
         } catch (error) {
+            setInstitutionImportError(
+                [inferInstitutionFromFile(selectedFile.name)].filter(Boolean),
+                "A carteira ainda não foi importada corretamente.",
+                "import_failed"
+            );
             renderPortfolioFileError(fileSummary);
         }
     });
@@ -317,9 +394,19 @@ function setupPortfolioFilePicker() {
                 }
                 progressBar.value = 100;
                 progressText.textContent = "Importação concluída.";
+                clearInstitutionImportError(
+                    Array.isArray(result.dashboard?.institutions)
+                        ? result.dashboard.institutions.map((institution) => institution.name)
+                        : inferInstitutionsFromFiles(files)
+                );
                 storeCanonicalPortfolioPositions(result.positions);
                 renderDashboard(result.dashboard);
             } catch (error) {
+                setInstitutionImportError(
+                    inferInstitutionsFromFiles(files),
+                    error.message || "A carteira ainda não foi importada corretamente.",
+                    "import_failed"
+                );
                 progressBar.value = 0;
                 progressText.textContent = error.message;
             } finally {
