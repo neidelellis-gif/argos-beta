@@ -22,7 +22,7 @@ test("blocks conclusions when institution import is incomplete", () => {
     assert.match(helpers.favorableItems(institution)[0].title, /Dados insuficientes/);
 });
 
-test("uses executive wording only after the import has positions and values", () => {
+test("uses portfolio health wording only after the import has positions and values", () => {
     const institution = {
         name: "Santander",
         position_count: 3,
@@ -32,12 +32,12 @@ test("uses executive wording only after the import has positions and values", ()
     };
 
     assert.equal(helpers.isImportIncomplete(institution), false);
-    assert.equal(
-        helpers.buildSummary(institution),
-        "Santander tem 3 posições carregadas, com exposição em BRL. A base está suficiente para uma leitura executiva inicial, ainda sem substituir a validação individual dos ativos."
-    );
-    assert.equal(helpers.riskItems(institution).length, 0);
-    assert.match(helpers.favorableItems(institution)[0].title, /Mais de uma posição/);
+    assert.match(helpers.buildSummary(institution), /Santander está saudável/);
+    assert.match(helpers.buildSummary(institution), /não há sinal suficiente para exigir ação imediata/);
+    assert.equal(helpers.attentionItems(institution).length, 3);
+    assert.equal(helpers.riskItems(institution)[0].title, "Nenhum risco dominante identificado");
+    assert.equal(helpers.favorableItems(institution)[0].title, "Nenhuma tese exige atenção imediata");
+    assert.doesNotMatch(helpers.buildSummary(institution), /comprar|vender/i);
 });
 
 test("failed import status blocks diagnosis for an institution with old dashboard data", () => {
@@ -96,7 +96,7 @@ test("successful import status clears error and allows diagnosis wording", () =>
         });
 
         assert.equal(helpers.isImportIncomplete(institution), false);
-        assert.match(helpers.buildSummary(institution), /2 posições carregadas/);
+        assert.match(helpers.buildSummary(institution), /2 investimentos foram identificados/);
     } finally {
         global.window = originalWindow;
     }
@@ -113,4 +113,21 @@ test("completion button remains disabled while import error exists", () => {
     };
 
     assert.equal(helpers.isImportIncomplete(oldInstitution), true);
+});
+
+
+test("answers action question without buy or sell recommendation", () => {
+    const institution = {
+        name: "UBS",
+        position_count: 1,
+        currencies: ["USD"],
+        totals_by_currency: { USD: 10000 },
+        warnings: []
+    };
+
+    const action = helpers.attentionItems(institution).find((item) => item.title === "Preciso agir agora?");
+
+    assert.ok(action);
+    assert.match(action.description, /Não há recomendação automática de compra ou venda/);
+    assert.match(helpers.riskItems(institution)[0].description, /concentrada em uma única posição/);
 });
