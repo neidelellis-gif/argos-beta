@@ -824,6 +824,71 @@ test("renders the imported session dashboard after a successful import", async (
     );
 });
 
+test("renders an empty dashboard after a failed portfolio import", async () => {
+    const elements = new Map();
+    const file = { name: "your-positions-4005106-38.xlsx" };
+    const input = {
+        files: [file],
+        addEventListener(_event, listener) {
+            this.changeListener = listener;
+        }
+    };
+    const button = {
+        disabled: true,
+        addEventListener(_event, listener) {
+            this.clickListener = listener;
+        }
+    };
+    elements.set("portfolioFile", input);
+    elements.set("portfolioFileName", { textContent: "" });
+    elements.set("portfolioFileSummary", createElement("div"));
+    elements.set("tipRanksPreview", { hidden: true });
+    elements.set("tipRanksPreviewContent", createElement("div"));
+    elements.set("importPortfolios", button);
+    elements.set("importProgress", { hidden: true });
+    elements.set("importProgressBar", { value: 0 });
+    elements.set("importProgressText", { textContent: "" });
+    context.document.getElementById = (id) => elements.get(id);
+    context.FormData = class {
+        append() {}
+    };
+    const emptyDashboard = {
+        institutions: [],
+        consolidated: { position_count: 0 },
+        daily_situation: [{ status: "waiting", message: "Nenhuma carteira carregada" }]
+    };
+    let renderedDashboard = null;
+    context.renderDashboard = (dashboard) => {
+        renderedDashboard = dashboard;
+    };
+    context.storeCanonicalPortfolioPositions([{ institution: "Santander" }]);
+    context.fetch = async () => ({
+        ok: false,
+        async json() {
+            return {
+                ok: false,
+                error: "Instituição não reconhecida: your-positions-4005106-38.xlsx.",
+                dashboard: emptyDashboard,
+                positions: []
+            };
+        }
+    });
+
+    context.setupPortfolioFilePicker();
+    await button.clickListener();
+
+    assert.equal(renderedDashboard, emptyDashboard);
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.getCanonicalPortfolioPositions())),
+        []
+    );
+    assert.equal(elements.get("importProgressBar").value, 0);
+    assert.match(
+        elements.get("importProgressText").textContent,
+        /Instituição não reconhecida/
+    );
+});
+
 test("stores official positions as immutable frontend copies", () => {
     const payload = [{
         institution: "UBS",

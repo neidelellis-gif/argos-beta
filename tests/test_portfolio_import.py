@@ -164,7 +164,7 @@ def test_unrecognized_institution(server):
     assert cookie is None
 
 
-def test_dashboard_keeps_official_repository_after_session_import(server):
+def test_dashboard_uses_only_confirmed_session_import(server):
     _, imported, set_cookie = post_files(
         server, [(UBS_FIXTURE.name, UBS_FIXTURE.read_bytes())]
     )
@@ -177,12 +177,9 @@ def test_dashboard_keeps_official_repository_after_session_import(server):
     connection.close()
 
     assert response.status == 200
-    assert {item["owner"] for item in dashboard["positions"]} == {"NEI", "JOLIKA"}
-    assert {item["institution"] for item in dashboard["positions"]} == {
-        "Bradesco", "Santander", "UBS",
-    }
-    assert dashboard["positions"] != imported["positions"]
-    assert dashboard["consolidated"]["position_count"] == 3
+    assert dashboard["positions"] == imported["positions"]
+    assert {item["institution"] for item in dashboard["positions"]} == {"UBS"}
+    assert dashboard["consolidated"]["position_count"] == 28
 
 
 def test_sequential_import_replaces_only_the_reimported_institution(server):
@@ -244,13 +241,12 @@ def test_sequential_import_replaces_only_the_reimported_institution(server):
     ]
 
 
-def test_invalid_import_preserves_existing_session(server):
+def test_invalid_import_clears_existing_session_and_returns_empty_dashboard(server):
     _, _, set_cookie = post_files(
         server, [(UBS_FIXTURE.name, UBS_FIXTURE.read_bytes())]
     )
     assert set_cookie is not None
     session_id = set_cookie.split(";", 1)[0].split("=", 1)[1]
-    before = SESSION_PORTFOLIOS[session_id]
     body, content_type = multipart([("invalid.pdf", b"invalid")])
     connection = http.client.HTTPConnection("127.0.0.1", server.server_port)
     connection.request("POST", "/api/portfolios/import", body=body, headers={
@@ -263,8 +259,10 @@ def test_invalid_import_preserves_existing_session(server):
     connection.close()
 
     assert response.status == 400
-    assert "positions" not in payload
-    assert SESSION_PORTFOLIOS[session_id] is before
+    assert payload["positions"] == []
+    assert payload["dashboard"]["institutions"] == []
+    assert payload["dashboard"]["consolidated"]["position_count"] == 0
+    assert session_id not in SESSION_PORTFOLIOS
 
 
 def test_clear_all_portfolios_empties_session_and_dashboard(server):
@@ -286,9 +284,9 @@ def test_clear_all_portfolios_empties_session_and_dashboard(server):
     assert cookie.split("=", 1)[1] not in SESSION_PORTFOLIOS
 
 
-def test_dashboard_without_session_exposes_official_positions(server):
+def test_dashboard_without_session_is_empty(server):
     status, payload = request_with_cookie(server, "GET", "/api/dashboard", "")
     assert status == 200
-    assert {item["institution"] for item in payload["positions"]} == {
-        "Bradesco", "Santander", "UBS",
-    }
+    assert payload["positions"] == []
+    assert payload["institutions"] == []
+    assert payload["consolidated"]["position_count"] == 0

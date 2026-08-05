@@ -379,18 +379,9 @@ def test_real_server_routes_daily_post_and_rejects_get(server: ThreadingHTTPServ
         connection.close()
 
 
-def test_real_server_uses_only_official_positions_once(
+def test_real_server_uses_confirmed_session_positions(
     server: ThreadingHTTPServer, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    official_positions = server_module.OFFICIAL_PORTFOLIO_LOADER.load_positions()
-
-    class RecordingLoader:
-        calls = 0
-
-        def load_positions(self):
-            self.calls += 1
-            return official_positions
-
     class RecordingAdapter:
         received_positions = None
 
@@ -405,9 +396,7 @@ def test_real_server_uses_only_official_positions_once(
                 b'{"status":"SUCCESS"}',
             )
 
-    loader = RecordingLoader()
     adapter = RecordingAdapter()
-    monkeypatch.setattr(server_module, "OFFICIAL_PORTFOLIO_LOADER", loader)
     monkeypatch.setattr(server_module, "DAILY_HTTP_ADAPTER", adapter)
 
     connection = http.client.HTTPConnection("127.0.0.1", server.server_port)
@@ -421,5 +410,4 @@ def test_real_server_uses_only_official_positions_once(
     connection.close()
 
     assert response.status == 200
-    assert loader.calls == 1
-    assert adapter.received_positions == official_positions
+    assert adapter.received_positions == ()

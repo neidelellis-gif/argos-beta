@@ -19,7 +19,7 @@ if __package__ in {None, ""}:
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
-from backend.dashboard import build_dashboard, load_dashboard
+from backend.dashboard import build_dashboard
 from backend.canonical_portfolio import serialize_portfolio_positions
 from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
 from backend.portfolio_import import import_portfolios
@@ -27,7 +27,6 @@ from backend.market_agenda import MarketAgendaEvent, import_market_agenda
 from backend.market_agenda_serializer import serialize_market_agenda
 from backend.decision_context import DecisionProfile, import_decision_profile
 from backend.decision_context_serializer import serialize_decision_profile
-from backend.official_portfolios import OfficialPortfolioLoader
 from backend.market_connectors import BcbMarketConnector, ConnectorManager, LocalMarketConnector
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -45,7 +44,6 @@ SESSION_PORTFOLIOS: dict[str, SessionPortfolio] = {}
 SESSION_MARKET_AGENDA: dict[str, tuple[MarketAgendaEvent, ...]] = {}
 SESSION_DECISION_CONTEXT: dict[str, DecisionProfile] = {}
 DAILY_HTTP_ADAPTER = DailyHttpAdapter()
-OFFICIAL_PORTFOLIO_LOADER = OfficialPortfolioLoader()
 MARKET_CONNECTOR_MANAGER = ConnectorManager()
 MARKET_CONNECTOR_MANAGER.register("BCB", BcbMarketConnector(), active=True)
 MARKET_CONNECTOR_MANAGER.register("LOCAL", LocalMarketConnector())
@@ -338,7 +336,7 @@ class ArgosRequestHandler(
     def _daily_experience(self) -> None:
         market_facts = MARKET_CONNECTOR_MANAGER.load_facts()
         market_agenda = MARKET_CONNECTOR_MANAGER.load_agenda()
-        official_positions = OFFICIAL_PORTFOLIO_LOADER.load_positions()
+        session_positions = self._session_positions()
         try:
             content_length = self._content_length()
         except ValueError:
@@ -346,7 +344,7 @@ class ArgosRequestHandler(
         if content_length < 0:
             response = DAILY_HTTP_ADAPTER.handle(
                 self.command, dict(self.headers), b"", market_agenda, self._session_decision_profile(),
-                official_positions,
+                session_positions,
                 market_facts,
             )
         elif content_length > MAX_DAILY_REQUEST_BYTES:
@@ -356,14 +354,14 @@ class ArgosRequestHandler(
                 b" " * (MAX_DAILY_REQUEST_BYTES + 1),
                 market_agenda,
                 self._session_decision_profile(),
-                official_positions,
+                session_positions,
                 market_facts,
             )
         else:
             body = self.rfile.read(content_length)
             response = DAILY_HTTP_ADAPTER.handle(
                 self.command, dict(self.headers), body, market_agenda, self._session_decision_profile(),
-                official_positions,
+                session_positions,
                 market_facts,
             )
         self.send_response(response.status_code)
@@ -423,11 +421,25 @@ class ArgosRequestHandler(
     def _session_decision_profile(self) -> DecisionProfile | None:
         return SESSION_DECISION_CONTEXT.get(self._session_id() or "")
 
+    def _session_portfolio(self) -> SessionPortfolio | None:
+        session_id = self._session_id()
+        if not session_id:
+            return None
+        return SESSION_PORTFOLIOS.get(session_id)
+
+    def _session_positions(self) -> tuple[PortfolioPosition, ...]:
+        portfolio = self._session_portfolio()
+        return portfolio["positions"] if portfolio is not None else ()
+
     def _dashboard(self, include_positions: bool = True):
-        positions = OFFICIAL_PORTFOLIO_LOADER.load_positions()
-        dashboard = load_dashboard()
+        portfolio = self._session_portfolio()
+        positions = portfolio["positions"] if portfolio is not None else ()
+        last_import_at = (
+            portfolio["last_import_at"] if portfolio is not None else None
+        )
+        dashboard = build_dashboard(positions, last_import_at=last_import_at)
         if include_positions:
-            dashboard["positions"] = serialize_portfolio_positions(positions or ())
+            dashboard["positions"] = serialize_portfolio_positions(positions)
         return dashboard
 
     def _multipart_files(self) -> list[tuple[str, bytes]]:
@@ -506,7 +518,16 @@ class ArgosRequestHandler(
                     },
                 )
             except Exception as exc:
-                self._send_json({"ok": False, "error": str(exc)}, status=400)
+                session_id = self._session_id()
+                if session_id:
+                    SESSION_PORTFOLIOS.pop(session_id, None)
+                empty_dashboard = build_dashboard(())
+                self._send_json({
+                    "ok": False,
+                    "error": str(exc),
+                    "dashboard": empty_dashboard,
+                    "positions": [],
+                }, status=400)
 
     def _import_market_agenda(self) -> None:
         try:
