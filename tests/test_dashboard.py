@@ -265,7 +265,7 @@ def test_frontend_consumes_and_exposes_dashboard_sections():
 
     assert 'fetch("/api/dashboard"' in app
     assert "storeCanonicalPortfolioPositions(result.positions)" in app
-    assert "renderDashboard(result)" in app
+    assert "renderDashboard(dashboard)" in app
     for element_id in (
         "importantFacts",
         "dailyPriorities",

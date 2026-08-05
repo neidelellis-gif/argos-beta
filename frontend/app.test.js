@@ -128,6 +128,61 @@ const CANONICAL_POSITION = Object.freeze({
     ignored_field: "must not be sent"
 });
 
+
+test("does not hydrate portfolios from dashboard without tab import confirmation", () => {
+    const dashboard = {
+        positions: [CANONICAL_POSITION],
+        institutions: [{ name: "UBS" }],
+        consolidated: {
+            institution_count: 1,
+            position_count: 1,
+            unique_asset_count: 1,
+            repeated_asset_count: 0,
+            totals_by_currency: { USD: "981.25000000" },
+            warnings: []
+        },
+        session: {
+            last_import_at: "2026-07-29T00:00:00+00:00",
+            institution_count: 1,
+            position_count: 1,
+            analyzed_institutions: ["UBS"],
+            status: "active"
+        }
+    };
+
+    const empty = context.emptyPortfolioDashboard(dashboard);
+
+    assert.equal(context.shouldHydratePortfolioDashboard(dashboard), false);
+    assert.deepEqual(JSON.parse(JSON.stringify(empty.positions)), []);
+    assert.deepEqual(JSON.parse(JSON.stringify(empty.institutions)), []);
+    assert.equal(empty.consolidated.position_count, 0);
+    assert.equal(empty.session.status, "waiting_import");
+});
+
+test("hydrates portfolios only after successful tab import confirmation", () => {
+    const storage = new Map();
+    context.window = {
+        sessionStorage: {
+            getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+            setItem(key, value) { storage.set(key, value); },
+            removeItem(key) { storage.delete(key); }
+        }
+    };
+    const dashboard = {
+        positions: [CANONICAL_POSITION],
+        session: { status: "active" }
+    };
+
+    context.markPortfolioImportConfirmed();
+
+    assert.equal(context.shouldHydratePortfolioDashboard(dashboard), true);
+
+    context.clearPortfolioImportConfirmation();
+    assert.equal(context.shouldHydratePortfolioDashboard(dashboard), false);
+
+    delete context.window;
+});
+
 test("DailyRequestBuilder builds an empty collection", () => {
     assert.deepEqual(context.DailyRequestBuilder.build([]), []);
 });
@@ -941,13 +996,16 @@ test("starts canonical portfolio state empty", () => {
     );
 });
 
-test("restores canonical positions while loading the existing dashboard", async () => {
+test("keeps portfolios empty while loading an unconfirmed existing dashboard", async () => {
     const dashboard = {
         positions: [{
             institution: "Santander",
             owner: "JOLIKA",
             market_value: "99.9900"
-        }]
+        }],
+        institutions: [{ name: "Santander" }],
+        consolidated: { position_count: 1 },
+        session: { status: "active" }
     };
     let rendered = null;
     context.fetch = async (url, options) => {
@@ -959,11 +1017,12 @@ test("restores canonical positions while loading the existing dashboard", async 
 
     await context.loadDashboard();
 
-    assert.equal(rendered, dashboard);
+    assert.notEqual(rendered, dashboard);
     assert.deepEqual(
         JSON.parse(JSON.stringify(context.getCanonicalPortfolioPositions())),
-        dashboard.positions
+        []
     );
+    assert.equal(rendered.consolidated.position_count, 0);
 });
 
 test("formats the last import date and time returned by the dashboard", () => {
