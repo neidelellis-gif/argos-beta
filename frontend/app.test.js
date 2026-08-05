@@ -1147,3 +1147,27 @@ test("loadDailyExperience renders only the safe failure message", async () => {
         "Não foi possível preparar a experiência diária.");
     assert.equal(elements.get("daily-loading").hidden, true);
 });
+
+test("records and clears institution import errors in persistent storage", () => {
+    const originalWindow = context.window;
+    const storage = new Map();
+    context.window = {
+        localStorage: {
+            getItem(key) { return storage.get(key) || null; },
+            setItem(key, value) { storage.set(key, value); }
+        }
+    };
+
+    try {
+        context.setInstitutionImportError(["Santander"], "Falha", "import_failed");
+        let status = JSON.parse(storage.get("argos.institution-import-status"));
+        assert.equal(status.santander.status, "error");
+        assert.equal(status.santander.reason, "import_failed");
+
+        context.clearInstitutionImportError(["Santander"]);
+        status = JSON.parse(storage.get("argos.institution-import-status"));
+        assert.equal(status.santander, undefined);
+    } finally {
+        context.window = originalWindow;
+    }
+});
