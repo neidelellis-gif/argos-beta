@@ -27,7 +27,7 @@ from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
 from backend.portfolio_import import import_portfolios
 from backend.market_agenda import MarketAgendaEvent, import_market_agenda
 from backend.market_agenda_serializer import serialize_market_agenda
-from backend.decision_context import DecisionProfile, import_decision_profile
+from backend.decision_context import DecisionProfile, import_decision_profile, validate_decision_profile
 from backend.decision_context_serializer import serialize_decision_profile
 from backend.market_connectors import BcbMarketConnector, ConnectorManager, LocalMarketConnector
 
@@ -310,6 +310,9 @@ class ArgosRequestHandler(
         if self.path == "/api/decision-context/import":
             self._import_decision_context()
             return
+        if self.path == "/api/decision-context":
+            self._save_decision_context()
+            return
         if self.path == "/api/market-agenda/import":
             self._import_market_agenda()
             return
@@ -580,6 +583,27 @@ class ArgosRequestHandler(
             self._send_json(
                 {"ok": True, "events": serialize_market_agenda(events),
                  "count": len(events), "diagnostics": []},
+                extra_headers={"Set-Cookie": (
+                    f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
+                )},
+            )
+        except Exception as exc:
+            self._send_json({"ok": False, "error": str(exc)}, status=400)
+
+
+    def _save_decision_context(self) -> None:
+        try:
+            content_length = self._content_length()
+            if content_length <= 0:
+                raise ValueError("Envie o perfil do investidor em JSON.")
+            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            if not isinstance(payload, dict) or set(payload) != {"profile"}:
+                raise ValueError("JSON deve conter somente o objeto profile.")
+            profile = validate_decision_profile(payload["profile"])
+            session_id = self._session_id() or secrets.token_urlsafe(24)
+            SESSION_DECISION_CONTEXT[session_id] = profile
+            self._send_json(
+                {"ok": True, "profile": serialize_decision_profile(profile), "diagnostics": []},
                 extra_headers={"Set-Cookie": (
                     f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
                 )},

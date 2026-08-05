@@ -80,6 +80,140 @@ let importedPortfolioPositions = [];
 let canonicalPortfolioPositions = [];
 let dashboardValuesVisible = false;
 let dailyExperienceLoading = false;
+
+const INVESTOR_PROFILE_KEY = "argos.investor-profile";
+
+const INVESTOR_PROFILE_LABELS = Object.freeze({
+    primaryGoal: { preservation: "Preservar patrimônio", income: "Gerar renda", growth: "Crescer patrimônio" },
+    riskTolerance: { low: "Prefiro estabilidade", moderate: "Aceito oscilações moderadas", high: "Aceito oscilações maiores" },
+    horizon: { short: "Até 2 anos", medium: "2 a 5 anos", long: "Mais de 5 anos" },
+    liquidity: { high: "Alta liquidez", moderate: "Liquidez moderada", low: "Baixa liquidez" }
+});
+
+function investorProfileReviewDate() {
+    const date = new Date();
+    date.setUTCFullYear(date.getUTCFullYear() + 1);
+    return date.toISOString().slice(0, 10);
+}
+
+function buildDecisionProfile(answers) {
+    const riskMap = { low: "LOW", moderate: "MODERATE", high: "HIGH" };
+    const horizonMap = { short: "SHORT_TERM", medium: "MEDIUM_TERM", long: "LONG_TERM" };
+    const liquidityMap = { high: "HIGH", moderate: "MODERATE", low: "LOW" };
+    const objectiveMap = {
+        preservation: "CAPITAL_PRESERVATION",
+        income: "INCOME",
+        growth: "CAPITAL_GROWTH"
+    };
+    const preservationMap = { preservation: "CRITICAL", income: "HIGH", growth: "MODERATE" };
+    const primaryObjective = objectiveMap[answers.primaryGoal];
+    return {
+        profile_id: "investor-first-access",
+        profile_name: "Perfil do Investidor — Primeiro acesso",
+        portfolio_scope: "CONSOLIDATED",
+        risk_level: riskMap[answers.riskTolerance],
+        investment_horizon: horizonMap[answers.horizon],
+        primary_objectives: [primaryObjective],
+        secondary_objectives: primaryObjective === "DIVERSIFICATION" ? [] : ["DIVERSIFICATION"],
+        liquidity_needs: liquidityMap[answers.liquidity],
+        capital_preservation_level: preservationMap[answers.primaryGoal],
+        volatility_tolerance: riskMap[answers.riskTolerance],
+        concentration_tolerance: answers.riskTolerance === "high" ? "HIGH" : "MODERATE",
+        restricted_assets: [],
+        restricted_asset_classes: [],
+        restricted_sectors: [],
+        restricted_currencies: [],
+        preferred_markets: [],
+        base_currency: "BRL",
+        decision_frequency: "EVENT_DRIVEN",
+        review_date: investorProfileReviewDate(),
+        source_name: "Fluxo oficial de primeiro acesso",
+        source_reference: "Entrega 4.2 — Perfil do Investidor",
+        notes: "Perfil gerado pelas quatro perguntas oficiais do primeiro acesso."
+    };
+}
+
+function readInvestorProfile() {
+    try {
+        if (typeof window === "undefined" || !window.localStorage) return null;
+        const stored = JSON.parse(window.localStorage.getItem(INVESTOR_PROFILE_KEY) || "null");
+        return stored && stored.profile ? stored : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function saveInvestorProfileLocally(answers, profile) {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.setItem(INVESTOR_PROFILE_KEY, JSON.stringify({
+        answers,
+        profile,
+        saved_at: new Date().toISOString()
+    }));
+}
+
+function renderInvestorProfileSummary(stored = readInvestorProfile()) {
+    const status = document.getElementById("investorProfileStatus");
+    const summary = document.getElementById("investorProfileSummary");
+    if (!status || !summary) return;
+    if (!stored) {
+        status.textContent = "Perfil não preenchido";
+        status.className = "status-badge status-pending";
+        summary.hidden = true;
+        summary.replaceChildren();
+        return;
+    }
+    status.textContent = "Perfil salvo";
+    status.className = "status-badge status-ready";
+    summary.hidden = false;
+    summary.innerHTML = `<h2>Perfil usado pelo Motor de Saúde</h2><ul>${["primaryGoal", "riskTolerance", "horizon", "liquidity"].map((key) => `<li>${INVESTOR_PROFILE_LABELS[key][stored.answers[key]]}</li>`).join("")}</ul>`;
+}
+
+function collectInvestorProfileAnswers(form) {
+    return Object.fromEntries(["primaryGoal", "riskTolerance", "horizon", "liquidity"].map((name) => [name, new FormData(form).get(name)]));
+}
+
+function restoreInvestorProfileForm(form, stored = readInvestorProfile()) {
+    if (!form || !stored) return;
+    Object.entries(stored.answers || {}).forEach(([name, value]) => {
+        const input = form.querySelector(`input[name="${name}"][value="${value}"]`);
+        if (input) input.checked = true;
+    });
+}
+
+function setupInvestorProfileFlow() {
+    const form = document.getElementById("investorProfileForm");
+    if (!form) return;
+    const error = document.getElementById("investorProfileError");
+    restoreInvestorProfileForm(form);
+    renderInvestorProfileSummary();
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const answers = collectInvestorProfileAnswers(form);
+        if (Object.values(answers).some((value) => !value)) return;
+        const profile = buildDecisionProfile(answers);
+        if (error) error.hidden = true;
+        try {
+            const response = await fetch("/api/decision-context", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ profile })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.error || `Erro HTTP ${response.status}`);
+            saveInvestorProfileLocally(answers, result.profile || profile);
+            renderInvestorProfileSummary(readInvestorProfile());
+        } catch (err) {
+            saveInvestorProfileLocally(answers, profile);
+            renderInvestorProfileSummary(readInvestorProfile());
+            if (error) {
+                error.textContent = "Perfil salvo neste navegador; a sessão do servidor será atualizada quando a conexão estiver disponível.";
+                error.hidden = false;
+            }
+        }
+    });
+}
+
 const IMPORT_STATUS_KEY = "argos.institution-import-status";
 const PORTFOLIO_IMPORT_SESSION_KEY = "argos.portfolio-import-confirmed";
 
@@ -1045,6 +1179,7 @@ function createOverviewCard(item) {
 document.addEventListener("DOMContentLoaded", () => {
     setupNotebookNavigation();
     setupPortfolioFilePicker();
+    setupInvestorProfileFlow();
     document.getElementById("toggleValues").addEventListener(
         "click",
         toggleDashboardValues

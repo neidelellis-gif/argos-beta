@@ -3,6 +3,7 @@
 const InstitutionAnalysis = (() => {
     const COMPLETED_KEY = "argos.completed-institutions";
     const IMPORT_STATUS_KEY = "argos.institution-import-status";
+    const INVESTOR_PROFILE_KEY = "argos.investor-profile";
     let dashboard = null;
     let owner = null;
     let institutions = [];
@@ -162,14 +163,20 @@ const InstitutionAnalysis = (() => {
         return { facts, analyses };
     }
 
-    function profileDescription() {
-        if (owner?.id === "jolika") {
-            return "perfil institucional, com foco em preservação patrimonial, controle de risco e clareza para prestação de contas";
+    function investorProfile() {
+        try {
+            const stored = JSON.parse(window.localStorage.getItem(INVESTOR_PROFILE_KEY) || "null");
+            return stored?.profile || null;
+        } catch (_) {
+            return null;
         }
-        if (owner?.id === "personal") {
-            return "perfil pessoal mais arrojado, desde que cada risco tenha função clara na carteira";
-        }
-        return "perfil cadastrado para este patrimônio";
+    }
+
+    function profileDescription(profile = investorProfile()) {
+        if (!profile) return "perfil do investidor ainda não preenchido";
+        const risk = { LOW: "baixo risco", MODERATE: "risco moderado", HIGH: "risco alto", VERY_HIGH: "risco muito alto", VERY_LOW: "risco muito baixo" }[profile.risk_level] || "risco declarado";
+        const horizon = { SHORT_TERM: "curto prazo", MEDIUM_TERM: "médio prazo", LONG_TERM: "longo prazo", IMMEDIATE: "liquidez imediata", MULTI_HORIZON: "múltiplos horizontes" }[profile.investment_horizon] || "horizonte declarado";
+        return `${profile.profile_name || "perfil cadastrado"}, com ${risk} e horizonte de ${horizon}`;
     }
 
     function sourceLabel(item) {
@@ -189,6 +196,7 @@ const InstitutionAnalysis = (() => {
     }
 
     function buildHealthReport(institution) {
+        const profile = investorProfile();
         const positions = Number(institution.position_count || 0);
         const currencies = Array.isArray(institution.currencies) ? institution.currencies : [];
         const warnings = warningTexts(institution);
@@ -225,16 +233,41 @@ const InstitutionAnalysis = (() => {
             };
         }
 
+        if (!profile) {
+            return {
+                situation: "Perfil pendente",
+                summary: `Perfil pendente. A carteira de ${institution.name} pode ter dados importados, mas o Motor de Saúde não conclui equilíbrio, risco ou coerência sem o Perfil do Investidor preenchido.`,
+                attention: [{
+                    title: "Perfil do investidor pendente",
+                    description: "Preencha as quatro perguntas oficiais no primeiro acesso para liberar conclusões sobre equilíbrio, risco e coerência."
+                }],
+                risks: [{
+                    title: "Risco não classificado",
+                    description: "Sem perfil declarado, qualquer conclusão de risco seria genérica e foi bloqueada pelo Motor de Saúde."
+                }],
+                theses: [{
+                    title: "Coerência não avaliada",
+                    description: "As teses da carteira só são interpretadas depois de confrontadas com objetivo, tolerância a risco, horizonte e liquidez declarados."
+                }],
+                changes: [{
+                    title: "O que mudou desde a última análise?",
+                    description: "A pendência relevante é cadastrar o Perfil do Investidor antes da análise de saúde."
+                }]
+            };
+        }
+
         const riskDescriptions = [];
         if (warnings.length) riskDescriptions.push("há pontos de qualidade da importação que precisam ser conferidos antes de qualquer conclusão fina");
-        if (positions === 1) riskDescriptions.push("a carteira está concentrada em uma única posição identificada");
+        if (positions === 1) riskDescriptions.push(`a carteira está concentrada em uma única posição identificada, ponto sensível para ${profileDescription(profile)}`);
         if (positions > 30) riskDescriptions.push("a carteira está muito fragmentada e pode exigir acompanhamento excessivo");
-        if (currencies.length > 1) riskDescriptions.push(`existe exposição a mais de uma moeda (${currencies.join(" e ")})`);
+        if (currencies.length > 1 && profile.risk_level !== "HIGH") riskDescriptions.push(`existe exposição a mais de uma moeda (${currencies.join(" e ")}), acima do que deve ser tratado com cautela para ${profileDescription(profile)}`);
         if (hasMacroSignal) riskDescriptions.push("o contexto macro apareceu nas análises de fundo e pode afetar a leitura da carteira");
         if (repeatedAssets > 0) riskDescriptions.push("há ativos repetidos em mais de uma instituição do patrimônio, o que deve ser observado na consolidação");
 
-        const coherent = !warnings.length && positions > 1 && !hasHighPriority;
-        const actionNeeded = hasHighPriority || warnings.length || positions === 1;
+        const conservativeProfile = ["VERY_LOW", "LOW"].includes(profile.risk_level) || profile.capital_preservation_level === "CRITICAL";
+        const liquidityMismatch = profile.liquidity_needs === "HIGH" && positions <= 1;
+        const coherent = !warnings.length && positions > 1 && !hasHighPriority && !liquidityMismatch && !(conservativeProfile && currencies.length > 1);
+        const actionNeeded = hasHighPriority || warnings.length || positions === 1 || liquidityMismatch || (conservativeProfile && currencies.length > 1);
         const situation = actionNeeded ? "Atenção" : hasPortfolioSignal || hasMacroSignal ? "Em observação" : "Saudável";
         const currencyText = currencies.length ? `, distribuída em ${currencies.join(" e ")}` : "";
         const summary = `${institution.name} está ${situation.toLowerCase()}: ${positions} investimentos foram identificados${currencyText}. A carteira ${coherent ? "continua coerente" : "merece revisão pontual"} com o ${profileDescription()}; ${actionNeeded ? "há pontos que pedem atenção, mas sem recomendação de compra ou venda." : "não há sinal suficiente para exigir ação imediata."}`;
@@ -245,7 +278,7 @@ const InstitutionAnalysis = (() => {
             attention: [
                 {
                     title: "Como está minha carteira?",
-                    description: `${positions} investimentos foram identificados nesta instituição. ${warnings.length ? "A leitura é válida, mas contém ressalvas operacionais." : "A leitura é suficiente para um diagnóstico executivo simples."}`
+                    description: `${positions} investimentos foram identificados nesta instituição. A leitura considera explicitamente ${profileDescription(profile)}. ${warnings.length ? "Há ressalvas operacionais." : "A base é suficiente para um diagnóstico executivo simples."}`
                 },
                 {
                     title: "Ela continua coerente com meu perfil?",
@@ -446,7 +479,9 @@ const InstitutionAnalysis = (() => {
             favorableItems,
             isImportIncomplete,
             applyImportStatus,
-            importStatusFor
+            importStatusFor,
+            investorProfile,
+            profileDescription
         })
     });
 })();
