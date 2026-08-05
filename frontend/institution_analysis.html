@@ -28,13 +28,17 @@
         </div>
 
         <nav id="institutionNav" class="institution-nav" aria-label="Instituições do patrimônio"></nav>
+        <div class="institution-consolidation-lock" aria-label="Consolidação bloqueada">
+            <span>Consolidação</span>
+            <strong>Disponível após todas as análises</strong>
+        </div>
         <a class="institution-back" href="/analysis_start.html">← Voltar à preparação</a>
     </aside>
 
     <main class="institution-main">
         <header class="institution-header">
             <div>
-                <p class="institution-kicker">DIAGNÓSTICO INDIVIDUAL</p>
+                <p class="institution-kicker">LEITURA INDIVIDUAL</p>
                 <h1 id="institutionName">Instituição</h1>
                 <p id="institutionMeta" class="institution-meta"></p>
             </div>
@@ -42,43 +46,46 @@
         </header>
 
         <section class="institution-summary">
-            <p class="institution-kicker">RESUMO EXECUTIVO</p>
+            <p class="institution-kicker">LEITURA EM 60 SEGUNDOS</p>
             <p id="executiveSummary" class="institution-summary-text">Preparando o diagnóstico da instituição…</p>
         </section>
 
-        <section class="institution-metrics" aria-label="Visão geral da instituição">
-            <article><span>Patrimônio</span><strong id="metricValue">—</strong></article>
-            <article><span>Posições</span><strong id="metricPositions">—</strong></article>
-            <article><span>Moedas</span><strong id="metricCurrencies">—</strong></article>
-            <article><span>Situação</span><strong id="metricSituation">—</strong></article>
+        <section class="institution-metrics" aria-label="Retrato da instituição">
+            <article><span>Patrimônio nesta instituição</span><strong id="metricValue">—</strong></article>
+            <article><span>Investimentos identificados</span><strong id="metricPositions">—</strong></article>
+            <article><span>Moedas encontradas</span><strong id="metricCurrencies">—</strong></article>
+            <article><span>Condição da análise</span><strong id="metricSituation">—</strong></article>
+        </section>
+
+        <section class="institution-focus" aria-labelledby="attentionTitle">
+            <div class="institution-panel-heading">
+                <div>
+                    <p class="institution-kicker">O QUE IMPORTA AGORA</p>
+                    <h2 id="attentionTitle">Pontos que merecem sua atenção</h2>
+                </div>
+                <span id="attentionCount"></span>
+            </div>
+            <div id="attentionList" class="institution-list institution-list-priority"></div>
         </section>
 
         <section class="institution-grid">
-            <article class="institution-panel institution-panel-wide">
-                <div class="institution-panel-heading">
-                    <div><p class="institution-kicker">PRIORIDADE</p><h2>O que merece atenção</h2></div>
-                    <span id="attentionCount"></span>
-                </div>
-                <div id="attentionList" class="institution-list"></div>
-            </article>
-
             <article class="institution-panel">
-                <div class="institution-panel-heading"><div><p class="institution-kicker">EXPOSIÇÃO</p><h2>Distribuição</h2></div></div>
+                <div class="institution-panel-heading"><div><p class="institution-kicker">COMPOSIÇÃO</p><h2>Como o dinheiro está distribuído</h2></div></div>
                 <div id="allocationList" class="institution-allocation"></div>
             </article>
 
             <article class="institution-panel">
-                <div class="institution-panel-heading"><div><p class="institution-kicker">LEITURA</p><h2>Riscos observados</h2></div></div>
+                <div class="institution-panel-heading"><div><p class="institution-kicker">CUIDADOS</p><h2>Riscos observados</h2></div></div>
                 <div id="riskList" class="institution-list"></div>
             </article>
 
             <article class="institution-panel">
-                <div class="institution-panel-heading"><div><p class="institution-kicker">LEITURA</p><h2>Pontos favoráveis</h2></div></div>
+                <div class="institution-panel-heading"><div><p class="institution-kicker">PONTOS POSITIVOS</p><h2>O que está funcionando bem</h2></div></div>
                 <div id="favorableList" class="institution-list"></div>
             </article>
 
-            <article class="institution-panel institution-panel-wide">
-                <div class="institution-panel-heading"><div><p class="institution-kicker">DETALHAMENTO</p><h2>Ativos para aprofundar</h2></div></div>
+            <article class="institution-panel">
+                <div class="institution-panel-heading"><div><p class="institution-kicker">PRÓXIMA CAMADA</p><h2>O que pode ser investigado</h2></div></div>
                 <div id="assetList" class="institution-assets"></div>
             </article>
         </section>
