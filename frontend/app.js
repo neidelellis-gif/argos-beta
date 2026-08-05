@@ -81,6 +81,7 @@ let canonicalPortfolioPositions = [];
 let dashboardValuesVisible = false;
 let dailyExperienceLoading = false;
 const IMPORT_STATUS_KEY = "argos.institution-import-status";
+const PORTFOLIO_IMPORT_SESSION_KEY = "argos.portfolio-import-confirmed";
 
 function normalizeInstitutionKey(value) {
     return String(value || "")
@@ -165,7 +166,53 @@ function setupNotebookNavigation(root = document) {
 }
 
 function storeCanonicalPortfolioPositions(positions) {
-    canonicalPortfolioPositions = positions.map((position) => ({ ...position }));
+    canonicalPortfolioPositions = (positions || []).map((position) => ({ ...position }));
+}
+
+function markPortfolioImportConfirmed() {
+    if (typeof window === "undefined" || !window.sessionStorage) return;
+    window.sessionStorage.setItem(PORTFOLIO_IMPORT_SESSION_KEY, "true");
+}
+
+function clearPortfolioImportConfirmation() {
+    if (typeof window === "undefined" || !window.sessionStorage) return;
+    window.sessionStorage.removeItem(PORTFOLIO_IMPORT_SESSION_KEY);
+}
+
+function hasPortfolioImportConfirmation() {
+    if (typeof window === "undefined" || !window.sessionStorage) return false;
+    return window.sessionStorage.getItem(PORTFOLIO_IMPORT_SESSION_KEY) === "true";
+}
+
+function shouldHydratePortfolioDashboard(data) {
+    return hasPortfolioImportConfirmation()
+        && data?.session?.status === "active"
+        && Array.isArray(data.positions)
+        && data.positions.length > 0;
+}
+
+function emptyPortfolioDashboard(data) {
+    return {
+        ...data,
+        positions: [],
+        institutions: [],
+        consolidated: {
+            institution_count: 0,
+            position_count: 0,
+            unique_asset_count: 0,
+            repeated_asset_count: 0,
+            totals_by_currency: {},
+            warnings: []
+        },
+        session: {
+            ...(data.session || {}),
+            last_import_at: null,
+            institution_count: 0,
+            position_count: 0,
+            analyzed_institutions: [],
+            status: "waiting_import"
+        }
+    };
 }
 
 function getCanonicalPortfolioPositions() {
@@ -428,6 +475,7 @@ function setupPortfolioFilePicker() {
                             || hasSantanderPositions(importedPositions)
                     )
                 );
+                markPortfolioImportConfirmed();
                 storeCanonicalPortfolioPositions(importedPositions);
                 renderDashboard(result.dashboard);
                 const santanderCount = countSantanderPositions(importedPositions);
@@ -474,6 +522,7 @@ function setupPortfolioFilePicker() {
                 importButton.disabled = true;
                 progressBar.value = 100;
                 progressText.textContent = "Todas as carteiras foram removidas.";
+                clearPortfolioImportConfirmation();
                 storeCanonicalPortfolioPositions(result.positions);
                 renderDashboard(result.dashboard);
             } catch (error) {
@@ -910,8 +959,11 @@ async function loadDashboard() {
             throw new Error(`Erro HTTP ${response.status}`);
         }
         const result = await response.json();
-        storeCanonicalPortfolioPositions(result.positions);
-        renderDashboard(result);
+        const dashboard = shouldHydratePortfolioDashboard(result)
+            ? result
+            : emptyPortfolioDashboard(result);
+        storeCanonicalPortfolioPositions(dashboard.positions);
+        renderDashboard(dashboard);
     } catch (error) {
         console.error(error);
         document.getElementById("institutions").replaceChildren(
