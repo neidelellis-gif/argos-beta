@@ -42,6 +42,9 @@ function createNotebookElement(dataset) {
         setAttribute(name, value) {
             this.attributes[name] = value;
         },
+        removeAttribute(name) {
+            delete this.attributes[name];
+        },
         addEventListener(name, listener) {
             if (name === "click") this.listener = listener;
         }
@@ -110,6 +113,15 @@ test("Strategic Profile presents private banking copy and hides technical termin
     assert.match(profile, /Qual prioridade deve orientar este patrimônio neste ciclo\?/);
     assert.match(profile, /Diante de uma oscilação temporária de 15%/);
     assert.match(profile, /Continuar/);
+    assert.match(profile, /Patrimônio<\/span><span aria-hidden="true">·<\/span><span data-profile-step-label="1">Postura/);
+    assert.doesNotMatch(profile, />[1-4]\.\s/);
+    assert.doesNotMatch(profile, /[1-4] de 4/i);
+    for (const input of [
+        ['primaryGoal', 'preservation'], ['primaryGoal', 'growth'], ['primaryGoal', 'income'], ['primaryGoal', 'balance'],
+        ['riskTolerance', 'low'], ['riskTolerance', 'moderate'], ['riskTolerance', 'high'],
+        ['horizon', 'short'], ['horizon', 'medium'], ['horizon', 'long'],
+        ['liquidity', 'high'], ['liquidity', 'moderate'], ['liquidity', 'low']
+    ]) assert.match(profile, new RegExp(`name="${input[0]}" value="${input[1]}"`));
     assert.match(fs.readFileSync("frontend/app.js", "utf8"), /Confirmar Perfil Estratégico/);
     assert.doesNotMatch(profile, /Meu Perfil|Motor|Motor de Saúde|Perfil usado pelo Motor|Decision Profile/);
 });
@@ -127,8 +139,8 @@ function createInvestorProfileFixture() {
         this.innerHTML = "";
     };
     form.profileFieldsets = [0, 1, 2, 3].map((index) => ({ hidden: index !== 0 }));
-    form.profileProgress = { textContent: "" };
-    form.querySelectorAll = (selector) => selector === "[data-profile-step]" ? form.profileFieldsets : [];
+    form.profileLabels = [0, 1, 2, 3].map(() => createNotebookElement({}));
+    form.querySelectorAll = (selector) => selector === "[data-profile-step]" ? form.profileFieldsets : selector === "[data-profile-step-label]" ? form.profileLabels : [];
     form.querySelector = (selector) => {
         if (selector === ".profile-step-meta") return form.profileProgress;
         const match = selector.match(/input\[name="([^"]+)"\]\[value="([^"]+)"\]/);
@@ -182,13 +194,30 @@ test("Strategic Profile summary stays executive after save", () => {
     assert.equal(form.hidden, true);
     assert.equal(summary.hidden, false);
     assert.equal(status.textContent, "Perfil vigente");
-    assert.match(summary.innerHTML, /Última atualização/);
-    assert.match(summary.innerHTML, /Próxima revisão anual/);
+    assert.match(summary.innerHTML, /Patrimônio orientado ao equilíbrio entre preservação, renda e crescimento, com manutenção da estratégia diante de oscilações, horizonte superior a cinco anos e necessidade moderada de liquidez\./);
+    assert.match(summary.innerHTML, /Última revisão/);
+    assert.match(summary.innerHTML, /Próxima revisão recomendada/);
+    assert.match(summary.innerHTML, /5 de agosto de 2026/);
+    assert.match(summary.innerHTML, /5 de agosto de 2027/);
     assert.match(summary.innerHTML, /Atualizar Perfil/);
     assert.doesNotMatch(summary.innerHTML, /Motor|Decision Profile/);
     summaryButtonListener();
     assert.equal(form.hidden, false);
     assert.equal(summary.hidden, true);
+});
+
+test("Strategic Profile synthesis is deterministic and changes only with the four saved answers", () => {
+    const balanced = context.buildInvestorProfileSummary({
+        primaryGoal: "balance", riskTolerance: "moderate", horizon: "long", liquidity: "moderate"
+    });
+    const preserving = context.buildInvestorProfileSummary({
+        primaryGoal: "preservation", riskTolerance: "low", horizon: "short", liquidity: "high"
+    });
+
+    assert.equal(balanced, "Patrimônio orientado ao equilíbrio entre preservação, renda e crescimento, com manutenção da estratégia diante de oscilações, horizonte superior a cinco anos e necessidade moderada de liquidez.");
+    assert.equal(preserving, "Patrimônio orientado à preservação disciplinada, com redução de exposição diante de oscilações, horizonte de até dois anos e alta necessidade de liquidez.");
+    assert.notEqual(balanced, preserving);
+    assert.doesNotMatch(`${balanced} ${preserving}`, /LOW|MODERATE|HIGH|SHORT_TERM|LONG_TERM|CAPITAL_|DIVERSIFICATION|profile_id/);
 });
 
 
@@ -239,20 +268,20 @@ test("Strategic Profile hidden form and summary do not occupy visual space", () 
 function createProfileStepFixture() {
     const fields = ["primaryGoal", "riskTolerance", "horizon", "liquidity"];
     const fieldsets = fields.map((name, index) => ({ hidden: index !== 0, dataset: { profileStep: String(index) }, name }));
-    const progress = { textContent: "" };
+    const labels = [0, 1, 2, 3].map(() => createNotebookElement({}));
     const backButton = { hidden: false, textContent: "Voltar", listener: null, addEventListener(_event, listener) { this.listener = listener; } };
     const nextButton = { hidden: false, textContent: "Continuar", listener: null, addEventListener(_event, listener) { this.listener = listener; } };
     const form = createElement("form");
     form.values = {};
     form.submitted = false;
-    form.querySelectorAll = (selector) => selector === "[data-profile-step]" ? fieldsets : [];
-    form.querySelector = (selector) => selector === ".profile-step-meta" ? progress : null;
+    form.querySelectorAll = (selector) => selector === "[data-profile-step]" ? fieldsets : selector === "[data-profile-step-label]" ? labels : [];
+    form.querySelector = () => null;
     form.addEventListener = (_event, listener) => { form.submitListener = listener; };
     form.requestSubmit = () => {
         form.submitted = true;
         if (form.submitListener) form.submitListener({ preventDefault() {} });
     };
-    return { form, fieldsets, progress, backButton, nextButton };
+    return { form, fieldsets, labels, backButton, nextButton };
 }
 
 test("Strategic Profile update questionnaire shows one compact step at a time", () => {
@@ -264,18 +293,20 @@ test("Strategic Profile update questionnaire shows one compact step at a time", 
 
     context.renderInvestorProfileStep(fixture.form, 0);
 
-    assert.equal(fixture.progress.textContent, "1 de 4");
+    assert.equal(fixture.labels[0].attributes["aria-current"], "step");
+    assert.equal(fixture.labels[1].attributes["aria-current"], undefined);
     assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [false, true, true, true]);
     assert.equal(fixture.backButton.hidden, true);
     assert.equal(fixture.nextButton.textContent, "Continuar");
 
     context.renderInvestorProfileStep(fixture.form, 1);
-    assert.equal(fixture.progress.textContent, "2 de 4");
+    assert.equal(fixture.labels[0].classList.contains("is-complete"), true);
+    assert.equal(fixture.labels[1].attributes["aria-current"], "step");
     assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [true, false, true, true]);
     assert.equal(fixture.backButton.hidden, false);
 
     context.renderInvestorProfileStep(fixture.form, 3);
-    assert.equal(fixture.progress.textContent, "4 de 4");
+    assert.equal(fixture.labels[3].attributes["aria-current"], "step");
     assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [true, true, true, false]);
     assert.equal(fixture.nextButton.textContent, "Confirmar Perfil Estratégico");
 });
@@ -304,14 +335,14 @@ test("Strategic Profile step navigation advances, returns, and keeps selections"
     fixture.form.values.riskTolerance = "moderate";
     fixture.nextButton.listener();
 
-    assert.equal(fixture.progress.textContent, "3 de 4");
+    assert.equal(fixture.labels[2].attributes["aria-current"], "step");
     assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [true, true, false, true]);
     assert.equal(fixture.form.values.primaryGoal, "balance");
     assert.equal(fixture.form.values.riskTolerance, "moderate");
 
     fixture.backButton.listener();
 
-    assert.equal(fixture.progress.textContent, "2 de 4");
+    assert.equal(fixture.labels[1].attributes["aria-current"], "step");
     assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [true, false, true, true]);
     assert.equal(fixture.form.values.primaryGoal, "balance");
     assert.equal(fixture.form.values.riskTolerance, "moderate");
