@@ -84,10 +84,10 @@ let dailyExperienceLoading = false;
 const INVESTOR_PROFILE_KEY = "argos.investor-profile";
 
 const INVESTOR_PROFILE_LABELS = Object.freeze({
-    primaryGoal: { preservation: "Preservar o patrimônio construído", growth: "Fazer o patrimônio crescer de forma consistente", income: "Gerar renda recorrente", balance: "Equilibrar crescimento e preservação" },
-    riskTolerance: { low: "Reduziria risco para preservar patrimônio", moderate: "Manteria a estratégia", high: "Aproveitaria para aumentar posições" },
-    horizon: { short: "Nos próximos 2 anos", medium: "Entre 2 e 5 anos", long: "Acima de 5 anos" },
-    liquidity: { high: "Grande parte", moderate: "Apenas uma parcela", low: "Não tenho necessidade relevante de liquidez" }
+    primaryGoal: { preservation: "Preservar o capital construído com disciplina", growth: "Buscar crescimento consistente ao longo do tempo", income: "Priorizar geração recorrente de renda", balance: "Equilibrar preservação, renda e crescimento" },
+    riskTolerance: { low: "Reduzir exposição para proteger o patrimônio", moderate: "Preservar a estratégia definida", high: "Avaliar aumento seletivo de posições" },
+    horizon: { short: "Em até 2 anos", medium: "Entre 2 e 5 anos", long: "Acima de 5 anos" },
+    liquidity: { high: "Parcela ampla, com alta disponibilidade", moderate: "Parcela moderada, sem comprometer a estratégia", low: "Parcela reduzida, com baixa necessidade de liquidez" }
 });
 
 function investorProfileReviewDate() {
@@ -179,7 +179,7 @@ function renderInvestorProfileSummary(stored = readInvestorProfile()) {
     summary.hidden = false;
     const savedAt = stored.saved_at ? formatProfileDate(stored.saved_at.slice(0, 10)) : "Não registrada";
     const reviewDate = formatProfileDate(stored.profile?.review_date);
-    summary.innerHTML = `<div class="profile-summary-heading"><p class="eyebrow">REFERÊNCIA PATRIMONIAL</p><h2>Perfil Estratégico</h2><p>Este perfil fica reservado para revisões relevantes. No uso diário, a carteira permanece em primeiro plano.</p></div><dl class="profile-summary-details"><div><dt>Última atualização</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão anual</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Atualizar Perfil</button>`;
+    summary.innerHTML = `<div class="profile-summary-heading"><h2>Perfil Estratégico</h2><p>Diretriz patrimonial vigente para orientar decisões com clareza, disciplina e horizonte.</p></div><dl class="profile-summary-details"><div><dt>Última atualização</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão anual</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Atualizar Perfil</button>`;
     const updateButton = summary.querySelector("#updateInvestorProfile");
     if (updateButton && form) {
         updateButton.addEventListener("click", () => {

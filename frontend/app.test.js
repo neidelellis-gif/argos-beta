@@ -107,8 +107,8 @@ test("Strategic Profile presents private banking copy and hides technical termin
     const profile = html.match(/data-tab-panel="profile"[\s\S]*?data-tab-panel="news"/)[0];
 
     assert.match(html, /data-tab="profile">Perfil Estratégico<\/button>/);
-    assert.match(profile, /Qual destas situações representa melhor sua prioridade patrimonial hoje\?/);
-    assert.match(profile, /Se sua carteira recuasse temporariamente 15%/);
+    assert.match(profile, /Qual prioridade deve orientar este patrimônio neste ciclo\?/);
+    assert.match(profile, /Diante de uma oscilação temporária de 15%/);
     assert.match(profile, /Confirmar Perfil Estratégico/);
     assert.doesNotMatch(profile, /Meu Perfil|Motor|Motor de Saúde|Perfil usado pelo Motor|Decision Profile/);
 });
