@@ -121,3 +121,51 @@ def test_preserves_original_objects_and_input_list():
 
     assert positions == [original]
     assert positions[0] is not original
+
+
+def cash_position(account: str, value: str, currency: str = "USD"):
+    return PortfolioPosition(
+        institution="Santander",
+        owner=PortfolioOwner.JOLIKA,
+        account=account,
+        asset_class="Caixa",
+        asset_subclass=None,
+        asset_name="DDA CUSTODIAL CASH ACCOUNTS",
+        identifier="DDA CUSTODIAL CASH ACCOUNTS",
+        identifier_type=None,
+        quantity=None,
+        unit_price=None,
+        market_value=Decimal(value),
+        currency=currency,
+        portfolio_weight=None,
+        reference_date=None,
+        source_file="santander.xlsx",
+    )
+
+
+def test_distinct_cash_accounts_with_same_textual_identifier_are_not_duplicates():
+    result = diagnose_institution(
+        [
+            cash_position("115099244", "0", "USD"),
+            cash_position("115111355", "75226.16", "USD"),
+            cash_position("115111444", "22857.13", "USD"),
+            cash_position("115088644", "350", "USD"),
+        ]
+    )
+
+    assert result.duplicate_assets == {}
+    assert "1 duplicated asset(s)" not in result.data_quality_warnings
+
+
+def test_identical_cash_account_rows_are_still_duplicates():
+    result = diagnose_institution(
+        [
+            cash_position("115111355", "75226.16", "USD"),
+            cash_position("115111355", "75226.16", "USD"),
+        ]
+    )
+
+    assert result.duplicate_assets == {
+        "SANTANDER|115111355|USD|DDA CUSTODIAL CASH ACCOUNTS": 2
+    }
+    assert "1 duplicated asset(s)" in result.data_quality_warnings

@@ -282,6 +282,7 @@ def _map_block_headers(header):
             priority = value_priority[normalized]
             if selected_value_priority is None or priority < selected_value_priority:
                 mapping["value"] = index
+                mapping["value_header"] = normalized
                 selected_value_priority = priority
         elif normalized in {"PESO DA CONTA (%)", "% DO TOTAL"}:
             mapping["weight"] = index
@@ -305,7 +306,20 @@ def _safe_get(row, index):
     return row[index]
 
 
-def _find_currency(row, value_index, currency_indices):
+def _find_reference_currency(rows):
+    for row in rows:
+        if not _is_total_row(row):
+            continue
+        for value in row:
+            currency = str(value or "").strip().upper()
+            if currency in {"USD", "BRL", "EUR"}:
+                return currency
+    return "USD"
+
+
+def _find_currency(row, value_index, currency_indices, value_header, reference_currency):
+    if value_header in {"SALDO MOEDA REFERÊNCIA", "SALDO NA MOEDA DE REFERÊNCIA"}:
+        return reference_currency
     if currency_indices:
         for index in currency_indices:
             currency = _safe_get(row, index)
@@ -314,7 +328,7 @@ def _find_currency(row, value_index, currency_indices):
     next_cell = _safe_get(row, value_index + 1)
     if next_cell and str(next_cell).strip().upper() in {"USD", "BRL", "EUR"}:
         return str(next_cell).strip().upper()
-    return "USD"
+    return reference_currency
 
 
 def _looks_like_account_or_category(value) -> bool:
@@ -395,6 +409,7 @@ def _parse_positions(rows, *, context="load_positions", source_file=None):
         header_indexes=block_headers,
     )
     skipped_rows = {"missing_value": 0, "missing_name": 0, "total_row": 0}
+    reference_currency = _find_reference_currency(rows)
     for header_index in block_headers:
         header_row = rows[header_index]
         asset_class = _class_from_block_name(header_row[0])
@@ -433,7 +448,11 @@ def _parse_positions(rows, *, context="load_positions", source_file=None):
 
             account = str(_safe_get(row, mapping.get("account", -1)) or "").strip()
             currency = _find_currency(
-                row, mapping["value"], mapping.get("currency_candidates", [])
+                row,
+                mapping["value"],
+                mapping.get("currency_candidates", []),
+                mapping.get("value_header"),
+                reference_currency,
             )
             weight = _parse_number(_safe_get(row, mapping.get("weight")))
 

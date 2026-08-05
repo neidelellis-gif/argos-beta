@@ -48,6 +48,19 @@ def _normalized_symbol(position: PortfolioPosition) -> Optional[str]:
     return symbol.upper() if symbol else None
 
 
+def _duplicate_key(position: PortfolioPosition) -> Optional[str]:
+    symbol = _normalized_symbol(position)
+    if symbol is None:
+        return None
+    if (position.asset_class or "").strip().upper() != "CAIXA":
+        return symbol
+
+    account = (position.account or "").strip().upper()
+    currency = (position.currency or "").strip().upper()
+    asset_label = symbol or _asset_label(position).strip().upper()
+    return "|".join((position.institution.strip().upper(), account, currency, asset_label))
+
+
 def diagnose_institution(
     positions: Iterable[PortfolioPosition],
 ) -> InstitutionDiagnostic:
@@ -90,7 +103,9 @@ def diagnose_institution(
         if symbol is None:
             missing_symbols.append(_asset_label(position))
         else:
-            symbol_counts[symbol] = symbol_counts.get(symbol, 0) + 1
+            duplicate_key = _duplicate_key(position)
+            if duplicate_key is not None:
+                symbol_counts[duplicate_key] = symbol_counts.get(duplicate_key, 0) + 1
 
         if position.market_value is None:
             missing_values.append(_asset_label(position))
