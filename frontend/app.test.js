@@ -109,7 +109,8 @@ test("Strategic Profile presents private banking copy and hides technical termin
     assert.match(html, /data-tab="profile">Perfil Estratégico<\/button>/);
     assert.match(profile, /Qual prioridade deve orientar este patrimônio neste ciclo\?/);
     assert.match(profile, /Diante de uma oscilação temporária de 15%/);
-    assert.match(profile, /Confirmar Perfil Estratégico/);
+    assert.match(profile, /Continuar/);
+    assert.match(fs.readFileSync("frontend/app.js", "utf8"), /Confirmar Perfil Estratégico/);
     assert.doesNotMatch(profile, /Meu Perfil|Motor|Motor de Saúde|Perfil usado pelo Motor|Decision Profile/);
 });
 
@@ -125,7 +126,11 @@ function createInvestorProfileFixture() {
         this.children = elements;
         this.innerHTML = "";
     };
+    form.profileFieldsets = [0, 1, 2, 3].map((index) => ({ hidden: index !== 0 }));
+    form.profileProgress = { textContent: "" };
+    form.querySelectorAll = (selector) => selector === "[data-profile-step]" ? form.profileFieldsets : [];
     form.querySelector = (selector) => {
+        if (selector === ".profile-step-meta") return form.profileProgress;
         const match = selector.match(/input\[name="([^"]+)"\]\[value="([^"]+)"\]/);
         if (!match) return null;
         const key = `${match[1]}:${match[2]}`;
@@ -156,6 +161,7 @@ test("Strategic Profile summary stays executive after save", () => {
     const summary = createElement("article");
     const status = createElement("span");
     let summaryButtonListener = null;
+    form.querySelectorAll = () => [];
     summary.querySelector = () => ({
         addEventListener(name, listener) {
             if (name === "click") summaryButtonListener = listener;
@@ -229,6 +235,126 @@ test("Strategic Profile hidden form and summary do not occupy visual space", () 
 
     assert.match(css, /\.profile-form\[hidden\],\s*\.profile-summary\[hidden\]\s*{\s*display:\s*none;/);
 });
+
+function createProfileStepFixture() {
+    const fields = ["primaryGoal", "riskTolerance", "horizon", "liquidity"];
+    const fieldsets = fields.map((name, index) => ({ hidden: index !== 0, dataset: { profileStep: String(index) }, name }));
+    const progress = { textContent: "" };
+    const backButton = { hidden: false, textContent: "Voltar", listener: null, addEventListener(_event, listener) { this.listener = listener; } };
+    const nextButton = { hidden: false, textContent: "Continuar", listener: null, addEventListener(_event, listener) { this.listener = listener; } };
+    const form = createElement("form");
+    form.values = {};
+    form.submitted = false;
+    form.querySelectorAll = (selector) => selector === "[data-profile-step]" ? fieldsets : [];
+    form.querySelector = (selector) => selector === ".profile-step-meta" ? progress : null;
+    form.addEventListener = (_event, listener) => { form.submitListener = listener; };
+    form.requestSubmit = () => {
+        form.submitted = true;
+        if (form.submitListener) form.submitListener({ preventDefault() {} });
+    };
+    return { form, fieldsets, progress, backButton, nextButton };
+}
+
+test("Strategic Profile update questionnaire shows one compact step at a time", () => {
+    const fixture = createProfileStepFixture();
+    context.document.getElementById = (id) => ({
+        investorProfileBack: fixture.backButton,
+        investorProfileNext: fixture.nextButton
+    })[id];
+
+    context.renderInvestorProfileStep(fixture.form, 0);
+
+    assert.equal(fixture.progress.textContent, "1 de 4");
+    assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [false, true, true, true]);
+    assert.equal(fixture.backButton.hidden, true);
+    assert.equal(fixture.nextButton.textContent, "Continuar");
+
+    context.renderInvestorProfileStep(fixture.form, 1);
+    assert.equal(fixture.progress.textContent, "2 de 4");
+    assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [true, false, true, true]);
+    assert.equal(fixture.backButton.hidden, false);
+
+    context.renderInvestorProfileStep(fixture.form, 3);
+    assert.equal(fixture.progress.textContent, "4 de 4");
+    assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [true, true, true, false]);
+    assert.equal(fixture.nextButton.textContent, "Confirmar Perfil Estratégico");
+});
+
+test("Strategic Profile step navigation advances, returns, and keeps selections", () => {
+    const fixture = createProfileStepFixture();
+    const summary = createElement("article");
+    const status = createElement("span");
+    const error = { hidden: true, textContent: "" };
+    context.document.getElementById = (id) => ({
+        investorProfileForm: fixture.form,
+        investorProfileSummary: summary,
+        investorProfileStatus: status,
+        investorProfileError: error,
+        investorProfileBack: fixture.backButton,
+        investorProfileNext: fixture.nextButton
+    })[id];
+    context.FormData = class {
+        constructor(form) { this.form = form; }
+        get(name) { return this.form.values[name] || null; }
+    };
+
+    context.setupInvestorProfileFlow();
+    fixture.form.values.primaryGoal = "balance";
+    fixture.nextButton.listener();
+    fixture.form.values.riskTolerance = "moderate";
+    fixture.nextButton.listener();
+
+    assert.equal(fixture.progress.textContent, "3 de 4");
+    assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [true, true, false, true]);
+    assert.equal(fixture.form.values.primaryGoal, "balance");
+    assert.equal(fixture.form.values.riskTolerance, "moderate");
+
+    fixture.backButton.listener();
+
+    assert.equal(fixture.progress.textContent, "2 de 4");
+    assert.deepEqual(fixture.fieldsets.map((fieldset) => fieldset.hidden), [true, false, true, true]);
+    assert.equal(fixture.form.values.primaryGoal, "balance");
+    assert.equal(fixture.form.values.riskTolerance, "moderate");
+});
+
+test("Strategic Profile form submits only from the final step and returns to summary", async () => {
+    const fixture = createProfileStepFixture();
+    const summary = createElement("article");
+    const status = createElement("span");
+    const error = { hidden: true, textContent: "" };
+    context.document.getElementById = (id) => ({
+        investorProfileForm: fixture.form,
+        investorProfileSummary: summary,
+        investorProfileStatus: status,
+        investorProfileError: error,
+        investorProfileBack: fixture.backButton,
+        investorProfileNext: fixture.nextButton
+    })[id];
+    context.FormData = class {
+        constructor(form) { this.form = form; }
+        get(name) { return this.form.values[name] || null; }
+    };
+    context.window = {
+        localStorage: {
+            saved: null,
+            getItem() { return this.saved; },
+            setItem(_key, value) { this.saved = value; }
+        }
+    };
+    context.fetch = async () => ({ ok: true, async json() { return { ok: true, profile: { review_date: "2027-08-05" } }; } });
+
+    context.setupInvestorProfileFlow();
+    fixture.form.values = { primaryGoal: "balance", riskTolerance: "moderate", horizon: "long", liquidity: "moderate" };
+    context.renderInvestorProfileStep(fixture.form, 3);
+    fixture.nextButton.listener();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(fixture.form.submitted, true);
+    assert.equal(fixture.form.hidden, true);
+    assert.equal(summary.hidden, false);
+    assert.match(summary.innerHTML, /Atualizar Perfil/);
+});
+
 
 test("initial canonical portfolio state is empty", () => {
     assert.deepEqual(

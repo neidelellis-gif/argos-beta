@@ -80,8 +80,33 @@ let importedPortfolioPositions = [];
 let canonicalPortfolioPositions = [];
 let dashboardValuesVisible = false;
 let dailyExperienceLoading = false;
+let investorProfileStep = 0;
 
 const INVESTOR_PROFILE_KEY = "argos.investor-profile";
+
+
+const INVESTOR_PROFILE_STEPS = Object.freeze(["primaryGoal", "riskTolerance", "horizon", "liquidity"]);
+
+function renderInvestorProfileStep(form, step = investorProfileStep) {
+    if (!form) return;
+    const fieldsets = Array.from(form.querySelectorAll("[data-profile-step]"));
+    if (!fieldsets.length) return;
+    investorProfileStep = Math.min(Math.max(step, 0), fieldsets.length - 1);
+    fieldsets.forEach((fieldset, index) => {
+        fieldset.hidden = index !== investorProfileStep;
+    });
+    const progress = form.querySelector(".profile-step-meta");
+    if (progress) progress.textContent = `${investorProfileStep + 1} de ${fieldsets.length}`;
+    const backButton = document.getElementById("investorProfileBack");
+    if (backButton) backButton.hidden = investorProfileStep === 0;
+    const nextButton = document.getElementById("investorProfileNext");
+    if (nextButton) nextButton.textContent = investorProfileStep === fieldsets.length - 1 ? "Confirmar Perfil Estratégico" : "Continuar";
+}
+
+function selectedInvestorProfileStepValue(form) {
+    const name = INVESTOR_PROFILE_STEPS[investorProfileStep];
+    return name ? new FormData(form).get(name) : null;
+}
 
 const INVESTOR_PROFILE_LABELS = Object.freeze({
     primaryGoal: { preservation: "Preservar o capital construído com disciplina", growth: "Buscar crescimento consistente ao longo do tempo", income: "Priorizar geração recorrente de renda", balance: "Equilibrar preservação, renda e crescimento" },
@@ -175,6 +200,7 @@ function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
         status.className = "status-badge status-pending";
         summary.replaceChildren();
         restoreInvestorProfileForm(form, stored);
+        renderInvestorProfileStep(form, 0);
         return;
     }
 
@@ -185,7 +211,7 @@ function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
     summary.innerHTML = `<div class="profile-summary-heading"><h2>Perfil Estratégico</h2><p>Diretriz patrimonial vigente para orientar decisões com clareza, disciplina e horizonte.</p></div><dl class="profile-summary-details"><div><dt>Última atualização</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão anual</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Atualizar Perfil</button>`;
     const updateButton = summary.querySelector("#updateInvestorProfile");
     if (updateButton) {
-        updateButton.addEventListener("click", () => setInvestorProfileViewState("editing", stored));
+        updateButton.addEventListener("click", () => setInvestorProfileViewState("editing", readInvestorProfile() || stored));
     }
 }
 
@@ -194,7 +220,7 @@ function renderInvestorProfileSummary(stored = readInvestorProfile()) {
 }
 
 function collectInvestorProfileAnswers(form) {
-    return Object.fromEntries(["primaryGoal", "riskTolerance", "horizon", "liquidity"].map((name) => [name, new FormData(form).get(name)]));
+    return Object.fromEntries(INVESTOR_PROFILE_STEPS.map((name) => [name, new FormData(form).get(name)]));
 }
 
 function restoreInvestorProfileForm(form, stored = readInvestorProfile()) {
@@ -210,7 +236,23 @@ function setupInvestorProfileFlow() {
     if (!form) return;
     const error = document.getElementById("investorProfileError");
     restoreInvestorProfileForm(form);
+    renderInvestorProfileStep(form, 0);
     renderInvestorProfileSummary();
+    const backButton = document.getElementById("investorProfileBack");
+    const nextButton = document.getElementById("investorProfileNext");
+    if (backButton) {
+        backButton.addEventListener("click", () => renderInvestorProfileStep(form, investorProfileStep - 1));
+    }
+    if (nextButton) {
+        nextButton.addEventListener("click", () => {
+            if (!selectedInvestorProfileStepValue(form)) return;
+            if (investorProfileStep < INVESTOR_PROFILE_STEPS.length - 1) {
+                renderInvestorProfileStep(form, investorProfileStep + 1);
+                return;
+            }
+            form.requestSubmit();
+        });
+    }
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const answers = collectInvestorProfileAnswers(form);

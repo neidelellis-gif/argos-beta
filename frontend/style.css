@@ -886,21 +886,33 @@ h3 {
 
 .profile-form {
     display: grid;
-    gap: 28px;
+    gap: 20px;
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.profile-step-meta {
+    justify-self: start;
+    padding: 6px 10px;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    color: var(--text-muted);
+    font-size: var(--argos-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
 }
 
 .profile-form fieldset {
     display: grid;
-    gap: 14px;
+    gap: 12px;
     margin: 0;
-    padding: 0 0 28px;
+    padding: 0;
     border: 0;
-    border-bottom: 1px solid var(--border-soft);
 }
 
-.profile-form fieldset:last-of-type {
-    padding-bottom: 10px;
-    border-bottom: 0;
+.profile-form fieldset[hidden] {
+    display: none;
 }
 
 .profile-form legend {
@@ -938,10 +950,41 @@ h3 {
     accent-color: var(--accent);
 }
 
+.profile-step-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 6px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.profile-step-button {
+    padding: 9px 0 6px;
+    border: 0;
+    border-bottom: 1px solid var(--border-soft);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 180ms ease, border-color 180ms ease;
+}
+
+.profile-step-button[hidden] {
+    display: none;
+}
+
+.profile-step-button:hover,
+.profile-step-button:focus-visible {
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
 .profile-confirm-button {
-    justify-self: center;
+    justify-self: end;
     width: min(100%, 300px);
-    margin-top: 8px;
+    margin-top: 0;
     padding: 13px 18px;
     border: 1px solid var(--argos-accent-line);
     border-radius: 4px;
