@@ -92,23 +92,46 @@ const InstitutionAnalysis = (() => {
         return institutions[currentIndex] || null;
     }
 
+    function warningTexts(institution) {
+        return Array.isArray(institution.warnings) ? institution.warnings.map(String) : [];
+    }
+
+    function isImportIncomplete(institution) {
+        const positions = Number(institution.position_count || 0);
+        const totals = Object.entries(institution?.totals_by_currency || {});
+        const warnings = warningTexts(institution).map(normalize);
+        return positions <= 0
+            || !totals.length
+            || warnings.some((warning) => (
+                warning.includes("ainda nao carregada")
+                || warning.includes("incomplet")
+                || warning.includes("insuficient")
+            ));
+    }
+
     function buildSummary(institution) {
         const positions = Number(institution.position_count || 0);
         const currencies = Array.isArray(institution.currencies) ? institution.currencies : [];
-        const warnings = Array.isArray(institution.warnings) ? institution.warnings : [];
-        if (!positions) {
-            return `A carteira de ${institution.name} foi identificada, mas ainda não possui posições suficientes para um diagnóstico completo.`;
+        const warnings = warningTexts(institution);
+        if (isImportIncomplete(institution)) {
+            return `Ainda não há dados suficientes para concluir o diagnóstico de ${institution.name}. Complete a importação da carteira desta instituição antes de avaliar riscos, oportunidades ou consolidação.`;
         }
         if (warnings.length) {
-            return `A carteira de ${institution.name} possui ${positions} posições. O diagnóstico inicial indica pontos que merecem verificação antes de qualquer consolidação.`;
+            return `${institution.name} tem ${positions} posições carregadas. Antes de decidir, revise os pontos de atenção da importação e confirme se a base representa a carteira atual.`;
         }
         const currencyText = currencies.length ? `, com exposição em ${currencies.join(" e ")}` : "";
-        return `A carteira de ${institution.name} possui ${positions} posições${currencyText}. Nesta leitura inicial, não há alerta operacional crítico, mas a composição deve ser analisada antes da consolidação.`;
+        return `${institution.name} tem ${positions} posições carregadas${currencyText}. A base está suficiente para uma leitura executiva inicial, ainda sem substituir a validação individual dos ativos.`;
     }
 
     function attentionItems(institution) {
         const items = [];
-        const warnings = Array.isArray(institution.warnings) ? institution.warnings : [];
+        const warnings = warningTexts(institution);
+        if (isImportIncomplete(institution)) {
+            return [{
+                title: "Importação incompleta",
+                description: "O ARGOS não vai concluir a análise desta instituição enquanto faltarem posições, valores ou confirmação da base importada."
+            }];
+        }
         warnings.slice(0, 4).forEach((warning) => {
             items.push({ title: "Ponto informado pela instituição", description: String(warning) });
         });
@@ -135,6 +158,12 @@ const InstitutionAnalysis = (() => {
     }
 
     function riskItems(institution) {
+        if (isImportIncomplete(institution)) {
+            return [{
+                title: "Sem conclusão de risco",
+                description: "Os dados disponíveis ainda não permitem medir concentração, liquidez ou exposição com segurança."
+            }];
+        }
         const risks = [];
         const positions = Number(institution.position_count || 0);
         if (positions === 1) {
@@ -150,6 +179,12 @@ const InstitutionAnalysis = (() => {
     }
 
     function favorableItems(institution) {
+        if (isImportIncomplete(institution)) {
+            return [{
+                title: "Nenhum ponto favorável confirmado",
+                description: "Primeiro complete a importação; depois o ARGOS poderá separar fatos positivos de simples ausência de dados."
+            }];
+        }
         const items = [];
         if (Number(institution.position_count || 0) > 1) {
             items.push({ title: "Mais de uma posição identificada", description: "Existe base para avaliar distribuição e concentração dentro da instituição." });
@@ -238,13 +273,15 @@ const InstitutionAnalysis = (() => {
         $("metricValue").textContent = institutionValue(institution);
         $("metricPositions").textContent = String(institution.position_count || 0);
         $("metricCurrencies").textContent = (institution.currencies || []).join(" · ") || "—";
-        $("metricSituation").textContent = (institution.warnings || []).length ? "Atenção" : "Regular";
+        const incomplete = isImportIncomplete(institution);
+        $("metricSituation").textContent = incomplete ? "Dados insuficientes" : (institution.warnings || []).length ? "Atenção" : "Regular";
         $("attentionCount").textContent = `${attentionItems(institution).length} pontos`;
 
         const status = $("institutionStatus");
         status.textContent = done ? "Concluída" : "Em análise";
         status.classList.toggle("done", done);
-        $("completeInstitution").textContent = done ? "Ir para a próxima instituição →" : "Concluir análise desta instituição →";
+        $("completeInstitution").textContent = incomplete ? "Complete a importação para concluir" : done ? "Ir para a próxima instituição →" : "Concluir análise desta instituição →";
+        $("completeInstitution").disabled = incomplete;
 
         renderList("attentionList", attentionItems(institution), "Nenhum ponto de atenção foi identificado.");
         renderList("riskList", riskItems(institution), "Nenhum risco específico foi identificado com os dados disponíveis.");
@@ -269,6 +306,7 @@ const InstitutionAnalysis = (() => {
         $("previousInstitution").addEventListener("click", () => goToIndex(currentIndex - 1));
         $("completeInstitution").addEventListener("click", () => {
             const institution = selectedInstitution();
+            if (isImportIncomplete(institution)) return;
             if (!isCompleted(institution.name)) markCompleted(institution.name);
             if (currentIndex < institutions.length - 1) {
                 goToIndex(currentIndex + 1);
@@ -316,7 +354,22 @@ const InstitutionAnalysis = (() => {
         render();
     }
 
-    return Object.freeze({ load });
+    return Object.freeze({
+        load,
+        _test: Object.freeze({
+            buildSummary,
+            attentionItems,
+            riskItems,
+            favorableItems,
+            isImportIncomplete
+        })
+    });
 })();
 
-document.addEventListener("DOMContentLoaded", InstitutionAnalysis.load);
+if (typeof module !== "undefined") {
+    module.exports = { InstitutionAnalysis };
+}
+
+if (typeof document !== "undefined") {
+    document.addEventListener("DOMContentLoaded", InstitutionAnalysis.load);
+}
