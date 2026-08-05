@@ -72,13 +72,12 @@ def test_load_positions_returns_mpu_positions(monkeypatch, tmp_path):
         "_read_rows",
         lambda _path: [
             [
-                "NOME DO ATIVO",
+                "RENDA VARIÁVEL AÇÕES",
                 "ISIN",
                 "SALDO MOEDA REFERÊNCIA",
-                "PESO DA CONTA (%)",
                 "MOEDA",
             ],
-            ["Fundo exemplo", "US0000000001", 250.25, 25, "USD"],
+            ["Fundo exemplo", "US0000000001", 250.25, "USD"],
         ],
     )
 
