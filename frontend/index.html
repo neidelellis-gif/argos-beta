@@ -135,7 +135,23 @@
             </section>
         </section>
 
-        <section id="tab-profile" class="notebook-page" role="tabpanel" data-tab-panel="profile" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Meu Perfil</h1><p>Módulo em preparação</p></div></section>
+        <section id="tab-profile" class="notebook-page" role="tabpanel" data-tab-panel="profile" hidden>
+            <header class="notebook-page-header profile-header">
+                <div><p class="eyebrow">PERFIL DO INVESTIDOR</p><h1>Meu Perfil</h1><p>Quatro respostas oficiais para calibrar equilíbrio, risco e coerência da carteira.</p></div>
+                <span id="investorProfileStatus" class="status-badge status-pending">Perfil não preenchido</span>
+            </header>
+            <section class="profile-card" aria-label="Primeiro acesso — Perfil do Investidor">
+                <form id="investorProfileForm" class="profile-form">
+                    <fieldset><legend>1. Qual é seu objetivo principal?</legend><label><input type="radio" name="primaryGoal" value="preservation" required> Preservar patrimônio</label><label><input type="radio" name="primaryGoal" value="income"> Gerar renda</label><label><input type="radio" name="primaryGoal" value="growth"> Crescer patrimônio</label></fieldset>
+                    <fieldset><legend>2. Como você reage a oscilações?</legend><label><input type="radio" name="riskTolerance" value="low" required> Prefiro estabilidade</label><label><input type="radio" name="riskTolerance" value="moderate"> Aceito oscilações moderadas</label><label><input type="radio" name="riskTolerance" value="high"> Aceito oscilações maiores</label></fieldset>
+                    <fieldset><legend>3. Qual é seu horizonte de investimento?</legend><label><input type="radio" name="horizon" value="short" required> Até 2 anos</label><label><input type="radio" name="horizon" value="medium"> 2 a 5 anos</label><label><input type="radio" name="horizon" value="long"> Mais de 5 anos</label></fieldset>
+                    <fieldset><legend>4. Qual liquidez você precisa?</legend><label><input type="radio" name="liquidity" value="high" required> Alta liquidez</label><label><input type="radio" name="liquidity" value="moderate"> Liquidez moderada</label><label><input type="radio" name="liquidity" value="low"> Baixa liquidez</label></fieldset>
+                    <p id="investorProfileError" class="error-message" hidden></p>
+                    <button class="import-button" type="submit">Salvar perfil</button>
+                </form>
+                <article id="investorProfileSummary" class="profile-summary" hidden></article>
+            </section>
+        </section>
         <section id="tab-news" class="notebook-page" role="tabpanel" data-tab-panel="news" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Notícias</h1><p>Módulo em preparação</p></div></section>
         <section id="tab-global" class="notebook-page" role="tabpanel" data-tab-panel="global" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Panorama Global</h1><p>Módulo em preparação</p></div></section>
         <section id="tab-market" class="notebook-page" role="tabpanel" data-tab-panel="market" hidden><div class="module-empty"><p class="eyebrow">CADERNO EXECUTIVO</p><h1>Mercado</h1><p>Módulo em preparação</p></div></section>
