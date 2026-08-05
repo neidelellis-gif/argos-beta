@@ -113,6 +113,44 @@ test("Strategic Profile presents private banking copy and hides technical termin
     assert.doesNotMatch(profile, /Meu Perfil|Motor|Motor de Saúde|Perfil usado pelo Motor|Decision Profile/);
 });
 
+function createInvestorProfileFixture() {
+    const inputs = new Map();
+    const form = createElement("form");
+    const summary = createElement("article");
+    const status = createElement("span");
+    let updateListener = null;
+    form.hidden = false;
+    summary.hidden = true;
+    summary.replaceChildren = function (...elements) {
+        this.children = elements;
+        this.innerHTML = "";
+    };
+    form.querySelector = (selector) => {
+        const match = selector.match(/input\[name="([^"]+)"\]\[value="([^"]+)"\]/);
+        if (!match) return null;
+        const key = `${match[1]}:${match[2]}`;
+        if (!inputs.has(key)) inputs.set(key, { checked: false });
+        return inputs.get(key);
+    };
+    summary.querySelector = (selector) => selector === "#updateInvestorProfile" ? {
+        addEventListener(name, listener) {
+            if (name === "click") updateListener = listener;
+        }
+    } : null;
+    context.document.getElementById = (id) => ({
+        investorProfileForm: form,
+        investorProfileSummary: summary,
+        investorProfileStatus: status
+    })[id];
+    return { form, summary, status, inputs, clickUpdate: () => updateListener() };
+}
+
+function assertProfileVisibility({ form, summary }, expected) {
+    assert.equal(form.hidden, expected.formHidden);
+    assert.equal(summary.hidden, expected.summaryHidden);
+    assert.notEqual(form.hidden, summary.hidden);
+}
+
 test("Strategic Profile summary stays executive after save", () => {
     const form = createElement("form");
     const summary = createElement("article");
@@ -145,6 +183,51 @@ test("Strategic Profile summary stays executive after save", () => {
     summaryButtonListener();
     assert.equal(form.hidden, false);
     assert.equal(summary.hidden, true);
+});
+
+
+test("Strategic Profile first access shows only form and keeps summary without visual space", () => {
+    const fixture = createInvestorProfileFixture();
+
+    context.renderInvestorProfileSummary(null);
+
+    assertProfileVisibility(fixture, { formHidden: false, summaryHidden: true });
+    assert.equal(fixture.status.textContent, "Perfil não preenchido");
+    assert.equal(fixture.summary.innerHTML, "");
+});
+
+test("Strategic Profile toggles through confirmed, editing, and reconfirmed without simultaneous visibility", () => {
+    const fixture = createInvestorProfileFixture();
+    const stored = {
+        answers: { primaryGoal: "balance", riskTolerance: "moderate", horizon: "long", liquidity: "moderate" },
+        profile: { review_date: "2027-08-05" },
+        saved_at: "2026-08-05T12:00:00.000Z"
+    };
+
+    context.renderInvestorProfileSummary(stored);
+
+    assertProfileVisibility(fixture, { formHidden: true, summaryHidden: false });
+    assert.match(fixture.summary.innerHTML, /Perfil Estratégico/);
+    assert.doesNotMatch(fixture.summary.innerHTML, /<input|fieldset|Confirmar Perfil Estratégico/);
+
+    fixture.clickUpdate();
+
+    assertProfileVisibility(fixture, { formHidden: false, summaryHidden: true });
+    assert.equal(fixture.summary.innerHTML, "");
+    assert.equal(fixture.inputs.get("primaryGoal:balance").checked, true);
+    assert.equal(fixture.inputs.get("riskTolerance:moderate").checked, true);
+    assert.equal(fixture.inputs.get("horizon:long").checked, true);
+    assert.equal(fixture.inputs.get("liquidity:moderate").checked, true);
+
+    context.renderInvestorProfileSummary(stored);
+
+    assertProfileVisibility(fixture, { formHidden: true, summaryHidden: false });
+});
+
+test("Strategic Profile hidden form and summary do not occupy visual space", () => {
+    const css = fs.readFileSync("frontend/style.css", "utf8");
+
+    assert.match(css, /\.profile-form\[hidden\],\s*\.profile-summary\[hidden\]\s*{\s*display:\s*none;/);
 });
 
 test("initial canonical portfolio state is empty", () => {
