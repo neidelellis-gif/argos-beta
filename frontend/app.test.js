@@ -95,11 +95,56 @@ test("Daily and Portfolios keep their approved content boundaries", () => {
         /data-tab-panel="portfolios"[\s\S]*?data-tab-panel="profile"/
     )[0];
 
-    assert.match(daily, /class="daily-experience"/);
+    assert.match(daily, /class="daily-flow"/);
     assert.doesNotMatch(daily, /class="dashboard-section"/);
     assert.doesNotMatch(daily, /class="portfolio-import-section"/);
-    assert.match(portfolios, /class="dashboard-section"/);
-    assert.match(portfolios, /class="portfolio-import-section"/);
+    assert.match(portfolios, /class="portfolio-workspace"/);
+    assert.match(portfolios, /class="portfolio-import-drawer"/);
+});
+
+test("Strategic Profile presents private banking copy and hides technical terminology", () => {
+    const html = fs.readFileSync("frontend/index.html", "utf8");
+    const profile = html.match(/data-tab-panel="profile"[\s\S]*?data-tab-panel="news"/)[0];
+
+    assert.match(html, /data-tab="profile">Perfil Estratégico<\/button>/);
+    assert.match(profile, /Qual destas situações representa melhor sua prioridade patrimonial hoje\?/);
+    assert.match(profile, /Se sua carteira recuasse temporariamente 15%/);
+    assert.match(profile, /Confirmar Perfil Estratégico/);
+    assert.doesNotMatch(profile, /Meu Perfil|Motor|Motor de Saúde|Perfil usado pelo Motor|Decision Profile/);
+});
+
+test("Strategic Profile summary stays executive after save", () => {
+    const form = createElement("form");
+    const summary = createElement("article");
+    const status = createElement("span");
+    let summaryButtonListener = null;
+    summary.querySelector = () => ({
+        addEventListener(name, listener) {
+            if (name === "click") summaryButtonListener = listener;
+        }
+    });
+    context.document.getElementById = (id) => ({
+        investorProfileForm: form,
+        investorProfileSummary: summary,
+        investorProfileStatus: status
+    })[id];
+
+    context.renderInvestorProfileSummary({
+        answers: { primaryGoal: "balance", riskTolerance: "moderate", horizon: "long", liquidity: "moderate" },
+        profile: { review_date: "2027-08-05" },
+        saved_at: "2026-08-05T12:00:00.000Z"
+    });
+
+    assert.equal(form.hidden, true);
+    assert.equal(summary.hidden, false);
+    assert.equal(status.textContent, "Perfil vigente");
+    assert.match(summary.innerHTML, /Última atualização/);
+    assert.match(summary.innerHTML, /Próxima revisão anual/);
+    assert.match(summary.innerHTML, /Atualizar Perfil/);
+    assert.doesNotMatch(summary.innerHTML, /Motor|Decision Profile/);
+    summaryButtonListener();
+    assert.equal(form.hidden, false);
+    assert.equal(summary.hidden, true);
 });
 
 test("initial canonical portfolio state is empty", () => {
@@ -719,6 +764,7 @@ function createElement(tagName) {
         children: [],
         className: "",
         textContent: "",
+        attributes: {},
         append(...elements) {
             this.children.push(...elements);
         },
@@ -727,6 +773,12 @@ function createElement(tagName) {
         },
         replaceChildren(...elements) {
             this.children = elements;
+        },
+        setAttribute(name, value) {
+            this.attributes[name] = value;
+        },
+        querySelector() {
+            return null;
         }
     };
 }
@@ -1122,7 +1174,8 @@ function dailyDom() {
     [
         ["daily-facts", "importantFacts"],
         ["daily-priorities", "dailyPriorities"],
-        ["daily-analyses", "dailyAnalyses"]
+        ["daily-analyses", "dailyAnalyses"],
+        ["daily-market-reaction", "marketReaction"]
     ].forEach(([panelId, listId]) => {
         const panel = createElement("article");
         panel.hidden = true;
@@ -1130,7 +1183,7 @@ function dailyDom() {
         elements.set(panelId, panel);
         elements.set(listId, container);
     });
-    ["market-agenda", "daily-error", "daily-loading"].forEach((id) => {
+    ["market-agenda", "daily-error", "daily-loading", "daily-investment-impact", "daily-decision"].forEach((id) => {
         const element = createElement("div");
         element.hidden = true;
         elements.set(id, element);
@@ -1139,6 +1192,9 @@ function dailyDom() {
     agendaPanel.hidden = true;
     elements.set("marketAgendaPanel", agendaPanel);
     elements.set("marketAgenda", createElement("div"));
+    ["factsCount", "marketReactionCount", "neiInvestmentImpact", "jolikaInvestmentImpact"].forEach((id) => {
+        elements.set(id, createElement("div"));
+    });
     context.document.createElement = createElement;
     context.document.getElementById = (id) => elements.get(id);
     return elements;
@@ -1277,15 +1333,13 @@ test("DailyFrontendClient reports a friendly network error", async () => {
     );
 });
 
-test("renders header, facts, priorities and analyses in the executive cockpit", () => {
+test("renders header and facts in the executive cockpit", () => {
     const elements = dailyDom();
     context.DailyRendererForTest.render(dailyResponse());
 
     assert.equal(elements.get("greeting").textContent, "Bom dia, Nei.");
-    assert.equal(elements.get("importantFacts").children[0].children[1].textContent, "Fato <b>seguro</b>");
-    assert.equal(elements.get("dailyPriorities").children[0].children[1].textContent, "Prioridade");
-    assert.equal(elements.get("dailyAnalyses").children[0].children[1].textContent, "Análise");
-    assert.equal("innerHTML" in elements.get("importantFacts").children[0].children[1], false);
+    assert.equal(elements.get("importantFacts").children[0].children[1].children[0].textContent, "Fato <b>seguro</b>");
+    assert.equal("innerHTML" in elements.get("importantFacts").children[0].children[1].children[0], false);
 });
 
 test("renders the same DOM for the same DailyApiResponse", () => {

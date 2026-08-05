@@ -851,7 +851,7 @@ h3 {
 
 .profile-card {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+    grid-template-columns: 1fr;
     gap: 24px;
     padding: 28px;
     border: 1px solid var(--border-soft);
@@ -867,9 +867,9 @@ h3 {
 
 .profile-form fieldset {
     display: grid;
-    gap: 10px;
+    gap: 12px;
     margin: 0;
-    padding: 16px;
+    padding: 18px;
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-medium);
 }
@@ -881,21 +881,70 @@ h3 {
 
 .profile-form label {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     color: var(--text-secondary);
+    line-height: 1.5;
 }
 
 .profile-summary {
-    padding: 20px;
+    display: grid;
+    gap: 22px;
+    padding: 26px;
     border: 1px solid var(--border-soft);
-    border-radius: var(--radius-medium);
+    border-radius: var(--radius-large);
     background: rgba(7, 18, 34, 0.35);
 }
 
-.profile-summary ul {
-    margin: 14px 0 0;
-    padding-left: 18px;
+.profile-summary-heading h2 {
+    margin: 4px 0 8px;
+}
+
+.profile-summary-heading p:last-child {
+    margin: 0;
     color: var(--text-secondary);
+}
+
+.profile-summary-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0;
+}
+
+.profile-summary-details div {
+    padding: 16px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-medium);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.profile-summary-details dt {
+    margin-bottom: 6px;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.profile-summary-details dd {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.profile-update-button {
+    justify-self: start;
+    padding: 10px 14px;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.profile-update-button:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.28);
 }
 
 @media (max-width: 900px) {
@@ -903,5 +952,9 @@ h3 {
     .profile-header {
         grid-template-columns: 1fr;
         display: grid;
+    }
+
+    .profile-summary-details {
+        grid-template-columns: 1fr;
     }
 }
