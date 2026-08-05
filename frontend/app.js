@@ -402,12 +402,13 @@ function setupPortfolioFilePicker() {
             progress.hidden = false;
             progressBar.value = 25;
             progressText.textContent = "Enviando arquivos...";
+            let result = null;
             try {
                 const response = await fetch("/api/portfolios/import", {
                     method: "POST",
                     body: formData
                 });
-                const result = await response.json();
+                result = await response.json();
                 if (!response.ok || !result.ok) {
                     throw new Error(result.error || "Falha na importação.");
                 }
@@ -439,6 +440,10 @@ function setupPortfolioFilePicker() {
                     error.message || "A carteira ainda não foi importada corretamente.",
                     "import_failed"
                 );
+                storeCanonicalPortfolioPositions(result?.positions || []);
+                if (result?.dashboard) {
+                    renderDashboard(result.dashboard);
+                }
                 progressBar.value = 0;
                 progressText.textContent = error.message;
             } finally {

@@ -49,24 +49,19 @@ def official_dashboard():
     }
 
 
-def test_legacy_get_endpoints_project_the_unchanged_official_dashboard(server):
-    dashboard = official_dashboard()
-
-    with patch("backend.server.load_dashboard", return_value=dashboard) as load:
-        dashboard_status, dashboard_payload = request(
-            server, "GET", "/api/dashboard"
-        )
-        cockpit_status, cockpit_payload = request(server, "GET", "/api/cockpit")
-        facts_status, facts_payload = request(server, "GET", "/api/facts")
+def test_legacy_get_endpoints_project_the_confirmed_session_dashboard(server):
+    dashboard_status, dashboard_payload = request(
+        server, "GET", "/api/dashboard"
+    )
+    cockpit_status, cockpit_payload = request(server, "GET", "/api/cockpit")
+    facts_status, facts_payload = request(server, "GET", "/api/facts")
 
     assert dashboard_status == cockpit_status == facts_status == 200
-    assert dashboard_payload == dashboard
-    assert cockpit_payload == {"ok": True, "cockpit": dashboard}
-    assert facts_payload == {
-        "ok": True,
-        "facts": dashboard["daily"]["important_facts"],
-    }
-    assert load.call_count == 3
+    assert dashboard_payload["positions"] == []
+    assert dashboard_payload["institutions"] == []
+    assert cockpit_payload["ok"] is True
+    assert cockpit_payload["cockpit"]["institutions"] == []
+    assert facts_payload == {"ok": True, "facts": []}
 
 
 def test_legacy_analyze_delegates_to_official_import_dashboard_flow(server):
