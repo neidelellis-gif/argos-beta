@@ -2,12 +2,14 @@ import base64
 from email.parser import BytesParser
 from email.policy import default as email_policy
 import http.server
+import logging
 import json
 import os
 import secrets
 import socketserver
 import sys
 import tempfile
+from decimal import Decimal
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional, TypedDict, cast
@@ -34,6 +36,23 @@ PROJECT_ROOT = BASE_DIR.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 PORT = 8080
 SESSION_COOKIE = "argos_session"
+logger = logging.getLogger("argos.import.server")
+
+
+def _log_server_import(message, **details):
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
+        )
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+    detail_text = " ".join(
+        f"{key}={value!r}" for key, value in sorted(details.items())
+    )
+    logger.info("%s%s", message, f" {detail_text}" if detail_text else "")
+
 
 class SessionPortfolio(TypedDict):
     positions: tuple[PortfolioPosition, ...]
@@ -150,12 +169,33 @@ def inspect_santander_request(data: Dict) -> Dict:
         raise ValueError("Payload de arquivo inválido.")
     file_name = file_payload.get("name", "santander.xlsx") \
         if isinstance(file_payload, dict) else "santander.xlsx"
+    _log_server_import(
+        "Santander inspect request received",
+        original_file_name=file_name,
+        recognized_by_endpoint=True,
+        inspect_excel_export_called=False,
+        load_positions_called=True,
+    )
     file_path = _save_temp_file(
         _decode_file_payload(file_payload),
         suffix=Path(file_name).suffix,
     )
     try:
         positions = load_positions(file_path)
+        _log_server_import(
+            "Santander inspect request load_positions returned",
+            original_file_name=file_name,
+            temp_file_name=file_path.name,
+            position_count=len(positions),
+            total_market_value=str(
+                sum(position.market_value for position in positions)
+            ),
+            ten_thousand_sources=[
+                position.asset_name
+                for position in positions
+                if position.market_value == Decimal("10000")
+            ],
+        )
         return {
             "ok": True,
             "source": "Exportação de posições Santander",
