@@ -195,6 +195,8 @@ function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
     const form = document.getElementById("investorProfileForm");
     const firstAccess = document.getElementById("investorProfileFirstAccess");
     const introduction = document.getElementById("investorProfileIntroduction");
+    const confirmedHeader = document.getElementById("investorProfileConfirmedHeader");
+    const details = document.getElementById("investorProfileDetails");
     if (!status || !summary || !form || !firstAccess) return;
 
     const isConfirmed = state === "confirmed" && stored;
@@ -203,6 +205,8 @@ function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
     summary.hidden = !isConfirmed;
     firstAccess.hidden = isConfirmed || isEditing;
     if (introduction) introduction.hidden = isEditing;
+    if (confirmedHeader) confirmedHeader.hidden = !isConfirmed;
+    if (details) details.hidden = !isConfirmed && !isEditing;
 
     if (!isConfirmed) {
         status.textContent = "Perfil não preenchido";

@@ -286,7 +286,7 @@ test("Strategic Profile hidden form and summary do not occupy visual space", () 
 
 test("Strategic Profile introduction is outside the four questions and hidden throughout the interview", () => {
     const html = fs.readFileSync("frontend/index.html", "utf8");
-    const introduction = html.match(/id="investorProfileIntroduction"[\s\S]*?<\/div><\/div>/)[0];
+    const introduction = html.match(/id="investorProfileIntroduction"[\s\S]*?<\/div>\s*<\/div>/)[0];
     const questions = html.match(/<form id="investorProfileForm"[\s\S]*?<\/form>/)[0];
 
     assert.doesNotMatch(questions, /Todas as análises do ARGOS|Em menos de um minuto|orientar alertas/);
