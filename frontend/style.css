@@ -877,11 +877,10 @@ h3 {
     gap: 0;
     max-width: 1040px;
     margin: 0 auto;
-    padding: clamp(30px, 4vw, 48px);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--radius-large);
-    background: linear-gradient(145deg, rgba(29, 33, 37, 0.92), rgba(17, 19, 21, 0.76));
-    box-shadow: var(--shadow);
+    padding: 22px 0 0;
+    border: 0;
+    border-top: 1px solid var(--border-soft);
+    background: transparent;
 }
 
 .profile-form {
@@ -890,29 +889,6 @@ h3 {
     width: 100%;
     max-width: 720px;
     margin: 0 auto;
-}
-
-.profile-step-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 0 0 18px;
-    border-bottom: 1px solid var(--border-soft);
-    color: var(--text-muted);
-    font-size: var(--argos-text-xs);
-    letter-spacing: 0.06em;
-}
-
-.profile-step-meta [data-profile-step-label] {
-    transition: color 180ms ease;
-}
-
-.profile-step-meta .is-complete {
-    color: var(--text-secondary);
-}
-
-.profile-step-meta .is-current {
-    color: var(--accent);
 }
 
 .profile-form fieldset {
@@ -1047,7 +1023,7 @@ h3 {
 
 .profile-summary {
     display: grid;
-    gap: 30px;
+    gap: 38px;
     max-width: 720px;
     margin: 0 auto;
     padding: 0;
@@ -1056,28 +1032,11 @@ h3 {
     box-shadow: none;
 }
 
-.profile-summary-heading h2 {
-    max-width: 680px;
-    margin: 14px 0 20px;
-    font-family: var(--argos-font-editorial);
-    font-size: clamp(1.75rem, 3.5vw, 2.6rem);
-    font-weight: 400;
-    line-height: 1.05;
-    letter-spacing: -0.035em;
-}
-
-.profile-summary-heading p:last-child {
-    max-width: 620px;
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: var(--argos-text-lg);
-    line-height: var(--argos-leading-body);
-}
-
 .profile-summary-details {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 28px;
+    column-gap: 56px;
+    row-gap: 26px;
     margin: 0;
 }
 

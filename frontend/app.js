@@ -95,16 +95,12 @@ function renderInvestorProfileStep(form, step = investorProfileStep) {
     fieldsets.forEach((fieldset, index) => {
         fieldset.hidden = index !== investorProfileStep;
     });
-    form.querySelectorAll("[data-profile-step-label]").forEach((label, index) => {
-        label.classList.toggle("is-complete", index < investorProfileStep);
-        label.classList.toggle("is-current", index === investorProfileStep);
-        if (index === investorProfileStep) label.setAttribute("aria-current", "step");
-        else label.removeAttribute("aria-current");
-    });
     const backButton = document.getElementById("investorProfileBack");
     if (backButton) backButton.hidden = investorProfileStep === 0;
     const nextButton = document.getElementById("investorProfileNext");
     if (nextButton) nextButton.textContent = investorProfileStep === fieldsets.length - 1 ? "Confirmar Perfil Estratégico" : "Continuar";
+    const currentFieldset = fieldsets[investorProfileStep];
+    if (currentFieldset && typeof currentFieldset.focus === "function") currentFieldset.focus({ preventScroll: true });
 }
 
 function selectedInvestorProfileStepValue(form) {
@@ -112,24 +108,15 @@ function selectedInvestorProfileStepValue(form) {
     return name ? new FormData(form).get(name) : null;
 }
 
-const INVESTOR_PROFILE_LABELS = Object.freeze({
-    primaryGoal: { preservation: "Preservar o capital construído com disciplina", growth: "Buscar crescimento consistente ao longo do tempo", income: "Priorizar geração recorrente de renda", balance: "Equilibrar preservação, renda e crescimento" },
-    riskTolerance: { low: "Reduzir exposição para proteger o patrimônio", moderate: "Preservar a estratégia definida", high: "Avaliar aumento seletivo de posições" },
-    horizon: { short: "Em até 2 anos", medium: "Entre 2 e 5 anos", long: "Acima de 5 anos" },
-    liquidity: { high: "Parcela ampla, com alta disponibilidade", moderate: "Parcela moderada, sem comprometer a estratégia", low: "Parcela reduzida, com baixa necessidade de liquidez" }
-});
-
 const INVESTOR_PROFILE_SUMMARY = Object.freeze({
-    primaryGoal: { preservation: "à preservação disciplinada", growth: "ao crescimento consistente", income: "à geração recorrente de renda", balance: "ao equilíbrio entre preservação, renda e crescimento" },
-    riskTolerance: { low: "com redução de exposição diante de oscilações", moderate: "com manutenção da estratégia diante de oscilações", high: "com avaliação de aumentos seletivos diante de oscilações" },
-    horizon: { short: "horizonte de até dois anos", medium: "horizonte entre dois e cinco anos", long: "horizonte superior a cinco anos" },
-    liquidity: { high: "alta necessidade de liquidez", moderate: "necessidade moderada de liquidez", low: "baixa necessidade de liquidez" }
+    primaryGoal: { preservation: "Preservação", growth: "Crescimento consistente", income: "Renda recorrente", balance: "Equilíbrio" },
+    riskTolerance: { low: "Redução de exposição", moderate: "Manutenção da estratégia", high: "Avaliação de oportunidades" },
+    horizon: { short: "Até 2 anos", medium: "Entre 2 e 5 anos", long: "Acima de 5 anos" },
+    liquidity: { high: "Alta", moderate: "Moderada", low: "Baixa" }
 });
 
 function buildInvestorProfileSummary(answers = {}) {
-    const parts = INVESTOR_PROFILE_STEPS.map((name) => INVESTOR_PROFILE_SUMMARY[name][answers[name]]);
-    if (parts.some((part) => !part)) return "Síntese indisponível até a próxima atualização do perfil.";
-    return `Patrimônio orientado ${parts[0]}, ${parts[1]}, ${parts[2]} e ${parts[3]}.`;
+    return Object.fromEntries(INVESTOR_PROFILE_STEPS.map((name) => [name, INVESTOR_PROFILE_SUMMARY[name][answers[name]] || "Não informado"]));
 }
 
 function investorProfileReviewDate() {
@@ -226,7 +213,7 @@ function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
     const savedAt = stored.saved_at ? formatProfileDate(stored.saved_at.slice(0, 10)) : "Não registrada";
     const reviewDate = formatProfileDate(stored.profile?.review_date);
     const profileSummary = buildInvestorProfileSummary(stored.answers);
-    summary.innerHTML = `<div class="profile-summary-heading"><p class="eyebrow">Perfil Estratégico</p><h2>${profileSummary}</h2><p>Este perfil permanece vigente até a revisão anual ou até que uma mudança relevante justifique sua atualização.</p></div><dl class="profile-summary-details"><div><dt>Última revisão</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão recomendada</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Atualizar Perfil</button>`;
+    summary.innerHTML = `<dl class="profile-summary-details"><div><dt>Prioridade patrimonial</dt><dd>${profileSummary.primaryGoal}</dd></div><div><dt>Postura diante de oscilações</dt><dd>${profileSummary.riskTolerance}</dd></div><div><dt>Horizonte</dt><dd>${profileSummary.horizon}</dd></div><div><dt>Liquidez</dt><dd>${profileSummary.liquidity}</dd></div><div><dt>Última revisão</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão recomendada</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Revisar Perfil</button>`;
     const updateButton = summary.querySelector("#updateInvestorProfile");
     if (updateButton) {
         updateButton.addEventListener("click", () => setInvestorProfileViewState("editing", readInvestorProfile() || stored));
