@@ -110,6 +110,11 @@ test("Strategic Profile presents private banking copy and hides technical termin
     const profile = html.match(/data-tab-panel="profile"[\s\S]*?data-tab-panel="news"/)[0];
 
     assert.match(html, /data-tab="profile">Perfil Estratégico<\/button>/);
+    assert.match(profile, /Todas as análises do ARGOS utilizam este perfil como referência para interpretar seu patrimônio e apresentar oportunidades compatíveis com seus objetivos\./);
+    assert.match(profile, /orientar alertas, simulações, análises e sugestões futuras/);
+    assert.match(profile, /Em menos de um minuto/);
+    assert.match(profile, /podendo ser revisto sempre que sua realidade mudar/);
+    assert.match(profile, /Definir Perfil Estratégico/);
     assert.match(profile, /Qual objetivo melhor representa este patrimônio hoje\?/);
     assert.match(profile, /Como você costuma agir quando os mercados atravessam períodos temporários de volatilidade\?/);
     assert.match(profile, /Continuar/);
@@ -131,6 +136,8 @@ function createInvestorProfileFixture() {
     const form = createElement("form");
     const summary = createElement("article");
     const status = createElement("span");
+    const firstAccess = createElement("div");
+    const introduction = createElement("div");
     let updateListener = null;
     form.hidden = false;
     summary.hidden = true;
@@ -156,9 +163,11 @@ function createInvestorProfileFixture() {
     context.document.getElementById = (id) => ({
         investorProfileForm: form,
         investorProfileSummary: summary,
-        investorProfileStatus: status
+        investorProfileStatus: status,
+        investorProfileFirstAccess: firstAccess,
+        investorProfileIntroduction: introduction
     })[id];
-    return { form, summary, status, inputs, clickUpdate: () => updateListener() };
+    return { form, summary, status, firstAccess, introduction, inputs, clickUpdate: () => updateListener() };
 }
 
 function assertProfileVisibility({ form, summary }, expected) {
@@ -171,6 +180,8 @@ test("Strategic Profile summary stays executive after save", () => {
     const form = createElement("form");
     const summary = createElement("article");
     const status = createElement("span");
+    const firstAccess = createElement("div");
+    const introduction = createElement("div");
     let summaryButtonListener = null;
     form.querySelectorAll = () => [];
     summary.querySelector = () => ({
@@ -181,7 +192,9 @@ test("Strategic Profile summary stays executive after save", () => {
     context.document.getElementById = (id) => ({
         investorProfileForm: form,
         investorProfileSummary: summary,
-        investorProfileStatus: status
+        investorProfileStatus: status,
+        investorProfileFirstAccess: firstAccess,
+        investorProfileIntroduction: introduction
     })[id];
 
     context.renderInvestorProfileSummary({
@@ -223,12 +236,15 @@ test("Strategic Profile summary is deterministic and changes only with the four 
 });
 
 
-test("Strategic Profile first access shows only form and keeps summary without visual space", () => {
+test("Strategic Profile first access shows its action without an empty summary or questionnaire", () => {
     const fixture = createInvestorProfileFixture();
 
     context.renderInvestorProfileSummary(null);
 
-    assertProfileVisibility(fixture, { formHidden: false, summaryHidden: true });
+    assert.equal(fixture.form.hidden, true);
+    assert.equal(fixture.summary.hidden, true);
+    assert.equal(fixture.firstAccess.hidden, false);
+    assert.equal(fixture.introduction.hidden, false);
     assert.equal(fixture.status.textContent, "Perfil não preenchido");
     assert.equal(fixture.summary.innerHTML, "");
 });
@@ -250,6 +266,7 @@ test("Strategic Profile toggles through confirmed, editing, and reconfirmed with
     fixture.clickUpdate();
 
     assertProfileVisibility(fixture, { formHidden: false, summaryHidden: true });
+    assert.equal(fixture.introduction.hidden, true);
     assert.equal(fixture.summary.innerHTML, "");
     assert.equal(fixture.inputs.get("primaryGoal:balance").checked, true);
     assert.equal(fixture.inputs.get("riskTolerance:moderate").checked, true);
@@ -265,6 +282,16 @@ test("Strategic Profile hidden form and summary do not occupy visual space", () 
     const css = fs.readFileSync("frontend/style.css", "utf8");
 
     assert.match(css, /\.profile-form\[hidden\],\s*\.profile-summary\[hidden\]\s*{\s*display:\s*none;/);
+});
+
+test("Strategic Profile introduction is outside the four questions and hidden throughout the interview", () => {
+    const html = fs.readFileSync("frontend/index.html", "utf8");
+    const introduction = html.match(/id="investorProfileIntroduction"[\s\S]*?<\/div><\/div>/)[0];
+    const questions = html.match(/<form id="investorProfileForm"[\s\S]*?<\/form>/)[0];
+
+    assert.doesNotMatch(questions, /Todas as análises do ARGOS|Em menos de um minuto|orientar alertas/);
+    assert.equal((introduction.match(/Todas as análises do ARGOS/g) || []).length, 1);
+    assert.match(fs.readFileSync("frontend/app.js", "utf8"), /introduction\.hidden = isEditing/);
 });
 
 function createProfileStepFixture() {
@@ -318,13 +345,17 @@ test("Strategic Profile step navigation advances, returns, and keeps selections"
     const summary = createElement("article");
     const status = createElement("span");
     const error = { hidden: true, textContent: "" };
+    const firstAccess = createElement("div");
+    const introduction = createElement("div");
     context.document.getElementById = (id) => ({
         investorProfileForm: fixture.form,
         investorProfileSummary: summary,
         investorProfileStatus: status,
         investorProfileError: error,
         investorProfileBack: fixture.backButton,
-        investorProfileNext: fixture.nextButton
+        investorProfileNext: fixture.nextButton,
+        investorProfileFirstAccess: firstAccess,
+        investorProfileIntroduction: introduction
     })[id];
     context.FormData = class {
         constructor(form) { this.form = form; }
@@ -353,13 +384,17 @@ test("Strategic Profile form submits only from the final step and returns to sum
     const summary = createElement("article");
     const status = createElement("span");
     const error = { hidden: true, textContent: "" };
+    const firstAccess = createElement("div");
+    const introduction = createElement("div");
     context.document.getElementById = (id) => ({
         investorProfileForm: fixture.form,
         investorProfileSummary: summary,
         investorProfileStatus: status,
         investorProfileError: error,
         investorProfileBack: fixture.backButton,
-        investorProfileNext: fixture.nextButton
+        investorProfileNext: fixture.nextButton,
+        investorProfileFirstAccess: firstAccess,
+        investorProfileIntroduction: introduction
     })[id];
     context.FormData = class {
         constructor(form) { this.form = form; }

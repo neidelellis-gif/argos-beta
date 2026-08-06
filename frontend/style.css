@@ -863,12 +863,25 @@ h3 {
     letter-spacing: -0.035em;
 }
 
-.profile-header h1 + p {
+.profile-introduction {
     max-width: 660px;
+}
+
+.profile-introduction p {
     margin: 14px 0 0;
     color: var(--text-secondary);
     font-size: 0.94rem;
     line-height: 1.65;
+}
+
+.profile-introduction[hidden],
+.profile-first-access[hidden] {
+    display: none;
+}
+
+.profile-first-access {
+    display: flex;
+    justify-content: flex-start;
 }
 
 .profile-card {

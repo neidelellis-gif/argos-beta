@@ -193,18 +193,25 @@ function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
     const status = document.getElementById("investorProfileStatus");
     const summary = document.getElementById("investorProfileSummary");
     const form = document.getElementById("investorProfileForm");
-    if (!status || !summary || !form) return;
+    const firstAccess = document.getElementById("investorProfileFirstAccess");
+    const introduction = document.getElementById("investorProfileIntroduction");
+    if (!status || !summary || !form || !firstAccess) return;
 
     const isConfirmed = state === "confirmed" && stored;
-    form.hidden = Boolean(isConfirmed);
+    const isEditing = state === "editing";
+    form.hidden = !isEditing;
     summary.hidden = !isConfirmed;
+    firstAccess.hidden = isConfirmed || isEditing;
+    if (introduction) introduction.hidden = isEditing;
 
     if (!isConfirmed) {
         status.textContent = "Perfil não preenchido";
         status.className = "status-badge status-pending";
         summary.replaceChildren();
-        restoreInvestorProfileForm(form, stored);
-        renderInvestorProfileStep(form, 0);
+        if (isEditing) {
+            restoreInvestorProfileForm(form, stored);
+            renderInvestorProfileStep(form, 0);
+        }
         return;
     }
 
@@ -245,6 +252,10 @@ function setupInvestorProfileFlow() {
     renderInvestorProfileSummary();
     const backButton = document.getElementById("investorProfileBack");
     const nextButton = document.getElementById("investorProfileNext");
+    const defineButton = document.getElementById("defineInvestorProfile");
+    if (defineButton) {
+        defineButton.addEventListener("click", () => setInvestorProfileViewState("editing"));
+    }
     if (backButton) {
         backButton.addEventListener("click", () => renderInvestorProfileStep(form, investorProfileStep - 1));
     }
