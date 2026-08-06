@@ -863,12 +863,52 @@ h3 {
     letter-spacing: -0.035em;
 }
 
-.profile-header h1 + p {
-    max-width: 660px;
-    margin: 14px 0 0;
+.profile-introduction {
+    max-width: 620px;
+}
+
+.profile-introduction p {
+    margin: 12px 0 0;
     color: var(--text-secondary);
     font-size: 0.94rem;
     line-height: 1.65;
+}
+
+.profile-introduction[hidden],
+.profile-first-access[hidden],
+.profile-card[hidden] {
+    display: none;
+}
+
+.profile-first-access {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+    min-height: calc(100vh - 120px);
+    padding: 48px 0 96px;
+}
+
+.profile-first-access-content {
+    width: min(100%, 680px);
+    text-align: center;
+}
+
+.profile-first-access h1 {
+    margin: 0;
+    font-family: var(--argos-font-editorial);
+    font-size: clamp(2.15rem, 4vw, 3.15rem);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+}
+
+.profile-first-access .profile-introduction {
+    margin: 0 auto;
+}
+
+.profile-first-access-action {
+    margin-top: 28px;
 }
 
 .profile-card {
