@@ -193,12 +193,12 @@ test("Strategic Profile summary stays executive after save", () => {
     assert.equal(form.hidden, true);
     assert.equal(summary.hidden, false);
     assert.equal(status.textContent, "Perfil vigente");
-    assert.match(summary.innerHTML, /Prioridade patrimonial<\/dt><dd>Equilíbrio/);
-    assert.match(summary.innerHTML, /Postura diante de oscilações<\/dt><dd>Manutenção da estratégia/);
+    assert.match(summary.innerHTML, /Objetivo predominante<\/dt><dd>Equilíbrio/);
+    assert.match(summary.innerHTML, /Postura<\/dt><dd>Manutenção da estratégia/);
     assert.match(summary.innerHTML, /Horizonte<\/dt><dd>Acima de 5 anos/);
     assert.match(summary.innerHTML, /Liquidez<\/dt><dd>Moderada/);
     assert.match(summary.innerHTML, /Última revisão/);
-    assert.match(summary.innerHTML, /Próxima revisão recomendada/);
+    assert.match(summary.innerHTML, /Próxima revisão/);
     assert.match(summary.innerHTML, /5 de agosto de 2026/);
     assert.match(summary.innerHTML, /5 de agosto de 2027/);
     assert.match(summary.innerHTML, /Revisar Perfil/);
@@ -244,7 +244,7 @@ test("Strategic Profile toggles through confirmed, editing, and reconfirmed with
     context.renderInvestorProfileSummary(stored);
 
     assertProfileVisibility(fixture, { formHidden: true, summaryHidden: false });
-    assert.match(fixture.summary.innerHTML, /Prioridade patrimonial/);
+    assert.match(fixture.summary.innerHTML, /Objetivo predominante/);
     assert.doesNotMatch(fixture.summary.innerHTML, /<input|fieldset|Confirmar Perfil Estratégico/);
 
     fixture.clickUpdate();

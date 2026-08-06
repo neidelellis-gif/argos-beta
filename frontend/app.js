@@ -213,7 +213,7 @@ function setInvestorProfileViewState(state, stored = readInvestorProfile()) {
     const savedAt = stored.saved_at ? formatProfileDate(stored.saved_at.slice(0, 10)) : "Não registrada";
     const reviewDate = formatProfileDate(stored.profile?.review_date);
     const profileSummary = buildInvestorProfileSummary(stored.answers);
-    summary.innerHTML = `<dl class="profile-summary-details"><div><dt>Prioridade patrimonial</dt><dd>${profileSummary.primaryGoal}</dd></div><div><dt>Postura diante de oscilações</dt><dd>${profileSummary.riskTolerance}</dd></div><div><dt>Horizonte</dt><dd>${profileSummary.horizon}</dd></div><div><dt>Liquidez</dt><dd>${profileSummary.liquidity}</dd></div><div><dt>Última revisão</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão recomendada</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Revisar Perfil</button>`;
+    summary.innerHTML = `<dl class="profile-summary-details"><div><dt>Objetivo predominante</dt><dd>${profileSummary.primaryGoal}</dd></div><div><dt>Postura</dt><dd>${profileSummary.riskTolerance}</dd></div><div><dt>Horizonte</dt><dd>${profileSummary.horizon}</dd></div><div><dt>Liquidez</dt><dd>${profileSummary.liquidity}</dd></div><div><dt>Última revisão</dt><dd>${savedAt}</dd></div><div><dt>Próxima revisão</dt><dd>${reviewDate}</dd></div></dl><button id="updateInvestorProfile" class="profile-update-button" type="button">Revisar Perfil</button>`;
     const updateButton = summary.querySelector("#updateInvestorProfile");
     if (updateButton) {
         updateButton.addEventListener("click", () => setInvestorProfileViewState("editing", readInvestorProfile() || stored));
