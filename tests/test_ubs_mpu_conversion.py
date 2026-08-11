@@ -28,7 +28,7 @@ def test_converts_ubs_position_to_mpu():
         asset_subclass=None,
         asset_name="GLD",
         identifier="GLD",
-        identifier_type=None,
+        identifier_type="ticker",
         quantity=None,
         unit_price=None,
         market_value=Decimal("1234.56"),
@@ -85,3 +85,30 @@ def test_load_positions_returns_mpu_positions(monkeypatch, tmp_path):
     assert positions[0].market_value == Decimal("1250.25")
     assert positions[0].source_file == "ubs.csv"
     assert positions[0].owner is PortfolioOwner.JOLIKA
+
+def test_uses_cusip_when_symbol_is_missing():
+    position = ubs_connector._to_portfolio_position(
+        {
+            "institution": "UBS",
+            "account": "R2 16003",
+            "symbol": "N/A",
+            "cusip": "24703TAG1",
+            "name": "DELL INTL",
+            "description": "DELL INTL",
+            "asset_class": "Renda Fixa",
+            "currency": "USD",
+            "value": 81056.80,
+            "weight": None,
+        },
+        "carteira.csv",
+    )
+
+    assert position.identifier == "24703TAG1"
+    assert position.identifier_type == "cusip"
+
+
+def test_classifies_cash_reserve_as_cash():
+    assert ubs_connector.classify_asset(
+        "N/A",
+        "UBS CASH RESERVE",
+    ) == "Caixa"

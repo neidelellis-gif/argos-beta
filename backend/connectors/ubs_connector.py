@@ -21,7 +21,7 @@ SUPPORTED_EXTENSIONS = supported_extensions
 def classify_asset(symbol, description):
     text = str(description or "").upper()
 
-    if "SAVINGS" in text or "SWEEP" in text:
+    if "SAVINGS" in text or "SWEEP" in text or "CASH RESERVE" in text:
         return "Caixa"
     if "MATURES" in text or "CALLABLE" in text or "RATE" in text or "NTS" in text:
         return "Renda Fixa"
@@ -76,9 +76,17 @@ def _find_header_row(rows):
 
 def _to_portfolio_position(position, source_file):
     """Converte uma posição lida da UBS para o MPU."""
-    identifier = position.get("symbol")
-    if not identifier or identifier == "N/A":
+    symbol = position.get("symbol")
+    cusip = position.get("cusip")
+    if symbol and symbol != "N/A":
+        identifier = symbol
+        identifier_type = "ticker"
+    elif cusip and cusip != "N/A":
+        identifier = cusip
+        identifier_type = "cusip"
+    else:
         identifier = None
+        identifier_type = None
 
     return PortfolioPosition(
         institution=institution,
@@ -88,7 +96,7 @@ def _to_portfolio_position(position, source_file):
         asset_subclass=None,
         asset_name=position["name"],
         identifier=identifier,
-        identifier_type=None,
+        identifier_type=identifier_type,
         quantity=None,
         unit_price=None,
         market_value=Decimal(str(position["value"])),
@@ -134,6 +142,7 @@ def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
     account_idx = header.index("ACCOUNT NUMBER")
     description_idx = header.index("DESCRIPTION")
     symbol_idx = header.index("SYMBOL")
+    cusip_idx = header.index("CUSIP") if "CUSIP" in header else None
 
     value_idx = None
     for candidate in ["VALUE", "ACCOUNT VALUE", "MARKET VALUE", "AMOUNT", "BALANCE", "TOTAL VALUE"]:
@@ -153,6 +162,11 @@ def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
         account = str(row[account_idx] or "").strip()
         description = str(row[description_idx] or "").strip()
         symbol = str(row[symbol_idx] or "").strip() or "N/A"
+        cusip = (
+            str(row[cusip_idx] or "").strip() or "N/A"
+            if cusip_idx is not None and len(row) > cusip_idx
+            else "N/A"
+        )
         value = _parse_number(row[value_idx])
 
         if value is None or not description:
@@ -162,6 +176,7 @@ def load_positions(file_path: Path) -> tuple[PortfolioPosition, ...]:
             "institution": "UBS",
             "account": account,
             "symbol": symbol,
+            "cusip": cusip,
             "name": get_display_name(symbol, description),
             "description": description,
             "asset_class": classify_asset(symbol, description),
