@@ -9,6 +9,7 @@ from typing import Dict, Iterable, Tuple
 from backend.connectors import registry
 from backend.dashboard import build_dashboard
 from backend.models import PortfolioPosition
+from backend.portfolio_classification import classify_jolika_positions
 from backend.portfolio_diagnostics import diagnose_institution
 
 
@@ -69,7 +70,7 @@ def _load_recognized_file(file_path: Path) -> Tuple[PortfolioPosition, ...]:
                 connector_id=connector.connector_id,
                 institution=connector.institution,
             )
-            positions = connector.load_positions(file_path)
+            positions = classify_jolika_positions(connector.load_positions(file_path))
             total_market_value = sum(position.market_value for position in positions)
             _log_import(
                 "connector.load_positions returned",

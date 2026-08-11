@@ -19,6 +19,19 @@ class PortfolioOwner(str, Enum):
     NEI = "NEI"
 
 
+class EconomicAssetClass(str, Enum):
+    """Normalized economic exposures used by the JOLIKA portfolio engine."""
+
+    CASH = "Caixa"
+    FIXED_INCOME = "Renda Fixa"
+    EQUITIES = "Ações"
+    EQUITY_ETFS = "ETFs de Ações"
+    GOLD_AND_COMMODITIES = "Ouro & Commodities"
+    CRYPTOASSETS = "Criptoativos"
+    ALTERNATIVES_PRIVATE_MARKETS = "Alternativos / Private Markets"
+    FUNDS_STRATEGIES = "Fundos / Estratégias"
+
+
 @dataclass(frozen=True)
 class PortfolioPosition:
     """Universal representation of a portfolio position in ARGOS."""
@@ -38,6 +51,7 @@ class PortfolioPosition:
     portfolio_weight: Optional[Decimal]
     reference_date: Optional[date]
     source_file: str
+    economic_asset_class: Optional[EconomicAssetClass] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.owner, PortfolioOwner):

@@ -4,7 +4,7 @@ from typing import cast
 
 import pytest
 
-from backend.models import PortfolioOwner, PortfolioPosition
+from backend.models import EconomicAssetClass, PortfolioOwner, PortfolioPosition
 
 
 def _unchecked_position(**position_fields: object) -> PortfolioPosition:
@@ -13,7 +13,7 @@ def _unchecked_position(**position_fields: object) -> PortfolioPosition:
     return constructor(**position_fields)
 
 
-def test_portfolio_position_has_only_mpu_v1_fields():
+def test_portfolio_position_has_mpu_fields_and_optional_economic_class_at_end():
     assert [field.name for field in fields(PortfolioPosition)] == [
         "institution",
         "owner",
@@ -30,7 +30,21 @@ def test_portfolio_position_has_only_mpu_v1_fields():
         "portfolio_weight",
         "reference_date",
         "source_file",
+        "economic_asset_class",
     ]
+
+
+def test_economic_asset_class_has_only_the_jolika_phase_one_taxonomy():
+    assert {item.value for item in EconomicAssetClass} == {
+        "Caixa",
+        "Renda Fixa",
+        "Ações",
+        "ETFs de Ações",
+        "Ouro & Commodities",
+        "Criptoativos",
+        "Alternativos / Private Markets",
+        "Fundos / Estratégias",
+    }
 
 
 def test_portfolio_owner_has_only_the_official_owners():
