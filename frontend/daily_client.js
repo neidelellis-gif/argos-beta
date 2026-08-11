@@ -39,7 +39,7 @@ const DailyApiContract = Object.freeze({
             && (payload.contract_version !== "1.4" || (payload.data_quality
                 && typeof payload.data_quality === "object" && Array.isArray(payload.data_quality.diagnostics)))
             && (payload.contract_version !== "1.5" || (payload.experience
-                && ["READY", "PARTIAL", "ERROR"].includes(payload.experience.status)
+                && ["READY", "PARTIAL"].includes(payload.experience.status)
                 && payload.data_quality && Array.isArray(payload.data_quality.diagnostics)))
             && payload.facts.every((fact) => fact && typeof fact === "object"
                 && this.priorityLevels.includes(fact.importance))

@@ -1539,21 +1539,52 @@ test("DailyFrontendClient accepts 1.4 only with structured data quality", async 
     await assert.rejects(() => invalidClient.loadExperience({}), /Erro interno/);
 });
 
-test("DailyFrontendClient accepts 1.5 only with orchestrated experience status", async () => {
+test("DailyFrontendClient accepts presentable 1.5 experience statuses", async () => {
     const complete = dailyResponse({
         contract_version: "1.5", market_agenda: [], impact_assessments: [],
         decision_contexts: [], data_quality: { status: "HEALTHY", diagnostics: [] },
         experience: { status: "READY" }
     });
+
+    for (const status of ["READY", "PARTIAL"]) {
+        const payload = { ...complete, experience: { status } };
+        const client = new context.DailyClientForTest(async () => ({
+            status: 200, async json() { return payload; }
+        }));
+        assert.equal((await client.loadExperience({})).experience.status, status);
+    }
+});
+
+test("DailyFrontendClient rejects an unrenderable 1.5 ERROR experience", async () => {
+    const payload = dailyResponse({
+        contract_version: "1.5", market_agenda: [], impact_assessments: [],
+        decision_contexts: [], data_quality: { status: "ERROR", diagnostics: [] },
+        experience: { status: "ERROR" }
+    });
     const client = new context.DailyClientForTest(async () => ({
-        status: 200, async json() { return complete; }
+        status: 200, async json() { return payload; }
     }));
-    assert.equal((await client.loadExperience({})).experience.status, "READY");
+    let renderCalls = 0;
+    const render = () => { renderCalls += 1; };
+
+    await assert.rejects(
+        client.loadExperience({}).then(render),
+        /Erro interno/
+    );
+    assert.equal(renderCalls, 0);
+});
+
+test("DailyFrontendClient rejects an unknown 1.5 experience status", async () => {
+    const complete = dailyResponse({
+        contract_version: "1.5", market_agenda: [], impact_assessments: [],
+        decision_contexts: [], data_quality: { status: "HEALTHY", diagnostics: [] },
+        experience: { status: "READY" }
+    });
     const invalid = { ...complete, experience: { status: "UNKNOWN" } };
-    const invalidClient = new context.DailyClientForTest(async () => ({
+    const client = new context.DailyClientForTest(async () => ({
         status: 200, async json() { return invalid; }
     }));
-    await assert.rejects(invalidClient.loadExperience({}), /Erro interno/);
+    await assert.rejects(client.loadExperience({}), /Erro interno/);
 });
 
 for (const overrides of [

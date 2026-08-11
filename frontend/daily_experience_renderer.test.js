@@ -2,215 +2,318 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const { DailyApiContract } = require("./daily_client.js");
+
+const SUPPORTED_PRE_1_5_VERSIONS = DailyApiContract.compatibleVersions.filter(
+    (version) => version !== "1.5"
+);
 
 function node(tagName) {
     return {
-        tagName, className: "", textContent: "", hidden: false, children: [],
-        appendChild(child) { this.children.push(child); },
-        replaceChildren(...children) { this.children = children; }
+        tagName,
+        className: "",
+        textContent: "",
+        hidden: false,
+        children: [],
+        dataset: {},
+        attributes: {},
+        listeners: {},
+        append(...children) { this.children.push(...children); },
+        appendChild(child) { this.children.push(child); return child; },
+        replaceChildren(...children) { this.children = children; },
+        setAttribute(name, value) { this.attributes[name] = String(value); },
+        addEventListener(name, listener) { this.listeners[name] = listener; },
+        querySelector() { return null; }
     };
 }
 
 function setup() {
     const elements = new Map();
-    ["greeting", "currentDate", "lastUpdateLabel", "lastUpdate"].forEach(
-        (id) => elements.set(id, node("span"))
-    );
+    ["greeting", "currentDate", "lastUpdateLabel", "lastUpdate", "factsCount", "marketReactionCount"]
+        .forEach((id) => elements.set(id, node("span")));
     [
         ["daily-facts", "importantFacts"],
-        ["daily-priorities", "dailyPriorities"],
-        ["daily-analyses", "dailyAnalyses"],
-        ["daily-decision-context", "dailyDecisionContexts"],
-        ["daily-impacts", "dailyImpacts"],
-        ["data-quality", "dataQualityDiagnostics"],
-        ["market-agenda", "marketAgenda"]
-    ].forEach(([panelId, listId]) => {
-        const section = node("article");
+        ["daily-market-reaction", "marketReaction"]
+    ].forEach(([sectionId, listId]) => {
+        const section = node("section");
         section.hidden = true;
-        elements.set(panelId, section);
+        elements.set(sectionId, section);
         elements.set(listId, node("div"));
     });
-    const agendaPanel = node("article");
-    agendaPanel.hidden = true;
-    elements.set("marketAgendaPanel", agendaPanel);
+    ["daily-investment-impact", "daily-decision"].forEach((id) => {
+        const section = node("section");
+        section.hidden = true;
+        elements.set(id, section);
+    });
+    elements.set("neiInvestmentImpact", node("div"));
+    elements.set("jolikaInvestmentImpact", node("div"));
+    elements.set("dailyAnalyzePortfolios", node("button"));
+    elements.set("dailyNotNow", node("button"));
     ["daily-error", "daily-loading"].forEach((id) => {
         const value = node("p");
         value.hidden = true;
         elements.set(id, value);
     });
+
+    const decisionCopy = node("p");
+    elements.get("daily-decision").querySelector = (selector) => (
+        selector === ".daily-decision-copy p" ? decisionCopy : null
+    );
+
     global.document = {
         createElement: node,
         getElementById(id) { return elements.get(id); }
     };
+    global.window = { location: { href: "/" } };
     delete require.cache[require.resolve("./daily_experience_renderer.js")];
     const { DailyExperienceRenderer } = require("./daily_experience_renderer.js");
-    return { elements, renderer: DailyExperienceRenderer };
+    return { decisionCopy, elements, renderer: DailyExperienceRenderer };
 }
 
 function response(overrides = {}) {
     return {
-        contract_version: "1.0", status: "SUCCESS",
+        contract_version: "1.5",
+        status: "SUCCESS",
         generated_at: "2026-07-30T12:00:00Z",
-        header: { greeting: "Bom dia, Nei", display_date: "quinta-feira, 30 de julho de 2026" },
-        facts: [{ id: "technical", category: "Carteira", text: "Fato", importance: "HIGH" }],
-        priorities: [{ fact_id: "technical", type: "DECIDE", level: "HIGH", title: "Prioridade", reason: "Resumo", related_analyses: ["a"] }],
-        analyses: [{ fact_id: "technical", action: "Analisar", title: "Análise", reason: "Resumo", related_facts: ["f"] }],
+        header: {
+            greeting: "Bom dia, Nei",
+            display_date: "quinta-feira, 30 de julho de 2026"
+        },
+        facts: [{ title: "Fato", summary: "Resumo do fato", importance: "HIGH" }],
+        priorities: [{ title: "Prioridade", reason: "Resumo da prioridade", level: "HIGH" }],
+        analyses: [{ title: "Análise", reason: "Resumo da análise" }],
+        impact_assessments: [],
         ...overrides
     };
 }
 
-test("renders a complete payload and preserves the public date", () => {
-    const { elements, renderer } = setup();
+function compatibleResponse(contractVersion) {
+    const payload = response({
+        contract_version: contractVersion,
+        experience_status: "READY",
+        message: {},
+        blocks: [{ type: "FACTS", visible: true, title: "Fatos", items: [] }],
+        summary: {},
+        error: null,
+        facts: [{
+            title: `Fato ${contractVersion}`,
+            summary: "Resumo público",
+            importance: "HIGH"
+        }],
+        priorities: [{
+            title: `Mercado ${contractVersion}`,
+            reason: "Reação observada",
+            level: "MEDIUM"
+        }],
+        analyses: []
+    });
+
+    if (contractVersion !== "1.0") payload.market_agenda = [];
+    if (["1.2", "1.3", "1.4"].includes(contractVersion)) {
+        payload.impact_assessments = [{
+            title: `Impacto ${contractVersion}`,
+            summary: "Impacto respaldado pelo payload",
+            affected_assets: ["GLD"],
+            impact_direction: "NEGATIVE"
+        }];
+    } else {
+        delete payload.impact_assessments;
+    }
+    if (["1.3", "1.4"].includes(contractVersion)) payload.decision_contexts = [];
+    if (contractVersion === "1.4") {
+        payload.data_quality = { status: "HEALTHY", diagnostics: [] };
+    }
+    return payload;
+}
+
+function renderedText(value) {
+    return JSON.stringify(value);
+}
+
+test("renders the current daily flow and preserves the public header", () => {
+    const { decisionCopy, elements, renderer } = setup();
     renderer.render(response());
+
     assert.equal(elements.get("greeting").textContent, "Bom dia, Nei");
     assert.equal(elements.get("currentDate").textContent, "quinta-feira, 30 de julho de 2026");
+    assert.equal(elements.get("lastUpdateLabel").textContent, "Atualizado");
+    assert.match(elements.get("lastUpdate").textContent, /^hoje às \d{2}:\d{2}$/);
     assert.equal(elements.get("daily-facts").hidden, false);
-    assert.equal(elements.get("daily-priorities").hidden, false);
-    assert.equal(elements.get("daily-analyses").hidden, false);
-    assert.equal(elements.get("market-agenda").hidden, true);
+    assert.equal(elements.get("daily-market-reaction").hidden, false);
+    assert.equal(elements.get("daily-investment-impact").hidden, false);
+    assert.equal(elements.get("daily-decision").hidden, false);
+    assert.match(decisionCopy.textContent, /Aprofundar análise/);
 });
 
-test("renders 1.5 only when the orchestrated experience can be presented", () => {
-    const { renderer } = setup();
-    assert.doesNotThrow(() => renderer.render(response({
-        contract_version: "1.5", experience: { status: "READY" }
-    })));
-    assert.throws(() => renderer.render(response({
-        contract_version: "1.5", experience: { status: "ERROR" }
-    })), /Invalid daily experience/);
-});
-
-for (const [name, overrides, visible] of [
-    ["only facts", { priorities: [], analyses: [] }, "daily-facts"],
-    ["only priorities", { facts: [], analyses: [] }, "daily-priorities"],
-    ["only analyses", { facts: [], priorities: [] }, "daily-analyses"]
-]) {
-    test(`shows ${name} and hides empty blocks`, () => {
+for (const contractVersion of SUPPORTED_PRE_1_5_VERSIONS) {
+    test(`renders the current flow for supported contract ${contractVersion}`, () => {
         const { elements, renderer } = setup();
-        renderer.render(response(overrides));
-        for (const id of ["daily-facts", "daily-priorities", "daily-analyses"]) {
-            assert.equal(elements.get(id).hidden, id !== visible);
+        const payload = compatibleResponse(contractVersion);
+
+        assert.equal(DailyApiContract.isCompatibleResponse(payload), true);
+        renderer.render(payload);
+
+        assert.equal(elements.get("greeting").textContent, "Bom dia, Nei");
+        assert.equal(elements.get("importantFacts").children[0]
+            .children[1].children[0].textContent, `Fato ${contractVersion}`);
+        assert.equal(elements.get("daily-facts").hidden, false);
+        assert.equal(elements.get("daily-market-reaction").hidden, false);
+        assert.match(renderedText(elements.get("marketReaction")),
+            new RegExp(`Mercado ${contractVersion.replace(".", "\\.")}`));
+
+        if (["1.2", "1.3", "1.4"].includes(contractVersion)) {
+            const jolikaImpacts = elements.get("jolikaInvestmentImpact").children;
+            assert.equal(jolikaImpacts.length, 1);
+            assert.equal(jolikaImpacts[0].children[0].children[0].textContent, "GLD");
+            assert.equal(jolikaImpacts[0].children[1].textContent,
+                "Impacto respaldado pelo payload");
         }
     });
 }
 
-test("shows only greeting and date when every block is empty", () => {
-    const { elements, renderer } = setup();
-    renderer.render(response({ facts: [], priorities: [], analyses: [] }));
-    assert.equal(elements.get("greeting").textContent, "Bom dia, Nei");
-    assert.equal(elements.get("daily-facts").hidden, true);
-    assert.equal(elements.get("daily-priorities").hidden, true);
-    assert.equal(elements.get("daily-analyses").hidden, true);
-});
-
-test("enforces the presentation limits without reordering", () => {
-    const { elements, renderer } = setup();
-    const facts = Array.from({ length: 7 }, (_, index) => ({ category: "C", text: `F${index}` }));
-    const priorities = Array.from({ length: 4 }, (_, index) => ({ level: "LOW", title: `P${index}`, reason: "R" }));
-    const analyses = Array.from({ length: 4 }, (_, index) => ({ action: "Decidir", title: `A${index}`, reason: "R" }));
-    renderer.render(response({ facts, priorities, analyses }));
-    assert.equal(elements.get("importantFacts").children.length, 5);
-    assert.equal(elements.get("dailyPriorities").children.length, 2);
-    assert.equal(elements.get("dailyAnalyses").children.length, 2);
-    assert.equal(elements.get("importantFacts").children[0].children[1].textContent, "F0");
-});
-
-test("maps priority levels and action types", () => {
+test("combines, deduplicates and limits facts without reordering", () => {
     const { elements, renderer } = setup();
     renderer.render(response({
-        priorities: [
-            { type: "ANALYZE", level: "MEDIUM", title: "M", reason: "R" },
-            { type: "DECIDE", level: "MODERATE", title: "C", reason: "R" }
+        facts: [
+            { title: "Primeiro", summary: "F1" },
+            { title: "Duplicado", summary: "F2" },
+            { title: "Terceiro", summary: "F3" },
+            { title: "Quarto", summary: "F4" }
         ],
-        analyses: [
-            { type: "ANALYZE", title: "A", reason: "R" },
-            { type: "DECIDE", title: "D", reason: "R" }
+        priorities: [{ title: "duplicado", reason: "Não deve repetir" }],
+        analyses: [{ title: "Quinto", reason: "F5" }]
+    }));
+
+    const items = elements.get("importantFacts").children;
+    assert.equal(items.length, 3);
+    assert.equal(items[0].children[1].children[0].textContent, "Primeiro");
+    assert.equal(items[1].children[1].children[0].textContent, "Duplicado");
+    assert.equal(items[2].children[1].children[0].textContent, "Terceiro");
+    assert.equal(items[0].children[0].attributes["aria-hidden"], "true");
+});
+
+test("represents an evidence-free response without fact or market entries", () => {
+    const { elements, renderer } = setup();
+    renderer.render(response({ facts: [], priorities: [], analyses: [], impact_assessments: [] }));
+
+    assert.equal(elements.get("daily-facts").hidden, true);
+    assert.equal(elements.get("daily-market-reaction").hidden, true);
+    assert.equal(elements.get("importantFacts").children.length, 0);
+    assert.equal(elements.get("marketReaction").children.length, 0);
+    assert.equal(elements.get("daily-decision").hidden, false);
+});
+
+test("renders market entries uniquely and limits them to three", () => {
+    const { elements, renderer } = setup();
+    renderer.render(response({
+        priorities: [{ title: "Mercado B", reason: "B repetido" }],
+        impact_assessments: [
+            { title: "Mercado A", summary: "A" },
+            { title: "Mercado B", summary: "B" },
+            { title: "Mercado C", summary: "C" },
+            { title: "Mercado D", summary: "D" }
         ]
     }));
-    const priorities = elements.get("dailyPriorities").children;
-    assert.equal(priorities[0].children[0].children[0].textContent, "Analisar");
-    assert.equal(priorities[0].children[0].children[1].textContent, "Moderada");
-    assert.equal(priorities[1].children[0].children[0].textContent, "Decidir");
-    assert.equal(priorities[1].children[0].children[1].textContent, "Moderada");
-    assert.equal(elements.get("dailyAnalyses").children[0].children[0].children[0].textContent, "Analisar");
-    assert.equal(elements.get("dailyAnalyses").children[1].children[0].children[0].textContent, "Decidir");
+
+    const items = elements.get("marketReaction").children;
+    assert.equal(items.length, 3);
+    assert.equal(items[0].children[1].children[0].textContent, "Mercado A");
+    assert.equal(items[1].children[1].children[0].textContent, "Mercado B");
+    assert.equal(items[2].children[1].children[0].textContent, "Mercado C");
 });
 
-test("maps HIGH and LOW to safe visual labels", () => {
+test("renders known owner impacts with the current status labels and limits", () => {
     const { elements, renderer } = setup();
-    renderer.render(response({ priorities: [
-        { level: "HIGH", title: "H", reason: "R" },
-        { level: "LOW", title: "L", reason: "R" }
-    ] }));
-    assert.equal(elements.get("dailyPriorities").children[0].children[0].children[1].textContent, "Alta");
-    assert.equal(elements.get("dailyPriorities").children[1].children[0].children[1].textContent, "Baixa");
+    renderer.render(response({
+        impact_assessments: [
+            { affected_assets: ["BTC", "ETH", "SOL", "AAVE"], impact_direction: "POSITIVE", summary: "Cenário favorável" },
+            { affected_assets: ["GLD"], impact_direction: "NEGATIVE", summary: "Ponto de atenção" }
+        ]
+    }));
+
+    const nei = elements.get("neiInvestmentImpact").children;
+    const jolika = elements.get("jolikaInvestmentImpact").children;
+    assert.equal(nei.length, 3);
+    assert.equal(nei[0].children[0].children[0].textContent, "BTC");
+    assert.equal(nei[0].children[0].children[1].textContent, "Favorável");
+    assert.equal(jolika.length, 1);
+    assert.equal(jolika[0].children[0].children[0].textContent, "GLD");
+    assert.equal(jolika[0].children[0].children[1].textContent, "Atenção");
 });
 
-test("does not expose technical relationships, ids, JSON, or execute HTML", () => {
+test("cleans editorial metadata and renders external-looking text as text", () => {
     const { elements, renderer } = setup();
-    renderer.render(response({ facts: [{ category: "C", text: "<img src=x onerror=alert(1)>" }] }));
-    const serialized = JSON.stringify([...elements.values()]);
-    assert.doesNotMatch(serialized, /technical|related_facts|related_analyses|\[object Object\]/);
-    assert.equal(elements.get("importantFacts").children[0].children[1].textContent,
-        "<img src=x onerror=alert(1)>");
+    renderer.render(response({
+        facts: [{
+            title: "<img src=x onerror=alert(1)>",
+            summary: "analysis-123 Federal Reserve e Treasuries. Direção não é recomendação."
+        }],
+        priorities: [],
+        analyses: []
+    }));
+
+    const item = elements.get("importantFacts").children[0];
+    assert.equal(item.children[1].children[0].textContent, "<img src=x onerror=alert(1)>");
+    assert.match(item.children[1].children[1].textContent, /uma análise interna/);
+    assert.match(item.children[1].children[1].textContent, /Banco Central dos Estados Unidos/);
+    assert.match(item.children[1].children[1].textContent, /títulos do governo americano/);
+    assert.doesNotMatch(item.children[1].children[1].textContent, /analysis-123|Direção não é recomendação/);
 });
 
-test("does not mutate any part of the payload", () => {
+test("does not mutate any part of the response", () => {
     const { renderer } = setup();
-    const payload = response({ market_agenda: [{ title: "Evento" }] });
+    const payload = response({
+        impact_assessments: [{
+            affected_assets: ["BTC", "GLD"],
+            impact_direction: "MIXED",
+            summary: "Impacto"
+        }]
+    });
     const before = JSON.stringify(payload);
     renderer.render(payload);
     assert.equal(JSON.stringify(payload), before);
 });
 
-test("keeps agenda hidden whether absent, empty, or unsupported by contract 1.0", () => {
-    for (const agenda of [undefined, [], [{ title: "Evento" }]]) {
-        const { elements, renderer } = setup();
-        renderer.render(response(agenda === undefined ? {} : { market_agenda: agenda }));
-        assert.equal(elements.get("market-agenda").hidden, true);
-    }
+test("replaces previous list content on subsequent renders", () => {
+    const { elements, renderer } = setup();
+    renderer.render(response());
+    renderer.render(response({ facts: [], priorities: [], analyses: [], impact_assessments: [] }));
+
+    assert.equal(elements.get("importantFacts").children.length, 0);
+    assert.equal(elements.get("marketReaction").children.length, 0);
+    assert.equal(elements.get("daily-facts").hidden, true);
+    assert.equal(elements.get("daily-market-reaction").hidden, true);
 });
 
-test("renders contract 1.1 agenda safely with translations and original timezone", () => {
+test("binds decision actions once and keeps their current behavior", () => {
     const { elements, renderer } = setup();
-    const event = {
-        id: "agenda-secret", event_type: "CENTRAL_BANK", importance: "HIGH",
-        title: "<Decisão>", summary: "Política monetária", event_date: "2026-07-30",
-        event_time: "14:00", timezone: "America/New_York", all_day: false,
-        affected_assets: ["USD", "NVDA"], source_name: "Federal Reserve",
-        source_reference: "never-render"
-    };
-    renderer.render(response({ contract_version: "1.1", market_agenda: [event] }));
-    const rendered = JSON.stringify(elements.get("marketAgenda"));
-    assert.equal(elements.get("marketAgendaPanel").hidden, false);
-    assert.equal(elements.get("marketAgenda").children.length, 1);
-    assert.match(rendered, /Bancos centrais/);
-    assert.match(rendered, /Alta/);
-    assert.match(rendered, /14:00 — America\/New_York/);
-    assert.match(rendered, /Fonte: Federal Reserve/);
-    assert.doesNotMatch(rendered, /agenda-secret|never-render/);
-});
+    renderer.render(response());
+    const analyze = elements.get("dailyAnalyzePortfolios");
+    const notNow = elements.get("dailyNotNow");
+    const analyzeListener = analyze.listeners.click;
+    const notNowListener = notNow.listeners.click;
 
-test("renders all-day events, limits ten, and hides after an empty response", () => {
-    const { elements, renderer } = setup();
-    const events = Array.from({ length: 12 }, (_, index) => ({
-        id: `id-${index}`, event_type: "EARNINGS", importance: "MEDIUM",
-        title: `Evento ${index}`, summary: "Resumo", event_date: "2026-07-30",
-        event_time: null, timezone: null, all_day: true, affected_assets: [], source_name: "RI"
-    }));
-    renderer.render(response({ contract_version: "1.1", market_agenda: events }));
-    assert.equal(elements.get("marketAgenda").children.length, 10);
-    assert.match(JSON.stringify(elements.get("marketAgenda")), /Dia inteiro/);
-    renderer.render(response({ contract_version: "1.1", market_agenda: [] }));
-    assert.equal(elements.get("marketAgendaPanel").hidden, true);
-    assert.equal(elements.get("marketAgenda").children.length, 0);
+    assert.equal(analyze.textContent, "Aprofundar análise");
+    analyze.listeners.click();
+    assert.equal(global.window.location.href, "/analysis_start.html");
+    notNow.listeners.click();
+    assert.equal(notNow.textContent, "Continuar depois");
+
+    renderer.render(response());
+    assert.equal(analyze.listeners.click, analyzeListener);
+    assert.equal(notNow.listeners.click, notNowListener);
 });
 
 test("rejects invalid responses and controls loading and error states", () => {
     const { elements, renderer } = setup();
     renderer.showLoading();
     assert.equal(elements.get("daily-loading").hidden, false);
-    assert.throws(() => renderer.render({}), /Invalid daily experience/);
+    assert.equal(elements.get("daily-error").hidden, true);
+
+    for (const invalid of [null, {}, response({ status: "ERROR" }), response({ facts: null })]) {
+        assert.throws(() => renderer.render(invalid), /Invalid daily experience/);
+    }
+
     renderer.showError();
     assert.equal(elements.get("daily-loading").hidden, true);
     assert.equal(elements.get("daily-error").hidden, false);
@@ -218,89 +321,17 @@ test("rejects invalid responses and controls loading and error states", () => {
         "Não foi possível preparar a experiência diária.");
 });
 
-test("renders contract 1.2 impacts safely, translates labels, limits five, and hides after empty", () => {
+test("does not expose technical relationship fields in the rendered DOM", () => {
     const { elements, renderer } = setup();
-    const impactPanel = node("article"); impactPanel.hidden = true;
-    elements.set("daily-impacts", impactPanel); elements.set("dailyImpacts", node("div"));
-    const impact = {
-        id: "impact-secret", source_id: "fact-secret", source_type: "FACT",
-        impact_level: "HIGH", impact_direction: "MIXED", confidence: "MEDIUM",
-        title: "<img src=x>", summary: "Impacto potencial.", affected_assets: ["GLD"],
-        impact_factors: [{ factor_type: "CURRENCY", factor_value: "USD", description: "Moeda USD presente." }],
-        affected_positions: [{ position_id: "secret" }]
-    };
-    const payload = response({ contract_version: "1.2", impact_assessments: Array(7).fill(impact), market_agenda: [] });
-    const before = JSON.stringify(payload);
-    renderer.render(payload);
-    assert.equal(elements.get("daily-impacts").hidden, false);
-    assert.equal(elements.get("dailyImpacts").children.length, 5);
-    const rendered = JSON.stringify(elements.get("dailyImpacts"));
-    assert.match(rendered, /Direção: Misto · Confiança: Moderada/);
-    assert.match(rendered, /Ativos relacionados: GLD/);
-    assert.match(rendered, /Moeda USD presente/);
-    assert.doesNotMatch(rendered, /fact-secret|position_id|\[object Object\]/);
-    assert.equal(JSON.stringify(payload), before);
-    renderer.render(response({ contract_version: "1.2", impact_assessments: [], market_agenda: [] }));
-    assert.equal(elements.get("daily-impacts").hidden, true);
-});
+    renderer.render(response({
+        facts: [{ title: "Fato público", summary: "Resumo", id: "private-fact" }],
+        priorities: [{ title: "Prioridade pública", reason: "Razão", related_analyses: ["private-analysis"] }],
+        analyses: [{ title: "Análise pública", reason: "Razão", related_facts: ["private-fact"] }]
+    }));
 
-test("renders contract 1.3 decision contexts safely, translated, limited and immutable", () => {
-    const { elements, renderer } = setup();
-    const context = {
-        id: "context-secret", context_type: "RESTRICTION_CONTEXT", relevance_level: "HIGH",
-        title: "<Contexto>", summary: "Relação descritiva.", related_assets: ["USD"],
-        context_factors: [{ factor_type: "RESTRICTION", factor_value: "secret", description: "Restrição declarada." }],
-        limitations: ["A exposição quantitativa não foi calculada."], related_facts: ["private"]
-    };
-    const payload = response({ contract_version: "1.3", decision_contexts: Array(7).fill(context) });
-    const before = JSON.stringify(payload);
-    renderer.render(payload);
-    assert.equal(elements.get("daily-decision-context").hidden, false);
-    assert.equal(elements.get("dailyDecisionContexts").children.length, 5);
-    const rendered = JSON.stringify(elements.get("dailyDecisionContexts"));
-    assert.match(rendered, /Restrições/);
-    assert.match(rendered, /Alta/);
-    assert.match(rendered, /Ativos relacionados: USD/);
-    assert.match(rendered, /Restrição declarada/);
-    assert.match(rendered, /Limitações/);
-    assert.doesNotMatch(rendered, /context-secret|private|factor_value|\[object Object\]/);
-    assert.equal(JSON.stringify(payload), before);
-    renderer.render(response({ contract_version: "1.3", decision_contexts: [] }));
-    assert.equal(elements.get("daily-decision-context").hidden, true);
-});
-
-test("keeps data quality hidden for healthy 1.4 and every previous version", () => {
-    for (const contract_version of ["1.0", "1.1", "1.2", "1.3"]) {
-        const { elements, renderer } = setup();
-        renderer.render(response({ contract_version, data_quality: {
-            status: "ERROR", diagnostics: [{ title: "Não renderizar" }]
-        } }));
-        assert.equal(elements.get("data-quality").hidden, true);
-    }
-    const { elements, renderer } = setup();
-    renderer.render(response({ contract_version: "1.4", data_quality: {
-        status: "HEALTHY", summary: { errors: 0, warnings: 0, infos: 0 }, diagnostics: []
-    } }));
-    assert.equal(elements.get("data-quality").hidden, true);
-});
-
-test("renders 1.4 diagnostics safely without interpreting HTML or mutating payload", () => {
-    const { elements, renderer } = setup();
-    const diagnostic = {
-        id: "private-id", severity: "WARNING", category: "PORTFOLIO",
-        title: "<img src=x onerror=alert(1)>", description: "Revise a importação.",
-        affected_items: ["GLD"], can_continue: true
-    };
-    const payload = response({ contract_version: "1.4", data_quality: {
-        status: "WARNING", summary: { errors: 0, warnings: 1, infos: 0 }, diagnostics: [diagnostic]
-    } });
-    const before = JSON.stringify(payload);
-    renderer.render(payload);
-    const rendered = JSON.stringify(elements.get("dataQualityDiagnostics"));
-    assert.equal(elements.get("data-quality").hidden, false);
-    assert.match(rendered, /Atenção/);
-    assert.match(rendered, /<img src=x onerror=alert\(1\)>/);
-    assert.match(rendered, /Itens afetados: GLD/);
-    assert.doesNotMatch(rendered, /private-id|PORTFOLIO|can_continue/);
-    assert.equal(JSON.stringify(payload), before);
+    const rendered = renderedText([
+        elements.get("importantFacts"),
+        elements.get("marketReaction")
+    ]);
+    assert.doesNotMatch(rendered, /private-fact|private-analysis|related_facts|related_analyses/);
 });
