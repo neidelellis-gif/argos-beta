@@ -6,6 +6,10 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
+from backend.asset_resolution import (
+    collect_unresolved_jolika_assets,
+    resolve_jolika_positions,
+)
 from backend.connectors import registry
 from backend.dashboard import build_dashboard
 from backend.models import PortfolioPosition
@@ -70,7 +74,10 @@ def _load_recognized_file(file_path: Path) -> Tuple[PortfolioPosition, ...]:
                 connector_id=connector.connector_id,
                 institution=connector.institution,
             )
-            positions = classify_jolika_positions(connector.load_positions(file_path))
+            positions = resolve_jolika_positions(
+                classify_jolika_positions(connector.load_positions(file_path))
+            )
+            unresolved_assets = collect_unresolved_jolika_assets(positions)
             total_market_value = sum(position.market_value for position in positions)
             _log_import(
                 "connector.load_positions returned",
@@ -84,6 +91,8 @@ def _load_recognized_file(file_path: Path) -> Tuple[PortfolioPosition, ...]:
                     for position in positions
                     if position.market_value == Decimal("10000")
                 ],
+                unresolved_asset_count=len(unresolved_assets),
+                unresolved_asset_keys=[asset.stable_key for asset in unresolved_assets],
             )
         except (OSError, ValueError) as exc:
             _log_import(

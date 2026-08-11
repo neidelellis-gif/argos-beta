@@ -17,6 +17,7 @@ from backend.server import (
     SESSION_PORTFOLIOS,
 )
 from backend.models import PortfolioOwner, PortfolioPosition
+from backend.portfolio_import import import_portfolios
 
 UBS_FIXTURE = Path("frontend/test/fixtures/UBS_Holdings_27_07_2026.csv")
 
@@ -281,6 +282,45 @@ def test_upload_one_file(server):
     assert payload["dashboard"]["session"]["position_count"] == 28
     assert cookie is not None
     assert cookie.startswith("argos_session=")
+
+
+def test_import_keeps_unknown_economic_class_diagnostic_without_duplicate_warning(
+    tmp_path,
+):
+    fixture = tmp_path / "future-ubs.csv"
+    fixture.write_text("future position")
+
+    class FutureConnector:
+        connector_id = "future-ubs"
+        institution = "UBS"
+
+        @staticmethod
+        def recognize(_path):
+            return True
+
+        @staticmethod
+        def load_positions(_path):
+            return (session_position("UBS", "FUTURE-UNKNOWN", "100"),)
+
+    with patch(
+        "backend.portfolio_import.registry.for_extension",
+        return_value=(FutureConnector(),),
+    ):
+        result = import_portfolios((fixture,))
+    unknown_count = sum(
+        position.economic_asset_class is None for position in result["positions"]
+    )
+    matching_warnings = [
+        warning
+        for diagnostic in result["diagnostics"]
+        for warning in diagnostic["warnings"]
+        if "without economic asset class" in warning
+    ]
+
+    assert unknown_count > 0
+    assert matching_warnings == [
+        f"{unknown_count} JOLIKA position(s) without economic asset class"
+    ]
 
 
 def test_upload_multiple_files(server):
