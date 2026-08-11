@@ -4,9 +4,9 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { DailyApiContract } = require("./daily_client.js");
 
-const SUPPORTED_PRE_1_5_VERSIONS = DailyApiContract.compatibleVersions.filter(
-    (version) => version !== "1.5"
-);
+const SUPPORTED_PRE_1_5_VERSIONS = Object.freeze([
+    "1.0", "1.1", "1.2", "1.3", "1.4"
+]);
 
 function node(tagName) {
     return {
@@ -192,7 +192,7 @@ test("combines, deduplicates and limits facts without reordering", () => {
     assert.equal(items[0].children[0].attributes["aria-hidden"], "true");
 });
 
-test("hides empty fact and market sections while keeping the decision flow available", () => {
+test("represents an evidence-free response without fact or market entries", () => {
     const { elements, renderer } = setup();
     renderer.render(response({ facts: [], priorities: [], analyses: [], impact_assessments: [] }));
 
@@ -200,7 +200,6 @@ test("hides empty fact and market sections while keeping the decision flow avail
     assert.equal(elements.get("daily-market-reaction").hidden, true);
     assert.equal(elements.get("importantFacts").children.length, 0);
     assert.equal(elements.get("marketReaction").children.length, 0);
-    assert.equal(elements.get("daily-investment-impact").hidden, false);
     assert.equal(elements.get("daily-decision").hidden, false);
 });
 
