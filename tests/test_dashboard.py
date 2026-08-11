@@ -6,19 +6,28 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import urlopen
 
+import pytest
+
 import backend.dashboard as dashboard_module
 import backend.daily.experience as experience_module
 from backend.daily.experience import build_daily_experience
 from backend.daily.context_service import DAILY_LOOKBACK_HOURS
 from backend.dashboard import build_dashboard
-from backend.models import PortfolioOwner, PortfolioPosition
+from backend.models import EconomicAssetClass, PortfolioOwner, PortfolioPosition
 from backend.server import ArgosRequestHandler
 
 
-def position(institution, symbol, value, currency="USD"):
+def position(
+    institution,
+    symbol,
+    value,
+    currency="USD",
+    economic_class=EconomicAssetClass.EQUITIES,
+    owner=PortfolioOwner.JOLIKA,
+):
     return PortfolioPosition(
         institution=institution,
-        owner=PortfolioOwner.JOLIKA,
+        owner=owner,
         account=None,
         asset_class=None,
         asset_subclass=None,
@@ -32,6 +41,7 @@ def position(institution, symbol, value, currency="USD"):
         portfolio_weight=None,
         reference_date=None,
         source_file=f"{institution}.csv",
+        economic_asset_class=economic_class,
     )
 
 
@@ -95,7 +105,7 @@ def test_empty_dashboard_response():
 
     assert result["header"] == {
         "current_date": "2026-07-28",
-        "version": "2.2",
+        "version": "2.3",
     }
     assert result["daily"]["generated_for"] == "2026-07-28"
     assert result["daily"]["lookback_hours"] == DAILY_LOOKBACK_HOURS
@@ -125,6 +135,7 @@ def test_empty_dashboard_response():
         "unique_asset_count": 0,
         "repeated_asset_count": 0,
         "totals_by_currency": {},
+        "economic_allocation_by_currency": {},
         "warnings": [],
     }
 
@@ -252,7 +263,7 @@ def test_dashboard_endpoint_accepts_empty_cache_ttl_setting(monkeypatch):
 
         assert response.status == 200
         assert "error" not in payload
-        assert payload["header"]["version"] == "2.2"
+        assert payload["header"]["version"] == "2.3"
     finally:
         server.shutdown()
         server.server_close()
@@ -289,3 +300,48 @@ def test_duplicate_operational_panorama_is_removed():
     assert 'id="globalOverview"' not in page
     assert "Aguardando integração da Inteligência de Mercado" not in app
     assert 'id="marketAgendaPanel"' in page
+
+
+def test_dashboard_exposes_institution_and_consolidated_economic_allocations():
+    result = build_dashboard(
+        [
+            position("UBS", "CASH", "100000.00", economic_class=EconomicAssetClass.CASH),
+            position("UBS", "BOND", "2500000.00", economic_class=EconomicAssetClass.FIXED_INCOME),
+            position("Santander", "CASH", "50000.00", economic_class=EconomicAssetClass.CASH),
+            position("Santander", "EUR-BOND", "20.00", "EUR", EconomicAssetClass.FIXED_INCOME),
+        ]
+    )
+
+    assert [item["name"] for item in result["institutions"]] == ["Santander", "UBS"]
+    assert result["institutions"][0]["economic_allocation_by_currency"] == {
+        "EUR": {"Renda Fixa": "20.00"},
+        "USD": {"Caixa": "50000.00"},
+    }
+    assert result["institutions"][1]["economic_allocation_by_currency"] == {
+        "USD": {"Caixa": "100000.00", "Renda Fixa": "2500000.00"}
+    }
+    assert result["consolidated"]["economic_allocation_by_currency"] == {
+        "EUR": {"Renda Fixa": "20.00"},
+        "USD": {"Caixa": "150000.00", "Renda Fixa": "2500000.00"},
+    }
+
+
+@pytest.mark.parametrize(
+    "positions",
+    (
+        [position("Bradesco", "AAA", "10", owner=PortfolioOwner.NEI)],
+        [
+            position("UBS", "AAA", "100"),
+            position("Bradesco", "BBB", "10", owner=PortfolioOwner.NEI),
+        ],
+    ),
+)
+def test_dashboard_rejects_nei_before_any_processing(monkeypatch, positions):
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("processing must not start for a non-JOLIKA portfolio")
+
+    monkeypatch.setattr(dashboard_module, "consolidate_portfolio_positions", fail_if_called)
+    monkeypatch.setattr(dashboard_module, "DailyOrchestrator", fail_if_called)
+
+    with pytest.raises(ValueError, match="accepts only JOLIKA"):
+        build_dashboard(positions)

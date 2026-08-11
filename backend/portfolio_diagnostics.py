@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Dict, Iterable, Optional, Tuple
 
-from backend.models import PortfolioPosition
+from backend.models import EconomicAssetClass, PortfolioOwner, PortfolioPosition
+
+EconomicAllocation = Dict[str, Dict[EconomicAssetClass, Decimal]]
 
 
 @dataclass(frozen=True)
@@ -15,6 +17,7 @@ class InstitutionDiagnostic:
     position_count: int
     currencies: Tuple[str, ...]
     market_value_by_currency: Dict[str, Decimal]
+    economic_allocation_by_currency: EconomicAllocation
     total_weight_by_currency: Dict[str, Decimal]
     assets_without_symbol: Tuple[str, ...]
     assets_without_market_value: Tuple[str, ...]
@@ -30,6 +33,7 @@ class ConsolidatedDiagnostic:
     institutions: Tuple[str, ...]
     total_positions: int
     totals_by_currency: Dict[str, Decimal]
+    economic_allocation_by_currency: EconomicAllocation
     unique_asset_count: int
     repeated_asset_count: int
     consolidated_warnings: Tuple[str, ...]
@@ -52,7 +56,11 @@ def _duplicate_key(position: PortfolioPosition) -> Optional[str]:
     symbol = _normalized_symbol(position)
     if symbol is None:
         return None
-    if (position.asset_class or "").strip().upper() != "CAIXA":
+    is_cash = position.economic_asset_class is EconomicAssetClass.CASH or (
+        position.economic_asset_class is None
+        and (position.asset_class or "").strip().upper() == "CAIXA"
+    )
+    if not is_cash:
         return symbol
 
     account = (position.account or "").strip().upper()
@@ -75,11 +83,13 @@ def diagnose_institution(
     institution = next(iter(institutions), None)
     currencies = set()
     market_values: Dict[str, Decimal] = {}
+    economic_allocation: EconomicAllocation = {}
     weights: Dict[str, Decimal] = {}
     missing_symbols = []
     missing_values = []
     symbol_counts: Dict[str, int] = {}
     warnings = []
+    missing_economic_class = 0
 
     for position in institution_positions:
         if position.currency:
@@ -89,6 +99,15 @@ def diagnose_institution(
                     market_values.get(position.currency, Decimal("0"))
                     + position.market_value
                 )
+                if position.economic_asset_class is not None:
+                    currency_allocation = economic_allocation.setdefault(
+                        position.currency, {}
+                    )
+                    economic_class = position.economic_asset_class
+                    currency_allocation[economic_class] = (
+                        currency_allocation.get(economic_class, Decimal("0"))
+                        + position.market_value
+                    )
             if position.portfolio_weight is not None:
                 weights[position.currency] = (
                     weights.get(position.currency, Decimal("0"))
@@ -109,6 +128,11 @@ def diagnose_institution(
 
         if position.market_value is None:
             missing_values.append(_asset_label(position))
+        if (
+            position.owner is PortfolioOwner.JOLIKA
+            and position.economic_asset_class is None
+        ):
+            missing_economic_class += 1
 
     duplicates = {
         symbol: count for symbol, count in symbol_counts.items() if count > 1
@@ -119,12 +143,17 @@ def diagnose_institution(
         warnings.append(f"{len(missing_values)} position(s) without market value")
     if duplicates:
         warnings.append(f"{len(duplicates)} duplicated asset(s)")
+    if missing_economic_class:
+        warnings.append(
+            f"{missing_economic_class} JOLIKA position(s) without economic asset class"
+        )
 
     return InstitutionDiagnostic(
         institution=institution,
         position_count=len(institution_positions),
         currencies=tuple(sorted(currencies)),
         market_value_by_currency=market_values,
+        economic_allocation_by_currency=economic_allocation,
         total_weight_by_currency=weights,
         assets_without_symbol=tuple(missing_symbols),
         assets_without_market_value=tuple(missing_values),
@@ -147,12 +176,19 @@ def diagnose_consolidated(
         )
     )
     totals: Dict[str, Decimal] = {}
+    economic_allocation: EconomicAllocation = {}
     institutions_by_asset: Dict[str, set[Optional[str]]] = {}
     warnings: list[str] = []
 
     for diagnostic in institution_diagnostics:
         for currency, value in diagnostic.market_value_by_currency.items():
             totals[currency] = totals.get(currency, Decimal("0")) + value
+        for currency, allocation in diagnostic.economic_allocation_by_currency.items():
+            consolidated_currency = economic_allocation.setdefault(currency, {})
+            for economic_class, value in allocation.items():
+                consolidated_currency[economic_class] = (
+                    consolidated_currency.get(economic_class, Decimal("0")) + value
+                )
         for symbol in diagnostic.asset_symbols:
             institutions_by_asset.setdefault(symbol, set()).add(
                 diagnostic.institution
@@ -172,6 +208,7 @@ def diagnose_consolidated(
             diagnostic.position_count for diagnostic in institution_diagnostics
         ),
         totals_by_currency=totals,
+        economic_allocation_by_currency=economic_allocation,
         unique_asset_count=len(institutions_by_asset),
         repeated_asset_count=repeated_assets,
         consolidated_warnings=tuple(warnings),

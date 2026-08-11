@@ -10,7 +10,7 @@ from decimal import Decimal
 from types import MappingProxyType
 from typing import Iterable, Mapping, Optional, Tuple
 
-from backend.models import PortfolioOwner, PortfolioPosition
+from backend.models import EconomicAssetClass, PortfolioOwner, PortfolioPosition
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,7 @@ class ConsolidatedPosition:
     identifier: Optional[str]
     identifier_type: Optional[str]
     asset_class: Optional[str]
+    economic_asset_class: Optional[EconomicAssetClass]
     asset_category: Optional[str]
     currency: Optional[str]
     market_value: Decimal
@@ -60,6 +61,7 @@ class ConsolidationStatistics:
     positions_by_institution: Mapping[str, int]
     positions_by_owner: Mapping[str, int]
     positions_by_class: Mapping[str, int]
+    positions_by_economic_class: Mapping[EconomicAssetClass, int]
     positions_by_category: Mapping[str, int]
     unique_assets: int
     original_positions: int
@@ -109,7 +111,7 @@ class PortfolioConsolidationEngine:
             if len(groups[key]) > 1
         )
         statistics = self._statistics(originals, consolidated)
-        alerts = self._alerts(duplicates)
+        alerts = self._alerts(duplicates, consolidated)
         summary = (
             f"{len(originals)} original position(s) consolidated into "
             f"{len(consolidated)} unique asset(s); "
@@ -185,12 +187,24 @@ class PortfolioConsolidationEngine:
             identifier=cls._representative(ordered, "identifier"),
             identifier_type=cls._representative(ordered, "identifier_type"),
             asset_class=cls._representative(ordered, "asset_class"),
+            economic_asset_class=cls._economic_class(ordered),
             asset_category=cls._representative(ordered, "asset_subclass"),
             currency=cls._representative(ordered, "currency"),
             market_value=market_value,
             quantity=quantity,
             origins=tuple(cls._origin(position) for position in ordered),
         )
+
+    @staticmethod
+    def _economic_class(
+        positions: Iterable[PortfolioPosition],
+    ) -> Optional[EconomicAssetClass]:
+        known_classes = {
+            position.economic_asset_class
+            for position in positions
+            if position.economic_asset_class is not None
+        }
+        return next(iter(known_classes)) if len(known_classes) == 1 else None
 
     @classmethod
     def _representative(
@@ -215,6 +229,11 @@ class PortfolioConsolidationEngine:
             cls._normalized(position.identifier_type),
             cls._normalized(position.asset_name),
             cls._normalized(position.asset_class),
+            (
+                position.economic_asset_class.value
+                if position.economic_asset_class is not None
+                else ""
+            ),
             cls._normalized(position.asset_subclass),
             cls._normalized(position.currency),
             str(position.market_value),
@@ -260,6 +279,11 @@ class PortfolioConsolidationEngine:
         institutions = Counter(position.institution for position in originals)
         owners = Counter(position.owner.value for position in originals)
         classes = Counter(position.asset_class for position in originals if position.asset_class)
+        economic_classes = Counter(
+            position.economic_asset_class
+            for position in originals
+            if position.economic_asset_class is not None
+        )
         categories = Counter(
             position.asset_subclass for position in originals if position.asset_subclass
         )
@@ -275,18 +299,35 @@ class PortfolioConsolidationEngine:
             positions_by_institution=MappingProxyType(dict(sorted(institutions.items()))),
             positions_by_owner=MappingProxyType(dict(sorted(owners.items()))),
             positions_by_class=MappingProxyType(dict(sorted(classes.items()))),
+            positions_by_economic_class=MappingProxyType(
+                dict(sorted(economic_classes.items(), key=lambda item: item[0].value))
+            ),
             positions_by_category=MappingProxyType(dict(sorted(categories.items()))),
             unique_assets=len(consolidated),
             original_positions=len(originals),
         )
 
     @staticmethod
-    def _alerts(duplicates: Tuple[DuplicatePosition, ...]) -> Tuple[str, ...]:
+    def _alerts(
+        duplicates: Tuple[DuplicatePosition, ...],
+        consolidated: Tuple[ConsolidatedPosition, ...],
+    ) -> Tuple[str, ...]:
         alerts = []
         if any(item.within_same_institution for item in duplicates):
             alerts.append("Duplicate positions found within the same institution")
         if any(item.across_institutions for item in duplicates):
             alerts.append("Duplicate positions found across institutions")
+        if any(
+            len(
+                {
+                    origin.original_position.economic_asset_class
+                    for origin in position.origins
+                    if origin.original_position.economic_asset_class is not None
+                }
+            ) > 1
+            for position in consolidated
+        ):
+            alerts.append("Conflicting economic asset classes found in consolidated positions")
         return tuple(alerts)
 
 

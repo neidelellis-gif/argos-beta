@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Dict, Iterable, Optional
 
 from backend.daily.orchestrator import DailyOrchestrator
-from backend.models import PortfolioPosition
+from backend.models import EconomicAssetClass, PortfolioOwner, PortfolioPosition
 from backend.portfolio_consolidation import consolidate_portfolio_positions
 from backend.portfolio_diagnostics import (
     InstitutionDiagnostic,
@@ -13,7 +13,7 @@ from backend.portfolio_diagnostics import (
     diagnose_institution,
 )
 
-DASHBOARD_VERSION = "2.2"
+DASHBOARD_VERSION = "2.3"
 
 
 def _decimal_totals(totals: Dict[str, Decimal]) -> Dict[str, str]:
@@ -24,6 +24,21 @@ def _decimal_totals(totals: Dict[str, Decimal]) -> Dict[str, str]:
     }
 
 
+def _economic_allocation(
+    allocation: Dict[str, Dict[EconomicAssetClass, Decimal]],
+) -> Dict[str, Dict[str, str]]:
+    """Serialize currency-safe economic allocations deterministically."""
+    return {
+        currency: {
+            economic_class.value: str(value)
+            for economic_class, value in sorted(
+                values.items(), key=lambda item: item[0].value
+            )
+        }
+        for currency, values in sorted(allocation.items())
+    }
+
+
 def _institution_payload(diagnostic: InstitutionDiagnostic) -> Dict:
     return {
         "name": diagnostic.institution,
@@ -31,6 +46,9 @@ def _institution_payload(diagnostic: InstitutionDiagnostic) -> Dict:
         "currencies": list(diagnostic.currencies),
         "totals_by_currency": _decimal_totals(
             diagnostic.market_value_by_currency
+        ),
+        "economic_allocation_by_currency": _economic_allocation(
+            diagnostic.economic_allocation_by_currency
         ),
         "warnings": list(diagnostic.data_quality_warnings),
     }
@@ -44,6 +62,8 @@ def build_dashboard(
 ) -> Dict:
     """Build one dashboard response from positions already normalized to MPU."""
     positions = tuple(positions)
+    if any(position.owner is not PortfolioOwner.JOLIKA for position in positions):
+        raise ValueError("JOLIKA dashboard accepts only JOLIKA portfolio positions")
     consolidation = consolidate_portfolio_positions(positions)
     institution_diagnostics = tuple(
         diagnose_institution(institution_positions)
@@ -155,6 +175,9 @@ def build_dashboard(
             "repeated_asset_count": consolidated.repeated_asset_count,
             "totals_by_currency": _decimal_totals(
                 consolidated.totals_by_currency
+            ),
+            "economic_allocation_by_currency": _economic_allocation(
+                consolidated.economic_allocation_by_currency
             ),
             "warnings": list(consolidated.consolidated_warnings),
         },

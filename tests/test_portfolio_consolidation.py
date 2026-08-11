@@ -6,7 +6,7 @@ from typing import cast
 
 import pytest
 
-from backend.models import PortfolioOwner, PortfolioPosition
+from backend.models import EconomicAssetClass, PortfolioOwner, PortfolioPosition
 from backend.portfolio_consolidation import (
     PortfolioConsolidationEngine,
     consolidate_portfolio_positions,
@@ -148,6 +148,7 @@ def test_produces_all_standard_statistics():
     assert statistics.positions_by_institution == {"Santander": 2, "UBS": 1}
     assert statistics.positions_by_owner == {"JOLIKA": 3}
     assert statistics.positions_by_class == {"Equity": 2, "Fixed Income": 1}
+    assert statistics.positions_by_economic_class == {}
     assert statistics.positions_by_category == {"Bond": 1, "Stock": 2}
     assert statistics.unique_assets == 2
     assert statistics.original_positions == 3
@@ -211,8 +212,57 @@ def test_official_consolidation_statistics_are_deeply_immutable():
         result.report.statistics.positions_by_institution,
         result.report.statistics.positions_by_owner,
         result.report.statistics.positions_by_class,
+        result.report.statistics.positions_by_economic_class,
         result.report.statistics.positions_by_category,
     )
     for mapping in mappings:
         with pytest.raises(TypeError):
             _set_read_only_mapping(mapping, "Mutated", 1)
+
+
+def test_transports_economic_class_without_changing_legacy_asset_class():
+    original = position(
+        "UBS",
+        "AAA",
+        asset_class="UBS Equity",
+        economic_asset_class=EconomicAssetClass.EQUITIES,
+    )
+
+    result = PortfolioConsolidationEngine().consolidate([original])
+
+    assert result.positions[0].asset_class == "UBS Equity"
+    assert result.positions[0].economic_asset_class is EconomicAssetClass.EQUITIES
+    assert result.report.statistics.positions_by_class == {"UBS Equity": 1}
+    assert result.report.statistics.positions_by_economic_class == {
+        EconomicAssetClass.EQUITIES: 1
+    }
+
+
+def test_uses_agreed_known_economic_class_when_another_source_is_missing_it():
+    classified = position(
+        "UBS", "AAA", economic_asset_class=EconomicAssetClass.FIXED_INCOME
+    )
+    unclassified = position("Santander", "AAA")
+
+    result = PortfolioConsolidationEngine().consolidate([classified, unclassified])
+
+    assert result.positions[0].economic_asset_class is EconomicAssetClass.FIXED_INCOME
+    assert result.positions[0].origins == tuple(result.positions[0].origins)
+
+
+def test_economic_class_conflict_is_explicit_and_preserves_origins():
+    equities = position(
+        "UBS", "AAA", economic_asset_class=EconomicAssetClass.EQUITIES
+    )
+    fixed_income = position(
+        "Santander", "AAA", economic_asset_class=EconomicAssetClass.FIXED_INCOME
+    )
+
+    result = PortfolioConsolidationEngine().consolidate([equities, fixed_income])
+
+    assert result.positions[0].economic_asset_class is None
+    assert {origin.original_position for origin in result.positions[0].origins} == {
+        equities,
+        fixed_income,
+    }
+    assert any("Conflicting economic asset classes" in alert for alert in result.report.alerts)
