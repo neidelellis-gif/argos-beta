@@ -1,6 +1,7 @@
 """Session-only orchestration for importing portfolios through connectors."""
 
 import logging
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
@@ -139,7 +140,10 @@ def import_portfolios(file_paths: Iterable[Path]) -> Dict:
         all_positions.extend(institution_positions)
 
     # Consolidation is deliberately deferred until every diagnostic is ready.
-    dashboard = build_dashboard(all_positions)
+    dashboard = build_dashboard(
+        all_positions,
+        last_import_at=datetime.now(timezone.utc),
+    )
     _log_import(
         "portfolio import dashboard built",
         total_positions=len(all_positions),

@@ -275,6 +275,10 @@ def test_upload_one_file(server):
     }
     assert payload["positions"][0]["owner"] == "JOLIKA"
     assert not payload["positions"][0]["source_file"].startswith("/")
+    assert payload["dashboard"]["session"]["status"] == "active"
+    assert payload["dashboard"]["session"]["last_import_at"] is not None
+    assert payload["dashboard"]["session"]["institution_count"] == 1
+    assert payload["dashboard"]["session"]["position_count"] == 28
     assert cookie is not None
     assert cookie.startswith("argos_session=")
 
