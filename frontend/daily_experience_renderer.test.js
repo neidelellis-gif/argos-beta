@@ -4,9 +4,9 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { DailyApiContract } = require("./daily_client.js");
 
-const SUPPORTED_PRE_1_5_VERSIONS = DailyApiContract.compatibleVersions.filter(
-    (version) => version !== "1.5"
-);
+const SUPPORTED_PRE_1_5_VERSIONS = Object.freeze([
+    "1.0", "1.1", "1.2", "1.3", "1.4"
+]);
 
 function node(tagName) {
     return {
