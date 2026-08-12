@@ -44,6 +44,13 @@ class PositionSnapshotIdentity:
 
 
 @dataclass(frozen=True)
+class PositionInstanceIdentity:
+    asset_stable_key: str
+    account: str | None
+    instance_key: str
+
+
+@dataclass(frozen=True)
 class PositionDelta:
     stable_key: str
     institution: str
@@ -62,6 +69,8 @@ class PositionDelta:
     current_economic_asset_class: EconomicAssetClass | None
     previous_asset_class: str | None
     current_asset_class: str | None
+    previous_instance_key: str | None = None
+    current_instance_key: str | None = None
     position_flow_unknown: bool = False
 
 
@@ -74,22 +83,37 @@ class PortfolioChangeSet:
         return sum(kind in delta.change_types for delta in self.deltas)
 
     @property
-    def added_count(self) -> int: return self._count(PositionChangeType.ADDED)
+    def added_count(self) -> int:
+        return self._count(PositionChangeType.ADDED)
+
     @property
-    def removed_count(self) -> int: return self._count(PositionChangeType.REMOVED)
+    def removed_count(self) -> int:
+        return self._count(PositionChangeType.REMOVED)
+
     @property
-    def unchanged_count(self) -> int: return self._count(PositionChangeType.UNCHANGED)
+    def unchanged_count(self) -> int:
+        return self._count(PositionChangeType.UNCHANGED)
+
     @property
-    def quantity_increased_count(self) -> int: return self._count(PositionChangeType.QUANTITY_INCREASED)
+    def quantity_increased_count(self) -> int:
+        return self._count(PositionChangeType.QUANTITY_INCREASED)
+
     @property
-    def quantity_decreased_count(self) -> int: return self._count(PositionChangeType.QUANTITY_DECREASED)
+    def quantity_decreased_count(self) -> int:
+        return self._count(PositionChangeType.QUANTITY_DECREASED)
+
     @property
-    def account_changed_count(self) -> int: return self._count(PositionChangeType.ACCOUNT_CHANGED)
+    def account_changed_count(self) -> int:
+        return self._count(PositionChangeType.ACCOUNT_CHANGED)
+
     @property
-    def economic_class_changed_count(self) -> int: return self._count(PositionChangeType.ECONOMIC_CLASS_CHANGED)
+    def economic_class_changed_count(self) -> int:
+        return self._count(PositionChangeType.ECONOMIC_CLASS_CHANGED)
+
     @property
     def total_previous_positions(self) -> int:
         return sum(delta.previous_position is not None for delta in self.deltas)
+
     @property
     def total_current_positions(self) -> int:
         return sum(delta.current_position is not None for delta in self.deltas)
@@ -125,25 +149,51 @@ def position_snapshot_identity(position: PortfolioPosition) -> PositionSnapshotI
     )
 
 
+def position_instance_identity(position: PortfolioPosition) -> PositionInstanceIdentity:
+    asset_identity = position_snapshot_identity(position)
+    normalized_account = _normalize(position.account)
+    account_token = normalized_account if normalized_account else "<NONE>"
+    return PositionInstanceIdentity(
+        asset_stable_key=asset_identity.stable_key,
+        account=normalized_account or None,
+        instance_key=f"{asset_identity.stable_key}|ACCOUNT:{account_token}",
+    )
+
+
 def decimal_delta(previous: Decimal | None, current: Decimal | None) -> Decimal | None:
     if previous is None or current is None:
         return None
     return current - previous
 
 
-def _index(positions: Iterable[PortfolioPosition]) -> dict[str, PortfolioPosition]:
-    result: dict[str, PortfolioPosition] = {}
+def _group_positions(
+    positions: Iterable[PortfolioPosition],
+) -> dict[str, dict[str, PortfolioPosition]]:
+    groups: dict[str, dict[str, PortfolioPosition]] = {}
     for position in positions:
-        identity = position_snapshot_identity(position)
-        if identity.stable_key in result:
-            raise ValueError(f"Duplicate JOLIKA position stable_key: {identity.stable_key}")
-        result[identity.stable_key] = position
-    return result
+        instance = position_instance_identity(position)
+        instances = groups.setdefault(instance.asset_stable_key, {})
+        if instance.instance_key in instances:
+            raise ValueError(
+                f"Duplicate JOLIKA position instance_key: {instance.instance_key}"
+            )
+        instances[instance.instance_key] = position
+    return groups
 
 
-def _delta(key: str, previous: PortfolioPosition | None, current: PortfolioPosition | None) -> PositionDelta:
+def _delta(
+    key: str,
+    previous: PortfolioPosition | None,
+    current: PortfolioPosition | None,
+) -> PositionDelta:
     position = current or previous
     assert position is not None
+    previous_instance_key = (
+        position_instance_identity(previous).instance_key if previous is not None else None
+    )
+    current_instance_key = (
+        position_instance_identity(current).instance_key if current is not None else None
+    )
     if previous is None:
         kinds = (PositionChangeType.ADDED,)
         flow_unknown = current.quantity is None
@@ -160,7 +210,7 @@ def _delta(key: str, previous: PortfolioPosition | None, current: PortfolioPosit
             flow_unknown = False
         else:
             flow_unknown = True
-        if previous.account != current.account:
+        if _normalize(previous.account) != _normalize(current.account):
             changes.append(PositionChangeType.ACCOUNT_CHANGED)
         if previous.market_value != current.market_value:
             changes.append(PositionChangeType.MARKET_VALUE_CHANGED)
@@ -185,84 +235,186 @@ def _delta(key: str, previous: PortfolioPosition | None, current: PortfolioPosit
         previous_position=previous,
         current_position=current,
         change_types=kinds,
-        quantity_delta=decimal_delta(previous.quantity if previous else None, current.quantity if current else None),
-        market_value_delta=decimal_delta(previous.market_value if previous else None, current.market_value if current else None),
-        unit_price_delta=decimal_delta(previous.unit_price if previous else None, current.unit_price if current else None),
+        quantity_delta=decimal_delta(
+            previous.quantity if previous else None,
+            current.quantity if current else None,
+        ),
+        market_value_delta=decimal_delta(
+            previous.market_value if previous else None,
+            current.market_value if current else None,
+        ),
+        unit_price_delta=decimal_delta(
+            previous.unit_price if previous else None,
+            current.unit_price if current else None,
+        ),
         previous_account=previous.account if previous else None,
         current_account=current.account if current else None,
-        previous_economic_asset_class=previous.economic_asset_class if previous else None,
-        current_economic_asset_class=current.economic_asset_class if current else None,
+        previous_economic_asset_class=(
+            previous.economic_asset_class if previous else None
+        ),
+        current_economic_asset_class=(current.economic_asset_class if current else None),
         previous_asset_class=previous.asset_class if previous else None,
         current_asset_class=current.asset_class if current else None,
+        previous_instance_key=previous_instance_key,
+        current_instance_key=current_instance_key,
         position_flow_unknown=flow_unknown,
     )
 
 
+def _compare_asset_group(
+    asset_key: str,
+    previous: dict[str, PortfolioPosition],
+    current: dict[str, PortfolioPosition],
+) -> list[PositionDelta]:
+    deltas: list[PositionDelta] = []
+    previous_remaining = dict(previous)
+    current_remaining = dict(current)
+
+    for instance_key in sorted(set(previous_remaining) & set(current_remaining)):
+        deltas.append(
+            _delta(
+                asset_key,
+                previous_remaining.pop(instance_key),
+                current_remaining.pop(instance_key),
+            )
+        )
+
+    if len(previous_remaining) == 1 and len(current_remaining) == 1:
+        previous_position = next(iter(previous_remaining.values()))
+        current_position = next(iter(current_remaining.values()))
+        deltas.append(_delta(asset_key, previous_position, current_position))
+        previous_remaining.clear()
+        current_remaining.clear()
+
+    for instance_key in sorted(previous_remaining):
+        deltas.append(_delta(asset_key, previous_remaining[instance_key], None))
+    for instance_key in sorted(current_remaining):
+        deltas.append(_delta(asset_key, None, current_remaining[instance_key]))
+    return deltas
+
+
+def _delta_sort_key(delta: PositionDelta) -> tuple[str, str, str]:
+    instance_key = delta.current_instance_key or delta.previous_instance_key or ""
+    return (delta.institution, delta.stable_key, instance_key)
+
+
 def compare_institution_snapshots(
-    previous: Iterable[PortfolioPosition], current: Iterable[PortfolioPosition]
+    previous: Iterable[PortfolioPosition],
+    current: Iterable[PortfolioPosition],
 ) -> PortfolioChangeSet:
     previous_tuple, current_tuple = tuple(previous), tuple(current)
-    institutions = {_normalize(p.institution) for p in previous_tuple + current_tuple}
+    institutions = {
+        _normalize(position.institution)
+        for position in previous_tuple + current_tuple
+    }
     if len(institutions) > 1:
         raise ValueError("Institution comparison accepts exactly one institution")
-    old, new = _index(previous_tuple), _index(current_tuple)
-    keys = sorted(set(old) | set(new))
-    return PortfolioChangeSet(tuple(_delta(key, old.get(key), new.get(key)) for key in keys))
+    old = _group_positions(previous_tuple)
+    new = _group_positions(current_tuple)
+    deltas: list[PositionDelta] = []
+    for asset_key in sorted(set(old) | set(new)):
+        deltas.extend(
+            _compare_asset_group(asset_key, old.get(asset_key, {}), new.get(asset_key, {}))
+        )
+    deltas.sort(key=_delta_sort_key)
+    return PortfolioChangeSet(tuple(deltas))
 
 
 def compare_portfolio_snapshots(
-    previous: Iterable[PortfolioPosition], current: Iterable[PortfolioPosition]
+    previous: Iterable[PortfolioPosition],
+    current: Iterable[PortfolioPosition],
 ) -> PortfolioChangeSet:
     previous_tuple, current_tuple = tuple(previous), tuple(current)
     for position in previous_tuple + current_tuple:
         if position.owner is not PortfolioOwner.JOLIKA:
             raise ValueError("JOLIKA portfolio comparison rejects NEI or mixed snapshots")
-    institutions = sorted({_normalize(p.institution) for p in previous_tuple + current_tuple})
+    institutions = sorted(
+        {_normalize(position.institution) for position in previous_tuple + current_tuple}
+    )
     institutional: list[tuple[str, PortfolioChangeSet]] = []
     all_deltas: list[PositionDelta] = []
     for institution in institutions:
         changes = compare_institution_snapshots(
-            (p for p in previous_tuple if _normalize(p.institution) == institution),
-            (p for p in current_tuple if _normalize(p.institution) == institution),
+            (
+                position
+                for position in previous_tuple
+                if _normalize(position.institution) == institution
+            ),
+            (
+                position
+                for position in current_tuple
+                if _normalize(position.institution) == institution
+            ),
         )
         institutional.append((institution, changes))
         all_deltas.extend(changes.deltas)
-    all_deltas.sort(key=lambda d: (d.institution, d.stable_key))
+    all_deltas.sort(key=_delta_sort_key)
     return PortfolioChangeSet(tuple(all_deltas), tuple(institutional))
 
 
 def _position_payload(position: PortfolioPosition | None):
     if position is None:
         return None
+
     def value(item):
-        if isinstance(item, Decimal): return str(item)
-        if isinstance(item, Enum): return item.value
-        if hasattr(item, "isoformat"): return item.isoformat()
+        if isinstance(item, Decimal):
+            return str(item)
+        if isinstance(item, Enum):
+            return item.value
+        if hasattr(item, "isoformat"):
+            return item.isoformat()
         return item
-    return {name: value(getattr(position, name)) for name in position.__dataclass_fields__}
+
+    return {
+        name: value(getattr(position, name))
+        for name in position.__dataclass_fields__
+    }
 
 
 def serialize_portfolio_change_set(change_set: PortfolioChangeSet) -> str:
     payload = {"deltas": []}
     for delta in change_set.deltas:
-        payload["deltas"].append({
-            "stable_key": delta.stable_key,
-            "institution": delta.institution,
-            "identifier": delta.identifier,
-            "identifier_type": delta.identifier_type,
-            "asset_name": delta.asset_name,
-            "change_types": [kind.value for kind in delta.change_types],
-            "quantity_delta": None if delta.quantity_delta is None else str(delta.quantity_delta),
-            "market_value_delta": None if delta.market_value_delta is None else str(delta.market_value_delta),
-            "unit_price_delta": None if delta.unit_price_delta is None else str(delta.unit_price_delta),
-            "previous_account": delta.previous_account,
-            "current_account": delta.current_account,
-            "previous_economic_asset_class": None if delta.previous_economic_asset_class is None else delta.previous_economic_asset_class.value,
-            "current_economic_asset_class": None if delta.current_economic_asset_class is None else delta.current_economic_asset_class.value,
-            "previous_asset_class": delta.previous_asset_class,
-            "current_asset_class": delta.current_asset_class,
-            "position_flow_unknown": delta.position_flow_unknown,
-            "previous_position": _position_payload(delta.previous_position),
-            "current_position": _position_payload(delta.current_position),
-        })
-    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+        payload["deltas"].append(
+            {
+                "stable_key": delta.stable_key,
+                "institution": delta.institution,
+                "identifier": delta.identifier,
+                "identifier_type": delta.identifier_type,
+                "asset_name": delta.asset_name,
+                "change_types": [kind.value for kind in delta.change_types],
+                "quantity_delta": (
+                    None if delta.quantity_delta is None else str(delta.quantity_delta)
+                ),
+                "market_value_delta": (
+                    None
+                    if delta.market_value_delta is None
+                    else str(delta.market_value_delta)
+                ),
+                "unit_price_delta": (
+                    None if delta.unit_price_delta is None else str(delta.unit_price_delta)
+                ),
+                "previous_account": delta.previous_account,
+                "current_account": delta.current_account,
+                "previous_instance_key": delta.previous_instance_key,
+                "current_instance_key": delta.current_instance_key,
+                "previous_economic_asset_class": (
+                    None
+                    if delta.previous_economic_asset_class is None
+                    else delta.previous_economic_asset_class.value
+                ),
+                "current_economic_asset_class": (
+                    None
+                    if delta.current_economic_asset_class is None
+                    else delta.current_economic_asset_class.value
+                ),
+                "previous_asset_class": delta.previous_asset_class,
+                "current_asset_class": delta.current_asset_class,
+                "position_flow_unknown": delta.position_flow_unknown,
+                "previous_position": _position_payload(delta.previous_position),
+                "current_position": _position_payload(delta.current_position),
+            }
+        )
+    return (
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        + "\n"
+    )
