@@ -1,0 +1,35 @@
+{
+  "resolutions": [
+    {
+      "asset_name": "Unclassified Note",
+      "economic_asset_class": "Renda Fixa",
+      "identifier": "US0000000099",
+      "identifier_type": "isin",
+      "note": "Migrated from the Phase 2.1 reviewed registry",
+      "resolution_source": "human_review",
+      "stable_key": "JOLIKA|UBS|ISIN:US0000000099",
+      "status": "confirmed"
+    },
+    {
+      "asset_name": "Argos Confirmed Equity Fund",
+      "economic_asset_class": "Fundos / Estratégias",
+      "identifier": null,
+      "identifier_type": null,
+      "note": "Migrated from the Phase 2.1 reviewed registry",
+      "resolution_source": "human_review",
+      "stable_key": "JOLIKA|UBS|NAME:ARGOS CONFIRMED EQUITY FUND",
+      "status": "confirmed"
+    },
+    {
+      "asset_name": "Argos Gold",
+      "economic_asset_class": "Ouro & Commodities",
+      "identifier": "ARGOS-GOLD",
+      "identifier_type": "ticker",
+      "note": "Migrated from the Phase 2.1 reviewed registry",
+      "resolution_source": "human_review",
+      "stable_key": "JOLIKA|UBS|TICKER:ARGOS-GOLD",
+      "status": "confirmed"
+    }
+  ],
+  "schema_version": 1
+}

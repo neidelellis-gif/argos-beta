@@ -12,11 +12,15 @@ import pytest
 import zipfile
 from xml.sax.saxutils import escape
 
+from backend.asset_resolution import (
+    JolikaAssetResolution,
+    collect_unresolved_jolika_assets,
+)
 from backend.server import (
     ArgosRequestHandler,
     SESSION_PORTFOLIOS,
 )
-from backend.models import PortfolioOwner, PortfolioPosition
+from backend.models import EconomicAssetClass, PortfolioOwner, PortfolioPosition
 from backend.portfolio_import import import_portfolios
 
 UBS_FIXTURE = Path("frontend/test/fixtures/UBS_Holdings_27_07_2026.csv")
@@ -321,6 +325,59 @@ def test_import_keeps_unknown_economic_class_diagnostic_without_duplicate_warnin
     assert matching_warnings == [
         f"{unknown_count} JOLIKA position(s) without economic asset class"
     ]
+
+
+def test_import_reuses_confirmed_registry_resolution_and_removes_warning(tmp_path):
+    fixture = tmp_path / "future-ubs.csv"
+    fixture.write_text("future position")
+    source_position = session_position("UBS", "FUTURE-CONFIRMED", "100")
+
+    class FutureConnector:
+        connector_id = "future-ubs-confirmed"
+        institution = "UBS"
+
+        @staticmethod
+        def recognize(_path):
+            return True
+
+        @staticmethod
+        def load_positions(_path):
+            return (source_position,)
+
+    stable_key = "JOLIKA|UBS|TICKER:FUTURE-CONFIRMED"
+    confirmed = JolikaAssetResolution(
+        stable_key=stable_key,
+        economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+        identifier="FUTURE-CONFIRMED",
+        identifier_type="ticker",
+        asset_name="FUTURE-CONFIRMED",
+        status="confirmed",
+        resolution_source="human_review",
+    )
+
+    with (
+        patch(
+            "backend.portfolio_import.registry.for_extension",
+            return_value=(FutureConnector(),),
+        ),
+        patch(
+            "backend.asset_resolution.load_jolika_asset_resolution_registry",
+            return_value={stable_key: confirmed},
+        ),
+    ):
+        result = import_portfolios((fixture,))
+
+    imported = result["positions"]
+    assert len(imported) == 1
+    assert imported[0].quantity == source_position.quantity
+    assert imported[0].market_value == source_position.market_value
+    assert imported[0].economic_asset_class is EconomicAssetClass.FIXED_INCOME
+    assert collect_unresolved_jolika_assets(imported) == ()
+    assert not any(
+        "without economic asset class" in warning
+        for diagnostic in result["diagnostics"]
+        for warning in diagnostic["warnings"]
+    )
 
 
 def test_upload_multiple_files(server):
