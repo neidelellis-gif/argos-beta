@@ -11,6 +11,7 @@ from backend.portfolio_change_reports import (
     DEFAULT_PORTFOLIO_CHANGE_REPORT_DIRECTORY,
 )
 from backend.portfolio_history_cycle import run_portfolio_history_cycle
+from backend.portfolio_history_preflight import run_portfolio_history_preflight
 from backend.portfolio_snapshots import DEFAULT_PORTFOLIO_SNAPSHOT_DIRECTORY
 
 
@@ -101,6 +102,35 @@ def _print_result(result) -> None:
         print(f"warning: {warning}")
 
 
+def _print_preflight(result) -> None:
+    totals = {currency: str(value) for currency, value in result.totals_by_currency}
+    print(f"preflight_approved: {str(result.approved).lower()}")
+    print(f"preflight_total_positions: {result.total_position_count}")
+    print(f"preflight_ubs_positions: {result.ubs.position_count}")
+    print(f"preflight_santander_positions: {result.santander.position_count}")
+    print(f"preflight_unresolved: {result.unresolved_count}")
+    print(f"preflight_totals_by_currency: {totals}")
+    print(f"preflight_baseline_snapshot_id: {result.baseline_snapshot_id or 'none'}")
+    baseline_count = (
+        "none"
+        if result.baseline_position_count is None
+        else result.baseline_position_count
+    )
+    print(f"preflight_baseline_position_count: {baseline_count}")
+    position_count_change = (
+        "none"
+        if result.position_count_change is None
+        else result.position_count_change
+    )
+    print(f"preflight_position_count_change: {position_count_change}")
+    print(f"preflight_warnings_count: {len(result.warnings)}")
+    print(f"preflight_blockers_count: {len(result.blockers)}")
+    for warning in result.warnings:
+        print(f"preflight_warning: {warning}")
+    for blocker in result.blockers:
+        print(f"preflight_blocker: {blocker}")
+
+
 def _run(args: argparse.Namespace) -> int:
     captured_at = (
         datetime.now(timezone.utc)
@@ -112,6 +142,15 @@ def _run(args: argparse.Namespace) -> int:
         if args.generated_at is None
         else _parse_timestamp(args.generated_at, "generated-at")
     )
+    preflight = run_portfolio_history_preflight(
+        ubs_path=args.ubs,
+        santander_path=args.santander,
+        snapshot_directory=Path(args.snapshot_directory),
+        before=captured_at,
+    )
+    _print_preflight(preflight)
+    if not preflight.approved:
+        return 2
     result = run_portfolio_history_cycle(
         ubs_path=args.ubs,
         santander_path=args.santander,
