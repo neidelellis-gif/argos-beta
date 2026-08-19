@@ -123,7 +123,8 @@ const PortfolioExecutive = (() => {
         } else {
             list.append(attentionRow(
                 "Análises individuais primeiro",
-                `${institutions.length} ${institutions.length === 1 ? "instituição carregada" : "instituições carregadas"}. O consolidado permanece bloqueado.`
+                `${institutions.length} ${institutions.length === 1 ? "instituição carregada" : "instituições carregadas"}. O consolidado permanece bloqueado.`,
+                "accent"
             ));
 
             if (intelligence) {
@@ -136,7 +137,8 @@ const PortfolioExecutive = (() => {
 
                 list.append(attentionRow(
                     "Cobertura da classificação",
-                    `${coveragePercent.toFixed(1)}% dos ativos consolidados possuem classe econômica definida.`
+                    `${coveragePercent.toFixed(1)}% dos ativos consolidados possuem classe econômica definida.`,
+                    coveragePercent >= 95 ? "success" : "warning"
                 ));
 
                 const concentrations = intelligence.concentration_by_currency || [];
@@ -147,9 +149,11 @@ const PortfolioExecutive = (() => {
                         return itemWeight > currentWeight ? item : current;
                     }, concentrations[0]);
 
+                    const strongestPercent = Number(strongest.top_1_weight || 0) * 100;
                     list.append(attentionRow(
                         "Maior concentração individual",
-                        `${strongest.currency}: ${(Number(strongest.top_1_weight || 0) * 100).toFixed(1)}% no maior ativo.`
+                        `${strongest.currency}: ${strongestPercent.toFixed(1)}% no maior ativo.`,
+                        strongestPercent >= 25 ? "warning" : "success"
                     ));
                 }
 
@@ -160,7 +164,8 @@ const PortfolioExecutive = (() => {
                     "Duplicidades entre instituições",
                     crossInstitutionDuplicates
                         ? `${crossInstitutionDuplicates} ${crossInstitutionDuplicates === 1 ? "ativo aparece" : "ativos aparecem"} em mais de uma instituição.`
-                        : "Nenhuma duplicidade entre instituições foi identificada."
+                        : "Nenhuma duplicidade entre instituições foi identificada.",
+                    crossInstitutionDuplicates ? "warning" : "success"
                 ));
             }
 
@@ -179,8 +184,11 @@ const PortfolioExecutive = (() => {
         container.append(list);
     }
 
-    function attentionRow(title, description) {
-        const row = element("div", "portfolio-attention-row");
+    function attentionRow(title, description, tone = "accent") {
+        const row = element(
+            "div",
+            `portfolio-attention-row portfolio-attention-${tone}`
+        );
         const content = element("div");
         content.append(
             element("strong", "portfolio-institution-name", title),

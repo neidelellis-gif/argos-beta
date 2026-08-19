@@ -263,3 +263,44 @@
         padding: 22px;
     }
 }
+
+.portfolio-attention-row {
+    position: relative;
+    padding-left: 16px;
+}
+
+.portfolio-attention-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 18px;
+    bottom: 18px;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--accent);
+    opacity: 0.9;
+}
+
+.portfolio-attention-success::before {
+    background: var(--success);
+}
+
+.portfolio-attention-warning::before {
+    background: var(--warning);
+}
+
+.portfolio-attention-accent::before {
+    background: var(--accent);
+}
+
+.portfolio-attention-success .portfolio-institution-name {
+    color: var(--success);
+}
+
+.portfolio-attention-warning .portfolio-institution-name {
+    color: var(--warning);
+}
+
+.portfolio-attention-accent .portfolio-institution-name {
+    color: var(--accent);
+}
