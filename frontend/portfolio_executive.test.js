@@ -117,6 +117,11 @@ test("renders Jolika intelligence in executive attention", async () => {
                         "cross_institution_duplicate"
                     ]
                 },
+                materiality: {
+                    level: "Alta",
+                    max_position_weight: "0.75",
+                    driver: "concentration"
+                },
                 coverage: {
                     consolidated_asset_count: 2,
                     assets_with_economic_class: 2
@@ -148,6 +153,8 @@ test("renders Jolika intelligence in executive attention", async () => {
     assert.match(text, /Alta\. Fatores:/);
     assert.match(text, /concentração relevante/);
     assert.match(text, /ativo presente em mais de uma instituição/);
+    assert.match(text, /Materialidade estrutural/);
+    assert.match(text, /Alta\. A maior exposição representa 75\.0% da moeda analisada/);
     assert.match(text, /Cobertura da classificação/);
     assert.match(text, /100\.0% dos ativos consolidados/);
     assert.match(text, /Maior concentração individual/);

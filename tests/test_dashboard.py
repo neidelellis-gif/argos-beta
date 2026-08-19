@@ -159,6 +159,11 @@ def test_empty_dashboard_response():
                 "level": "Baixa",
                 "reasons": [],
             },
+            "materiality": {
+                "level": "Baixa",
+                "max_position_weight": "0",
+                "driver": None,
+            },
             "source_files": [],
         },
     }
@@ -422,4 +427,10 @@ def test_dashboard_exposes_jolika_intelligence_inside_consolidated():
             "concentration",
             "cross_institution_duplicate",
         ],
+    }
+
+    assert intelligence["materiality"] == {
+        "level": "Alta",
+        "max_position_weight": "0.75",
+        "driver": "concentration",
     }

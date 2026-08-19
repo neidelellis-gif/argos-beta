@@ -154,6 +154,26 @@ const PortfolioExecutive = (() => {
                     ));
                 }
 
+                const materiality = intelligence.materiality;
+                if (materiality) {
+                    const materialityPercent =
+                        Number(materiality.max_position_weight || 0) * 100;
+                    const materialityTone =
+                        materiality.level === "Alta"
+                            ? "warning"
+                            : materiality.level === "Baixa"
+                                ? "success"
+                                : "accent";
+
+                    list.append(attentionRow(
+                        "Materialidade estrutural",
+                        materiality.driver === "concentration"
+                            ? `${materiality.level}. A maior exposição representa ${materialityPercent.toFixed(1)}% da moeda analisada.`
+                            : `${materiality.level}. Nenhum fator estrutural dominante foi identificado.`,
+                        materialityTone
+                    ));
+                }
+
                 const coverage = intelligence.coverage || {};
                 const totalAssets = Number(coverage.consolidated_asset_count || 0);
                 const classifiedAssets = Number(coverage.assets_with_economic_class || 0);

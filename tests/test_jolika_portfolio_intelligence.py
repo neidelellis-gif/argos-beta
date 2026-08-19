@@ -383,3 +383,102 @@ def test_priority_is_low_for_well_distributed_fully_classified_portfolio():
 
     assert result.priority.level == "Baixa"
     assert result.priority.reasons == ()
+
+
+def test_materiality_is_high_for_dominant_position():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="70",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="30",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+        ]
+    )
+
+    assert result.materiality.level == "Alta"
+    assert result.materiality.max_position_weight == Decimal("0.7")
+    assert result.materiality.driver == "concentration"
+
+
+def test_materiality_is_medium_for_relevant_but_not_dominant_position():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="30",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="CCC",
+                asset_name="Gamma",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.CASH,
+            ),
+            position(
+                identifier="DDD",
+                asset_name="Delta",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.FUNDS_STRATEGIES,
+            ),
+        ]
+    )
+
+    assert result.materiality.level == "Média"
+    assert result.materiality.max_position_weight == Decimal("0.3")
+    assert result.materiality.driver == "concentration"
+
+
+def test_materiality_is_low_for_well_distributed_positions():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="CCC",
+                asset_name="Gamma",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.CASH,
+            ),
+            position(
+                identifier="DDD",
+                asset_name="Delta",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.FUNDS_STRATEGIES,
+            ),
+            position(
+                identifier="EEE",
+                asset_name="Epsilon",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.GOLD_AND_COMMODITIES,
+            ),
+        ]
+    )
+
+    assert result.materiality.level == "Baixa"
+    assert result.materiality.max_position_weight == Decimal("0.2")
+    assert result.materiality.driver is None

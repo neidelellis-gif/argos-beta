@@ -79,6 +79,15 @@ class JolikaPriorityAssessment:
 
 
 @dataclass(frozen=True)
+class JolikaStructuralMateriality:
+    """Structural relevance of the strongest portfolio exposure."""
+
+    level: str
+    max_position_weight: Decimal
+    driver: str | None
+
+
+@dataclass(frozen=True)
 class JolikaPortfolioIntelligence:
     """Immutable structural intelligence for the consolidated JOLIKA portfolio."""
 
@@ -94,6 +103,7 @@ class JolikaPortfolioIntelligence:
     duplicate_exposures: tuple[JolikaDuplicateExposure, ...]
     consolidation_alerts: tuple[str, ...]
     priority: JolikaPriorityAssessment
+    materiality: JolikaStructuralMateriality
     source_files: tuple[str, ...]
 
 
@@ -328,6 +338,38 @@ def _priority(
     )
 
 
+def _materiality(
+    concentration: tuple[JolikaCurrencyConcentration, ...],
+) -> JolikaStructuralMateriality:
+    """Classify structural materiality from the strongest position weight."""
+    weights = tuple(
+        item.top_1_weight
+        for item in concentration
+        if item.top_1_weight is not None
+    )
+    max_weight = max(weights, default=Decimal("0"))
+
+    if max_weight >= Decimal("0.35"):
+        return JolikaStructuralMateriality(
+            level="Alta",
+            max_position_weight=max_weight,
+            driver="concentration",
+        )
+
+    if max_weight > Decimal("0.20"):
+        return JolikaStructuralMateriality(
+            level="Média",
+            max_position_weight=max_weight,
+            driver="concentration",
+        )
+
+    return JolikaStructuralMateriality(
+        level="Baixa",
+        max_position_weight=max_weight,
+        driver=None,
+    )
+
+
 def build_jolika_portfolio_intelligence(
     positions: Iterable[PortfolioPosition],
     *,
@@ -399,5 +441,6 @@ def build_jolika_portfolio_intelligence(
             coverage,
             duplicates,
         ),
+        materiality=_materiality(concentration),
         source_files=source_files,
     )

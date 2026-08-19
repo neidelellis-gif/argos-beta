@@ -136,6 +136,13 @@ def _jolika_intelligence_payload(positions: Iterable[PortfolioPosition]) -> Dict
             "level": intelligence.priority.level,
             "reasons": list(intelligence.priority.reasons),
         },
+        "materiality": {
+            "level": intelligence.materiality.level,
+            "max_position_weight": str(
+                intelligence.materiality.max_position_weight
+            ),
+            "driver": intelligence.materiality.driver,
+        },
         "source_files": list(intelligence.source_files),
     }
 
