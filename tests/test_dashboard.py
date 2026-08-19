@@ -155,6 +155,10 @@ def test_empty_dashboard_response():
             },
             "duplicate_exposures": [],
             "consolidation_alerts": [],
+            "priority": {
+                "level": "Baixa",
+                "reasons": [],
+            },
             "source_files": [],
         },
     }
@@ -411,3 +415,11 @@ def test_dashboard_exposes_jolika_intelligence_inside_consolidated():
         "Duplicate positions found across institutions"
         in intelligence["consolidation_alerts"]
     )
+
+    assert intelligence["priority"] == {
+        "level": "Alta",
+        "reasons": [
+            "concentration",
+            "cross_institution_duplicate",
+        ],
+    }

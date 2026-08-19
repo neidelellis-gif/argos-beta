@@ -128,6 +128,32 @@ const PortfolioExecutive = (() => {
             ));
 
             if (intelligence) {
+                const priority = intelligence.priority;
+                if (priority) {
+                    const reasonLabels = {
+                        concentration: "concentração relevante",
+                        coverage: "cobertura de classificação incompleta",
+                        cross_institution_duplicate: "ativo presente em mais de uma instituição"
+                    };
+                    const reasons = (priority.reasons || [])
+                        .map((reason) => reasonLabels[reason] || reason);
+
+                    const priorityTone =
+                        priority.level === "Alta"
+                            ? "warning"
+                            : priority.level === "Baixa"
+                                ? "success"
+                                : "accent";
+
+                    list.append(attentionRow(
+                        "Prioridade de análise",
+                        reasons.length
+                            ? `${priority.level}. Fatores: ${reasons.join(" · ")}.`
+                            : `${priority.level}. Nenhum fator estrutural elevou a prioridade de análise.`,
+                        priorityTone
+                    ));
+                }
+
                 const coverage = intelligence.coverage || {};
                 const totalAssets = Number(coverage.consolidated_asset_count || 0);
                 const classifiedAssets = Number(coverage.assets_with_economic_class || 0);

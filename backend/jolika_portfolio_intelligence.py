@@ -71,6 +71,14 @@ class JolikaDuplicateExposure:
 
 
 @dataclass(frozen=True)
+class JolikaPriorityAssessment:
+    """Priority for analysis and monitoring, never a transaction recommendation."""
+
+    level: str
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class JolikaPortfolioIntelligence:
     """Immutable structural intelligence for the consolidated JOLIKA portfolio."""
 
@@ -85,6 +93,7 @@ class JolikaPortfolioIntelligence:
     coverage: JolikaCoverageMetrics
     duplicate_exposures: tuple[JolikaDuplicateExposure, ...]
     consolidation_alerts: tuple[str, ...]
+    priority: JolikaPriorityAssessment
     source_files: tuple[str, ...]
 
 
@@ -267,6 +276,58 @@ def _duplicates(
     )
 
 
+def _priority(
+    concentration: tuple[JolikaCurrencyConcentration, ...],
+    coverage: JolikaCoverageMetrics,
+    duplicates: tuple[JolikaDuplicateExposure, ...],
+) -> JolikaPriorityAssessment:
+    """Classify analysis/monitoring priority from objective structural facts."""
+    high_reasons: list[str] = []
+    medium_reasons: list[str] = []
+
+    top_1_weights = tuple(
+        item.top_1_weight
+        for item in concentration
+        if item.top_1_weight is not None
+    )
+    max_top_1 = max(top_1_weights, default=Decimal("0"))
+
+    if max_top_1 >= Decimal("0.35"):
+        high_reasons.append("concentration")
+    elif max_top_1 > Decimal("0.20"):
+        medium_reasons.append("concentration")
+
+    if coverage.consolidated_asset_count:
+        coverage_ratio = (
+            Decimal(coverage.assets_with_economic_class)
+            / Decimal(coverage.consolidated_asset_count)
+        )
+        if coverage_ratio < Decimal("0.80"):
+            high_reasons.append("coverage")
+        elif coverage_ratio < Decimal("0.95"):
+            medium_reasons.append("coverage")
+
+    if any(item.across_institutions for item in duplicates):
+        medium_reasons.append("cross_institution_duplicate")
+
+    if high_reasons:
+        return JolikaPriorityAssessment(
+            level="Alta",
+            reasons=tuple(dict.fromkeys(high_reasons + medium_reasons)),
+        )
+
+    if medium_reasons:
+        return JolikaPriorityAssessment(
+            level="Média",
+            reasons=tuple(dict.fromkeys(medium_reasons)),
+        )
+
+    return JolikaPriorityAssessment(
+        level="Baixa",
+        reasons=(),
+    )
+
+
 def build_jolika_portfolio_intelligence(
     positions: Iterable[PortfolioPosition],
     *,
@@ -289,6 +350,13 @@ def build_jolika_portfolio_intelligence(
 
     totals = _totals_by_currency(consolidated)
     allocation = _economic_allocation_by_currency(consolidated)
+    concentration = _concentration(
+        consolidated,
+        totals,
+        top_n=top_n,
+    )
+    coverage = _coverage(consolidated)
+    duplicates = _duplicates(consolidated)
 
     institutions = tuple(
         sorted(
@@ -322,13 +390,14 @@ def build_jolika_portfolio_intelligence(
         economic_allocation_by_currency=(
             _freeze_economic_allocation(allocation)
         ),
-        concentration_by_currency=_concentration(
-            consolidated,
-            totals,
-            top_n=top_n,
-        ),
-        coverage=_coverage(consolidated),
-        duplicate_exposures=_duplicates(consolidated),
+        concentration_by_currency=concentration,
+        coverage=coverage,
+        duplicate_exposures=duplicates,
         consolidation_alerts=consolidated.report.alerts,
+        priority=_priority(
+            concentration,
+            coverage,
+            duplicates,
+        ),
         source_files=source_files,
     )

@@ -110,6 +110,13 @@ test("renders Jolika intelligence in executive attention", async () => {
         ],
         consolidated: {
             intelligence: {
+                priority: {
+                    level: "Alta",
+                    reasons: [
+                        "concentration",
+                        "cross_institution_duplicate"
+                    ]
+                },
                 coverage: {
                     consolidated_asset_count: 2,
                     assets_with_economic_class: 2
@@ -137,6 +144,10 @@ test("renders Jolika intelligence in executive attention", async () => {
         elements.get("portfolioExecutiveAttention")
     );
 
+    assert.match(text, /Prioridade de análise/);
+    assert.match(text, /Alta\. Fatores:/);
+    assert.match(text, /concentração relevante/);
+    assert.match(text, /ativo presente em mais de uma instituição/);
     assert.match(text, /Cobertura da classificação/);
     assert.match(text, /100\.0% dos ativos consolidados/);
     assert.match(text, /Maior concentração individual/);

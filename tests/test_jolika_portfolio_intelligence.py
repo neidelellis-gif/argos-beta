@@ -287,3 +287,99 @@ def test_result_is_deterministic_for_input_order():
     reverse = build_jolika_portfolio_intelligence(reversed(positions))
 
     assert forward == reverse
+
+
+def test_priority_is_high_for_severe_concentration():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="70",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="30",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+        ]
+    )
+
+    assert result.priority.level == "Alta"
+    assert "concentration" in result.priority.reasons
+
+
+def test_priority_is_medium_for_moderate_concentration():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="30",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="CCC",
+                asset_name="Gamma",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="DDD",
+                asset_name="Delta",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.CASH,
+            ),
+        ]
+    )
+
+    assert result.priority.level == "Média"
+    assert "concentration" in result.priority.reasons
+
+
+def test_priority_is_low_for_well_distributed_fully_classified_portfolio():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="CCC",
+                asset_name="Gamma",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.CASH,
+            ),
+            position(
+                identifier="DDD",
+                asset_name="Delta",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.FUNDS_STRATEGIES,
+            ),
+            position(
+                identifier="EEE",
+                asset_name="Epsilon",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.GOLD_AND_COMMODITIES,
+            ),
+        ]
+    )
+
+    assert result.priority.level == "Baixa"
+    assert result.priority.reasons == ()

@@ -132,6 +132,10 @@ def _jolika_intelligence_payload(positions: Iterable[PortfolioPosition]) -> Dict
             for duplicate in intelligence.duplicate_exposures
         ],
         "consolidation_alerts": list(intelligence.consolidation_alerts),
+        "priority": {
+            "level": intelligence.priority.level,
+            "reasons": list(intelligence.priority.reasons),
+        },
         "source_files": list(intelligence.source_files),
     }
 
