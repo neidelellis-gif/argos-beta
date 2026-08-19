@@ -73,6 +73,18 @@ def invoke(extra=(), *, result=None, preflight=None):
     return code, preflight_mock, workflow
 
 
+def invoke_preflight(extra=(), *, preflight=None):
+    argv = ["preflight", "--ubs", "ubs.csv", "--santander", "santander.xlsx", *extra]
+    with patch(
+        "backend.portfolio_history_cli.run_portfolio_history_preflight",
+        return_value=preflight or preflight_result(),
+    ) as preflight_mock, patch(
+        "backend.portfolio_history_cli.run_portfolio_history_cycle"
+    ) as workflow:
+        code = main(argv)
+    return code, preflight_mock, workflow
+
+
 def test_parser_exposes_run_and_required_inputs():
     parser = build_parser()
     args = parser.parse_args(["run", "--ubs", "u", "--santander", "s"])
@@ -84,12 +96,35 @@ def test_parser_exposes_run_and_required_inputs():
     assert missing_ubs.value.code == missing_santander.value.code == 2
 
 
+def test_parser_exposes_preflight_and_required_inputs():
+    parser = build_parser()
+    args = parser.parse_args(["preflight", "--ubs", "u", "--santander", "s"])
+    assert args.command == "preflight"
+    with pytest.raises(SystemExit) as missing_ubs:
+        parser.parse_args(["preflight", "--santander", "s"])
+    with pytest.raises(SystemExit) as missing_santander:
+        parser.parse_args(["preflight", "--ubs", "u"])
+    assert missing_ubs.value.code == missing_santander.value.code == 2
+
+
 def test_parser_directory_defaults():
-    args = build_parser().parse_args(
-        ["run", "--ubs", "u", "--santander", "s"]
-    )
+    args = build_parser().parse_args(["run", "--ubs", "u", "--santander", "s"])
     assert args.snapshot_directory == str(DEFAULT_PORTFOLIO_SNAPSHOT_DIRECTORY)
     assert args.report_directory == str(DEFAULT_PORTFOLIO_CHANGE_REPORT_DIRECTORY)
+    preflight = build_parser().parse_args(
+        ["preflight", "--ubs", "u", "--santander", "s"]
+    )
+    assert preflight.snapshot_directory == str(DEFAULT_PORTFOLIO_SNAPSHOT_DIRECTORY)
+
+
+def test_preflight_parser_rejects_run_only_options():
+    parser = build_parser()
+    for option in ("--overwrite", "--generated-at", "--report-directory"):
+        values = ["preflight", "--ubs", "u", "--santander", "s", option]
+        if option != "--overwrite":
+            values.append("x")
+        with pytest.raises(SystemExit):
+            parser.parse_args(values)
 
 
 def test_default_captured_at_is_utc_aware_and_generated_at_is_none():
@@ -98,6 +133,13 @@ def test_default_captured_at_is_utc_aware_and_generated_at_is_none():
     assert captured.tzinfo is UTC and captured.utcoffset() is not None
     assert workflow.call_args.kwargs["generated_at"] is None
     assert preflight.call_args.kwargs["before"] == captured
+
+
+def test_preflight_default_captured_at_is_utc_aware():
+    _, preflight, workflow = invoke_preflight()
+    captured = preflight.call_args.kwargs["before"]
+    assert captured.tzinfo is UTC and captured.utcoffset() is not None
+    workflow.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -117,9 +159,34 @@ def test_timestamps_accept_z_and_convert_offsets_to_utc(option, value, expected)
         assert preflight.call_args.kwargs["before"] == expected
 
 
-@pytest.mark.parametrize("option", ["--captured-at", "--generated-at"])
-def test_naive_timestamps_fail_before_preflight_and_workflow(option, capsys):
-    code, preflight, workflow = invoke([option, "2026-08-17T12:30:00"])
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2026-08-17T12:30:00Z", NOW),
+        ("2026-08-17T09:30:00-03:00", NOW),
+    ],
+)
+def test_preflight_timestamp_normalization(value, expected):
+    _, preflight, workflow = invoke_preflight(["--captured-at", value])
+    assert preflight.call_args.kwargs["before"] == expected
+    assert preflight.call_args.kwargs["before"].tzinfo is UTC
+    workflow.assert_not_called()
+
+
+@pytest.mark.parametrize("command", ["run", "preflight"])
+def test_naive_captured_at_fails_before_calls(command, capsys):
+    argv = [command, "--ubs", "u", "--santander", "s", "--captured-at", "2026-08-17T12:30:00"]
+    with patch("backend.portfolio_history_cli.run_portfolio_history_preflight") as preflight, patch(
+        "backend.portfolio_history_cli.run_portfolio_history_cycle"
+    ) as workflow:
+        assert main(argv) == 2
+    preflight.assert_not_called()
+    workflow.assert_not_called()
+    assert "timezone-aware" in capsys.readouterr().err
+
+
+def test_generated_at_naive_fails_before_preflight_and_workflow(capsys):
+    code, preflight, workflow = invoke(["--generated-at", "2026-08-17T12:30:00"])
     assert code == 2
     preflight.assert_not_called()
     workflow.assert_not_called()
@@ -152,6 +219,67 @@ def test_delegates_once_and_forwards_all_arguments_and_overwrite():
         generated_at=NOW,
         overwrite=True,
     )
+
+
+def test_preflight_command_forwards_arguments_once_and_never_runs_cycle():
+    code, preflight, workflow = invoke_preflight(
+        ["--snapshot-directory", "custom-snapshots", "--captured-at", "2026-08-17T12:30:00Z"]
+    )
+    assert code == 0
+    preflight.assert_called_once_with(
+        ubs_path="ubs.csv",
+        santander_path="santander.xlsx",
+        snapshot_directory=Path("custom-snapshots"),
+        before=NOW,
+    )
+    workflow.assert_not_called()
+
+
+def test_preflight_approved_and_blocked_exit_codes(capsys):
+    approved, _, approved_workflow = invoke_preflight(preflight=preflight_result())
+    assert approved == 0
+    approved_workflow.assert_not_called()
+    capsys.readouterr()
+    blocked, _, blocked_workflow = invoke_preflight(
+        preflight=preflight_result(approved=False, blockers=("missing UBS positions",))
+    )
+    assert blocked == 2
+    blocked_workflow.assert_not_called()
+    output = capsys.readouterr().out
+    assert "preflight_approved: false" in output
+    assert "preflight_blocker: missing UBS positions" in output
+
+
+def test_preflight_output_is_factual_private_and_complete(capsys):
+    invoke_preflight(preflight=preflight_result(warnings=("review input",)))
+    output = capsys.readouterr().out
+    for line in (
+        "preflight_approved: true",
+        "preflight_total_positions: 3",
+        "preflight_ubs_positions: 1",
+        "preflight_santander_positions: 2",
+        "preflight_unresolved: 4",
+        "preflight_totals_by_currency: {'USD': '30.50'}",
+        "preflight_baseline_snapshot_id: baseline-id",
+        "preflight_baseline_position_count: 5",
+        "preflight_position_count_change: -2",
+        "preflight_warnings_count: 1",
+        "preflight_blockers_count: 0",
+        "preflight_warning: review input",
+    ):
+        assert line in output
+    assert "secret-identifier" not in output
+    assert "unresolved_keys" not in output
+    assert "account" not in output
+    assert "identifier" not in output
+
+
+def test_preflight_none_baseline_values_are_rendered_as_none(capsys):
+    invoke_preflight(preflight=preflight_result(baseline=False))
+    output = capsys.readouterr().out
+    assert "preflight_baseline_snapshot_id: none" in output
+    assert "preflight_baseline_position_count: none" in output
+    assert "preflight_position_count_change: none" in output
 
 
 def test_initial_snapshot_output_has_no_report_object(capsys):
@@ -194,58 +322,24 @@ def test_warnings_are_counted_and_printed(capsys):
     assert "warning: Santander: check" in output
 
 
-def test_preflight_output_is_factual_complete_and_precedes_cycle(capsys):
-    invoke(
-        preflight=preflight_result(warnings=("review input",)),
-        result=cycle_result(),
-    )
+def test_preflight_output_precedes_cycle(capsys):
+    invoke(preflight=preflight_result(warnings=("review input",)), result=cycle_result())
     output = capsys.readouterr().out
-    expected = (
-        "preflight_approved: true",
-        "preflight_total_positions: 3",
-        "preflight_ubs_positions: 1",
-        "preflight_santander_positions: 2",
-        "preflight_unresolved: 4",
-        "preflight_totals_by_currency: {'USD': '30.50'}",
-        "preflight_baseline_snapshot_id: baseline-id",
-        "preflight_baseline_position_count: 5",
-        "preflight_position_count_change: -2",
-        "preflight_warnings_count: 1",
-        "preflight_blockers_count: 0",
-        "preflight_warning: review input",
-    )
-    for line in expected:
-        assert line in output
     assert output.index("preflight_approved") < output.index("status: INITIAL_SNAPSHOT")
-    assert "secret-identifier" not in output
-    assert "unresolved_keys" not in output
-    assert "account" not in output
-    assert "identifier" not in output
 
 
-def test_preflight_none_baseline_values_are_rendered_as_none(capsys):
-    invoke(preflight=preflight_result(baseline=False))
-    output = capsys.readouterr().out
-    assert "preflight_baseline_snapshot_id: none" in output
-    assert "preflight_baseline_position_count: none" in output
-    assert "preflight_position_count_change: none" in output
-
-
-def test_blocked_preflight_prints_blockers_returns_two_and_skips_cycle(capsys):
+def test_blocked_run_skips_cycle(capsys):
     code, preflight, workflow = invoke(
         preflight=preflight_result(
             approved=False,
             blockers=("missing UBS positions", "unresolved JOLIKA assets: 4"),
         )
     )
-    output = capsys.readouterr().out
     assert code == 2
     preflight.assert_called_once()
     workflow.assert_not_called()
-    assert "preflight_approved: false" in output
+    output = capsys.readouterr().out
     assert "preflight_blockers_count: 2" in output
-    assert "preflight_blocker: missing UBS positions" in output
-    assert "preflight_blocker: unresolved JOLIKA assets: 4" in output
 
 
 def test_preflight_runs_before_workflow_and_each_runs_once():
@@ -261,6 +355,22 @@ def test_preflight_runs_before_workflow_and_each_runs_once():
     preflight.assert_called_once()
     workflow.assert_called_once()
     assert calls.call_args_list == [call("preflight"), call("workflow")]
+
+
+@pytest.mark.parametrize(
+    "error",
+    [ValueError("invalid input"), FileNotFoundError("missing file"), OSError("disk error")],
+)
+def test_preflight_command_operational_errors_return_two(error, capsys):
+    with patch(
+        "backend.portfolio_history_cli.run_portfolio_history_preflight",
+        side_effect=error,
+    ), patch("backend.portfolio_history_cli.run_portfolio_history_cycle") as workflow:
+        assert main(["preflight", "--ubs", "u", "--santander", "s"]) == 2
+    workflow.assert_not_called()
+    captured = capsys.readouterr()
+    assert str(error) in captured.err
+    assert "Traceback" not in captured.err
 
 
 @pytest.mark.parametrize(
@@ -286,28 +396,15 @@ def test_workflow_operational_errors_return_two_without_traceback(error, capsys)
     assert "Traceback" not in captured.err
 
 
-@pytest.mark.parametrize(
-    "error",
-    [
-        ValueError("invalid input"),
-        FileNotFoundError("missing file"),
-        FileExistsError("already exists"),
-        OSError("disk error"),
-    ],
-)
-def test_preflight_operational_errors_return_two_without_traceback(error, capsys):
+def test_unexpected_programming_errors_are_not_hidden():
     with patch(
         "backend.portfolio_history_cli.run_portfolio_history_preflight",
-        side_effect=error,
+        side_effect=RuntimeError("preflight bug"),
     ), patch("backend.portfolio_history_cli.run_portfolio_history_cycle") as workflow:
-        assert main(["run", "--ubs", "u", "--santander", "s"]) == 2
+        with pytest.raises(RuntimeError, match="preflight bug"):
+            main(["preflight", "--ubs", "u", "--santander", "s"])
     workflow.assert_not_called()
-    captured = capsys.readouterr()
-    assert str(error) in captured.err
-    assert "Traceback" not in captured.err
 
-
-def test_unexpected_programming_error_is_not_hidden():
     with patch(
         "backend.portfolio_history_cli.run_portfolio_history_preflight",
         return_value=preflight_result(),
@@ -319,11 +416,12 @@ def test_unexpected_programming_error_is_not_hidden():
             main(["run", "--ubs", "u", "--santander", "s"])
 
 
-def test_unexpected_preflight_programming_error_is_not_hidden():
-    with patch(
-        "backend.portfolio_history_cli.run_portfolio_history_preflight",
-        side_effect=RuntimeError("preflight bug"),
-    ), patch("backend.portfolio_history_cli.run_portfolio_history_cycle") as workflow:
-        with pytest.raises(RuntimeError, match="preflight bug"):
-            main(["run", "--ubs", "u", "--santander", "s"])
+def test_preflight_command_has_no_persistence_side_effects(tmp_path):
+    snapshot_directory = tmp_path / "snapshots"
+    code, preflight, workflow = invoke_preflight(
+        ["--snapshot-directory", str(snapshot_directory)]
+    )
+    assert code == 0
+    preflight.assert_called_once()
     workflow.assert_not_called()
+    assert not snapshot_directory.exists()

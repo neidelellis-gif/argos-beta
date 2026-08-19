@@ -44,26 +44,34 @@ def _parse_timestamp(value: str, field: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
+def _add_common_input_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--ubs", required=True)
+    parser.add_argument("--santander", required=True)
+    parser.add_argument(
+        "--snapshot-directory",
+        default=str(DEFAULT_PORTFOLIO_SNAPSHOT_DIRECTORY),
+    )
+    parser.add_argument("--captured-at")
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the explicit, side-effect-free command parser."""
     parser = argparse.ArgumentParser(
         prog="python -m backend.portfolio_history_cli"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
     run = subparsers.add_parser("run")
-    run.add_argument("--ubs", required=True)
-    run.add_argument("--santander", required=True)
-    run.add_argument(
-        "--snapshot-directory",
-        default=str(DEFAULT_PORTFOLIO_SNAPSHOT_DIRECTORY),
-    )
+    _add_common_input_arguments(run)
     run.add_argument(
         "--report-directory",
         default=str(DEFAULT_PORTFOLIO_CHANGE_REPORT_DIRECTORY),
     )
-    run.add_argument("--captured-at")
     run.add_argument("--generated-at")
     run.add_argument("--overwrite", action="store_true")
+
+    preflight = subparsers.add_parser("preflight")
+    _add_common_input_arguments(preflight)
     return parser
 
 
@@ -131,12 +139,28 @@ def _print_preflight(result) -> None:
         print(f"preflight_blocker: {blocker}")
 
 
-def _run(args: argparse.Namespace) -> int:
-    captured_at = (
+def _captured_at(args: argparse.Namespace) -> datetime:
+    return (
         datetime.now(timezone.utc)
         if args.captured_at is None
         else _parse_timestamp(args.captured_at, "captured-at")
     )
+
+
+def _run_preflight(args: argparse.Namespace) -> int:
+    captured_at = _captured_at(args)
+    result = run_portfolio_history_preflight(
+        ubs_path=args.ubs,
+        santander_path=args.santander,
+        snapshot_directory=Path(args.snapshot_directory),
+        before=captured_at,
+    )
+    _print_preflight(result)
+    return 0 if result.approved else 2
+
+
+def _run(args: argparse.Namespace) -> int:
+    captured_at = _captured_at(args)
     generated_at = (
         None
         if args.generated_at is None
@@ -169,6 +193,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "run":
             return _run(args)
+        if args.command == "preflight":
+            return _run_preflight(args)
         raise ValueError(f"unsupported command: {args.command}")
     except (ValueError, FileNotFoundError, FileExistsError, OSError) as exc:
         print(str(exc), file=sys.stderr)
