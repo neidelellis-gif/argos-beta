@@ -117,17 +117,7 @@ test("renders Jolika intelligence in executive attention", async () => {
                         "cross_institution_duplicate"
                     ]
                 },
-                materiality: {
-                    level: "Alta",
-                    max_position_weight: "0.75",
-                    driver: "concentration"
-                },
-                diversification: {
-                    level: "Baixa",
-                    asset_hhi: "0.6250",
-                    class_hhi: "0.6250",
-                    driver: "asset_and_class_concentration"
-                },
+                portfolio_reading: "A carteira está concentrada em poucos ativos e isso merece mais atenção agora.",
                 coverage: {
                     consolidated_asset_count: 2,
                     assets_with_economic_class: 2
@@ -159,16 +149,16 @@ test("renders Jolika intelligence in executive attention", async () => {
     assert.match(text, /Alta\. Fatores:/);
     assert.match(text, /concentração relevante/);
     assert.match(text, /ativo presente em mais de uma instituição/);
-    assert.match(text, /Materialidade estrutural/);
-    assert.match(text, /Alta\. A maior exposição representa 75\.0% da moeda analisada/);
-    assert.match(text, /Diversificação estrutural/);
-    assert.match(text, /Baixa\. HHI por ativos: 0\.625 · HHI por classes: 0\.625/);
+    assert.match(text, /Leitura da carteira/);
+    assert.match(text, /concentrada em poucos ativos/);
     assert.match(text, /Cobertura da classificação/);
     assert.match(text, /100\.0% dos ativos consolidados/);
     assert.match(text, /Maior concentração individual/);
     assert.match(text, /USD: 75\.0% no maior ativo/);
     assert.match(text, /Duplicidades entre instituições/);
     assert.match(text, /1 ativo aparece em mais de uma instituição/);
+    assert.doesNotMatch(text, /Materialidade estrutural/);
+    assert.doesNotMatch(text, /Diversificação estrutural/);
 });
 
 test("keeps executive attention working without Jolika intelligence", async () => {
