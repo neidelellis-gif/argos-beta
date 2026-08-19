@@ -107,7 +107,7 @@ const PortfolioExecutive = (() => {
         container.append(bars);
     }
 
-    function renderAttention(institutions) {
+    function renderAttention(institutions, intelligence) {
         const container = document.getElementById("portfolioExecutiveAttention");
         container.replaceChildren();
         const owner = ArgosAnalysisContext.getActiveOwner();
@@ -125,6 +125,45 @@ const PortfolioExecutive = (() => {
                 "Análises individuais primeiro",
                 `${institutions.length} ${institutions.length === 1 ? "instituição carregada" : "instituições carregadas"}. O consolidado permanece bloqueado.`
             ));
+
+            if (intelligence) {
+                const coverage = intelligence.coverage || {};
+                const totalAssets = Number(coverage.consolidated_asset_count || 0);
+                const classifiedAssets = Number(coverage.assets_with_economic_class || 0);
+                const coveragePercent = totalAssets
+                    ? classifiedAssets / totalAssets * 100
+                    : 0;
+
+                list.append(attentionRow(
+                    "Cobertura da classificação",
+                    `${coveragePercent.toFixed(1)}% dos ativos consolidados possuem classe econômica definida.`
+                ));
+
+                const concentrations = intelligence.concentration_by_currency || [];
+                if (concentrations.length) {
+                    const strongest = concentrations.reduce((current, item) => {
+                        const currentWeight = Number(current?.top_1_weight || 0);
+                        const itemWeight = Number(item?.top_1_weight || 0);
+                        return itemWeight > currentWeight ? item : current;
+                    }, concentrations[0]);
+
+                    list.append(attentionRow(
+                        "Maior concentração individual",
+                        `${strongest.currency}: ${(Number(strongest.top_1_weight || 0) * 100).toFixed(1)}% no maior ativo.`
+                    ));
+                }
+
+                const crossInstitutionDuplicates = (intelligence.duplicate_exposures || [])
+                    .filter((item) => item.across_institutions).length;
+
+                list.append(attentionRow(
+                    "Duplicidades entre instituições",
+                    crossInstitutionDuplicates
+                        ? `${crossInstitutionDuplicates} ${crossInstitutionDuplicates === 1 ? "ativo aparece" : "ativos aparecem"} em mais de uma instituição.`
+                        : "Nenhuma duplicidade entre instituições foi identificada."
+                ));
+            }
+
             if (missing.length) {
                 list.append(attentionRow(
                     "Carteiras ainda não carregadas",
@@ -198,7 +237,10 @@ const PortfolioExecutive = (() => {
         const institutions = ownerInstitutions();
         renderTotals(institutions);
         renderAllocation(institutions);
-        renderAttention(institutions);
+        renderAttention(
+            institutions,
+            dashboard?.consolidated?.intelligence
+        );
         renderInstitutions(institutions);
         const owner = ArgosAnalysisContext.getActiveOwner();
         const ownerName = document.getElementById("portfolioOwnerName");
