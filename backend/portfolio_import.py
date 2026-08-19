@@ -94,7 +94,7 @@ def _load_recognized_file(file_path: Path) -> Tuple[PortfolioPosition, ...]:
                 unresolved_asset_count=len(unresolved_assets),
                 unresolved_asset_keys=[asset.stable_key for asset in unresolved_assets],
             )
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, KeyError) as exc:
             _log_import(
                 "connector skipped after error",
                 file_name=file_path.name,
