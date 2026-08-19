@@ -325,10 +325,10 @@ def test_frontend_consumes_and_exposes_dashboard_sections():
     assert "renderDashboard(dashboard)" in app
     for element_id in (
         "importantFacts",
-        "dailyPriorities",
-        "dailyAnalyses",
-        "dailyPanorama",
-        "marketAgenda",
+        "marketReaction",
+        "neiInvestmentImpact",
+        "jolikaInvestmentImpact",
+        "dailyAnalyzePortfolios",
         "institutions",
         "consolidated",
         "toggleValues",
@@ -344,8 +344,9 @@ def test_duplicate_operational_panorama_is_removed():
     app = Path("frontend/app.js").read_text(encoding="utf-8")
     page = Path("frontend/index.html").read_text(encoding="utf-8")
     assert 'id="globalOverview"' not in page
+    assert 'id="marketAgendaPanel"' not in page
     assert "Aguardando integração da Inteligência de Mercado" not in app
-    assert 'id="marketAgendaPanel"' in page
+    assert 'data-tab="agenda"' in page
 
 
 def test_dashboard_exposes_institution_and_consolidated_economic_allocations():
