@@ -19,6 +19,7 @@ vm.runInContext(fs.readFileSync("frontend/daily_request_builder.js", "utf8"), co
 vm.runInContext(fs.readFileSync("frontend/daily_experience_renderer.js", "utf8"), context);
 vm.runInContext("this.DailyRendererForTest = DailyExperienceRenderer", context);
 vm.runInContext(fs.readFileSync("frontend/app.js", "utf8"), context);
+context.realRenderDashboard = context.renderDashboard;
 
 function readCsv(content) {
     return context.getCsvDataRows(context.parseCsv(content));
@@ -1040,6 +1041,7 @@ function createElement(tagName) {
         className: "",
         textContent: "",
         attributes: {},
+        dataset: {},
         append(...elements) {
             this.children.push(...elements);
         },
@@ -1729,4 +1731,88 @@ test("records and clears institution import errors in persistent storage", () =>
     } finally {
         context.window = originalWindow;
     }
+});
+
+test("renders Jolika intelligence metrics in consolidated dashboard", () => {
+    const elements = new Map();
+
+    for (const id of [
+        "institutions",
+        "consolidated",
+        "executiveCards",
+        "moduleCards",
+        "dashboardVersion",
+        "situationLabel",
+        "situationTitle",
+        "modulesLabel",
+        "modulesTitle",
+        "executiveCount"
+    ]) {
+        elements.set(id, createElement("div"));
+    }
+
+    context.document.createElement = createElement;
+    context.document.getElementById = (id) => elements.get(id);
+
+    context.realRenderDashboard({
+        header: { version: "2.3" },
+        labels: {
+            daily_situation: "Situação do Dia",
+            daily_situation_title: "Estado operacional da sessão",
+            modules: "Módulos",
+            modules_title: "Status dos módulos"
+        },
+        institutions: [],
+        consolidated: {
+            institution_count: 2,
+            position_count: 3,
+            unique_asset_count: 2,
+            repeated_asset_count: 1,
+            totals_by_currency: { USD: "200" },
+            warnings: [],
+            intelligence: {
+                consolidated_asset_count: 2,
+                coverage: {
+                    consolidated_asset_count: 2,
+                    assets_with_economic_class: 2
+                },
+                duplicate_exposures: [
+                    { across_institutions: true }
+                ],
+                concentration_by_currency: [
+                    {
+                        currency: "USD",
+                        top_1_weight: "0.75",
+                        top_3_weight: "1",
+                        top_5_weight: "1"
+                    }
+                ],
+                consolidation_alerts: [
+                    "Duplicate positions found across institutions"
+                ]
+            }
+        },
+        daily_situation: [],
+        modules: []
+    });
+
+    const consolidated = elements.get("consolidated");
+
+    function collectText(element) {
+        return [
+            element.textContent || "",
+            ...(element.children || []).map(collectText)
+        ].join(" ");
+    }
+
+    const renderedText = collectText(consolidated);
+
+    assert.match(renderedText, /Ativos consolidados:/);
+    assert.match(renderedText, /Cobertura de classificação:/);
+    assert.match(renderedText, /100,00%/);
+    assert.match(renderedText, /Duplicidades entre instituições:/);
+    assert.match(renderedText, /Concentração Top 1 USD:/);
+    assert.match(renderedText, /75,00%/);
+    assert.match(renderedText, /Concentração Top 3 USD:/);
+    assert.match(renderedText, /100,00%/);
 });

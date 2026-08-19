@@ -1150,6 +1150,60 @@ function renderDashboard(data) {
     appendTotals(consolidated, data.consolidated.totals_by_currency);
     appendWarnings(consolidated, data.consolidated.warnings);
 
+    const intelligence = data.consolidated.intelligence;
+    if (intelligence) {
+        consolidated.append(
+            createMetric(
+                "Ativos consolidados",
+                intelligence.consolidated_asset_count
+            ),
+            createMetric(
+                "Cobertura de classificação",
+                intelligence.coverage.consolidated_asset_count
+                    ? formatPercentage(
+                        intelligence.coverage.assets_with_economic_class
+                        / intelligence.coverage.consolidated_asset_count
+                        * 100
+                    )
+                    : formatPercentage(0)
+            ),
+            createMetric(
+                "Duplicidades entre instituições",
+                intelligence.duplicate_exposures.filter(
+                    (item) => item.across_institutions
+                ).length
+            )
+        );
+
+        intelligence.concentration_by_currency.forEach((item) => {
+            consolidated.append(
+                createMetric(
+                    `Concentração Top 1 ${item.currency}`,
+                    item.top_1_weight !== null
+                        ? formatPercentage(Number(item.top_1_weight) * 100)
+                        : "N/A"
+                ),
+                createMetric(
+                    `Concentração Top 3 ${item.currency}`,
+                    item.top_3_weight !== null
+                        ? formatPercentage(Number(item.top_3_weight) * 100)
+                        : "N/A"
+                ),
+                createMetric(
+                    `Concentração Top 5 ${item.currency}`,
+                    item.top_5_weight !== null
+                        ? formatPercentage(Number(item.top_5_weight) * 100)
+                        : "N/A"
+                )
+            );
+        });
+
+        appendWarnings(
+            consolidated,
+            intelligence.consolidation_alerts
+        );
+    }
+
     data.daily_situation.forEach((item, index) => {
         executiveCards.appendChild(createExecutiveCard(item, index));
     });
