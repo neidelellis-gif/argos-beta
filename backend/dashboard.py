@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Dict, Iterable, Optional
 
 from backend.daily.orchestrator import DailyOrchestrator
+from backend.jolika_portfolio_intelligence import build_jolika_portfolio_intelligence
 from backend.models import EconomicAssetClass, PortfolioOwner, PortfolioPosition
 from backend.portfolio_consolidation import consolidate_portfolio_positions
 from backend.portfolio_diagnostics import (
@@ -54,6 +55,87 @@ def _institution_payload(diagnostic: InstitutionDiagnostic) -> Dict:
     }
 
 
+def _jolika_intelligence_payload(positions: Iterable[PortfolioPosition]) -> Dict:
+    intelligence = build_jolika_portfolio_intelligence(positions)
+
+    return {
+        "original_position_count": intelligence.original_position_count,
+        "consolidated_asset_count": intelligence.consolidated_asset_count,
+        "institutions": list(intelligence.institutions),
+        "currencies": list(intelligence.currencies),
+        "totals_by_currency": {
+            currency: str(value)
+            for currency, value in intelligence.totals_by_currency
+        },
+        "economic_allocation_by_currency": {
+            currency: {
+                economic_class.value: str(value)
+                for economic_class, value in allocation
+            }
+            for currency, allocation in intelligence.economic_allocation_by_currency
+        },
+        "concentration_by_currency": [
+            {
+                "currency": concentration.currency,
+                "total_market_value": str(concentration.total_market_value),
+                "asset_count": concentration.asset_count,
+                "top_positions": [
+                    {
+                        "asset_label": exposure.asset_label,
+                        "identifier": exposure.identifier,
+                        "currency": exposure.currency,
+                        "market_value": str(exposure.market_value),
+                        "weight_within_currency": (
+                            str(exposure.weight_within_currency)
+                            if exposure.weight_within_currency is not None
+                            else None
+                        ),
+                        "institution_count": exposure.institution_count,
+                        "institutions": list(exposure.institutions),
+                    }
+                    for exposure in concentration.top_positions
+                ],
+                "top_1_weight": (
+                    str(concentration.top_1_weight)
+                    if concentration.top_1_weight is not None
+                    else None
+                ),
+                "top_3_weight": (
+                    str(concentration.top_3_weight)
+                    if concentration.top_3_weight is not None
+                    else None
+                ),
+                "top_5_weight": (
+                    str(concentration.top_5_weight)
+                    if concentration.top_5_weight is not None
+                    else None
+                ),
+            }
+            for concentration in intelligence.concentration_by_currency
+        ],
+        "coverage": {
+            "original_position_count": intelligence.coverage.original_position_count,
+            "consolidated_asset_count": intelligence.coverage.consolidated_asset_count,
+            "assets_with_economic_class": intelligence.coverage.assets_with_economic_class,
+            "assets_without_economic_class": intelligence.coverage.assets_without_economic_class,
+            "assets_with_identifier": intelligence.coverage.assets_with_identifier,
+            "assets_without_identifier": intelligence.coverage.assets_without_identifier,
+        },
+        "duplicate_exposures": [
+            {
+                "asset_key": duplicate.asset_key,
+                "institutions": list(duplicate.institutions),
+                "within_same_institution": duplicate.within_same_institution,
+                "across_institutions": duplicate.across_institutions,
+                "source_position_count": duplicate.source_position_count,
+            }
+            for duplicate in intelligence.duplicate_exposures
+        ],
+        "consolidation_alerts": list(intelligence.consolidation_alerts),
+        "source_files": list(intelligence.source_files),
+    }
+
+
 def build_dashboard(
     positions: Iterable[PortfolioPosition],
     current_date: Optional[date] = None,
@@ -64,14 +146,18 @@ def build_dashboard(
     positions = tuple(positions)
     if any(position.owner is not PortfolioOwner.JOLIKA for position in positions):
         raise ValueError("JOLIKA dashboard accepts only JOLIKA portfolio positions")
+
     consolidation = consolidate_portfolio_positions(positions)
+
     institution_diagnostics = tuple(
         diagnose_institution(institution_positions)
         for _, institution_positions in sorted(
             consolidation.positions_by_institution.items()
         )
     )
+
     consolidated = diagnose_consolidated(institution_diagnostics)
+    jolika_intelligence = _jolika_intelligence_payload(positions)
 
     institution_count = len(consolidated.institutions)
     position_count = consolidated.total_positions
@@ -103,18 +189,23 @@ def build_dashboard(
         current_date=current_date,
         now=now,
     )
+
     fact_status = daily["sources"]["facts"]["status"]
     agenda_status = daily["sources"]["agenda"]["status"]
+
     overview_module = {
         "id": "overview",
         "title": "Panorama",
         "status": "unavailable" if fact_status == "unavailable" else "completed",
         "message": (
-            "Indisponível" if fact_status == "unavailable"
-            else "Concluído" if fact_status == "available"
+            "Indisponível"
+            if fact_status == "unavailable"
+            else "Concluído"
+            if fact_status == "available"
             else "Sem fatos relevantes"
         ),
     }
+
     modules = [
         {
             "id": "portfolios",
@@ -127,8 +218,12 @@ def build_dashboard(
             "id": "agenda",
             "title": "Agenda",
             "status": "unavailable" if agenda_status == "unavailable" else "completed",
-            "message": "Indisponível" if agenda_status == "unavailable" else (
-                "Concluído" if agenda_status == "available" else "Sem eventos relevantes"
+            "message": (
+                "Indisponível"
+                if agenda_status == "unavailable"
+                else "Concluído"
+                if agenda_status == "available"
+                else "Sem eventos relevantes"
             ),
         },
         {
@@ -180,6 +275,7 @@ def build_dashboard(
                 consolidated.economic_allocation_by_currency
             ),
             "warnings": list(consolidated.consolidated_warnings),
+            "intelligence": jolika_intelligence,
         },
     }
 
@@ -189,8 +285,17 @@ def load_dashboard() -> Dict:
     from backend.official_portfolios import OfficialPortfolioLoader
 
     positions = OfficialPortfolioLoader().load_positions()
-    reference = max(position.reference_date for position in positions if position.reference_date)
+    reference = max(
+        position.reference_date
+        for position in positions
+        if position.reference_date
+    )
+
     return build_dashboard(
         positions,
-        last_import_at=datetime.combine(reference, datetime.min.time(), timezone.utc),
+        last_import_at=datetime.combine(
+            reference,
+            datetime.min.time(),
+            timezone.utc,
+        ),
     )

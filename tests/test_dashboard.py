@@ -137,6 +137,26 @@ def test_empty_dashboard_response():
         "totals_by_currency": {},
         "economic_allocation_by_currency": {},
         "warnings": [],
+        "intelligence": {
+            "original_position_count": 0,
+            "consolidated_asset_count": 0,
+            "institutions": [],
+            "currencies": [],
+            "totals_by_currency": {},
+            "economic_allocation_by_currency": {},
+            "concentration_by_currency": [],
+            "coverage": {
+                "original_position_count": 0,
+                "consolidated_asset_count": 0,
+                "assets_with_economic_class": 0,
+                "assets_without_economic_class": 0,
+                "assets_with_identifier": 0,
+                "assets_without_identifier": 0,
+            },
+            "duplicate_exposures": [],
+            "consolidation_alerts": [],
+            "source_files": [],
+        },
     }
 
 
@@ -345,3 +365,49 @@ def test_dashboard_rejects_nei_before_any_processing(monkeypatch, positions):
 
     with pytest.raises(ValueError, match="accepts only JOLIKA"):
         build_dashboard(positions)
+
+
+def test_dashboard_exposes_jolika_intelligence_inside_consolidated():
+    result = build_dashboard(
+        [
+            position("UBS", "AAA", "100"),
+            position("Santander", "AAA", "50"),
+            position(
+                "UBS",
+                "BBB",
+                "50",
+                economic_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+        ],
+        current_date=date(2026, 8, 19),
+    )
+
+    intelligence = result["consolidated"]["intelligence"]
+
+    assert intelligence["consolidated_asset_count"] == 2
+    assert intelligence["institutions"] == ["Santander", "UBS"]
+    assert intelligence["currencies"] == ["USD"]
+    assert intelligence["totals_by_currency"] == {"USD": "200"}
+
+    assert intelligence["coverage"] == {
+        "original_position_count": 3,
+        "consolidated_asset_count": 2,
+        "assets_with_economic_class": 2,
+        "assets_without_economic_class": 0,
+        "assets_with_identifier": 2,
+        "assets_without_identifier": 0,
+    }
+
+    assert len(intelligence["duplicate_exposures"]) == 1
+    assert intelligence["duplicate_exposures"][0] == {
+        "asset_key": "aaa",
+        "institutions": ["Santander", "UBS"],
+        "within_same_institution": False,
+        "across_institutions": True,
+        "source_position_count": 2,
+    }
+
+    assert (
+        "Duplicate positions found across institutions"
+        in intelligence["consolidation_alerts"]
+    )
