@@ -174,6 +174,26 @@ const PortfolioExecutive = (() => {
                     ));
                 }
 
+                const diversification = intelligence.diversification;
+                if (diversification) {
+                    const assetHhi = Number(diversification.asset_hhi || 0);
+                    const classHhi = Number(diversification.class_hhi || 0);
+                    const diversificationTone =
+                        diversification.level === "Alta"
+                            ? "success"
+                            : diversification.level === "Baixa"
+                                ? "warning"
+                                : "accent";
+
+                    list.append(attentionRow(
+                        "Diversificação estrutural",
+                        diversification.driver
+                            ? `${diversification.level}. HHI por ativos: ${assetHhi.toFixed(3)} · HHI por classes: ${classHhi.toFixed(3)}.`
+                            : `${diversification.level}. A distribuição estrutural não apresenta concentração relevante pelas métricas atuais.`,
+                        diversificationTone
+                    ));
+                }
+
                 const coverage = intelligence.coverage || {};
                 const totalAssets = Number(coverage.consolidated_asset_count || 0);
                 const classifiedAssets = Number(coverage.assets_with_economic_class || 0);

@@ -143,6 +143,12 @@ def _jolika_intelligence_payload(positions: Iterable[PortfolioPosition]) -> Dict
             ),
             "driver": intelligence.materiality.driver,
         },
+        "diversification": {
+            "level": intelligence.diversification.level,
+            "asset_hhi": str(intelligence.diversification.asset_hhi),
+            "class_hhi": str(intelligence.diversification.class_hhi),
+            "driver": intelligence.diversification.driver,
+        },
         "source_files": list(intelligence.source_files),
     }
 

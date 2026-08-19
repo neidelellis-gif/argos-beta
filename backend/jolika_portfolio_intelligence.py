@@ -88,6 +88,16 @@ class JolikaStructuralMateriality:
 
 
 @dataclass(frozen=True)
+class JolikaStructuralDiversification:
+    """Structural diversification measured from asset and class concentration."""
+
+    level: str
+    asset_hhi: Decimal
+    class_hhi: Decimal
+    driver: str | None
+
+
+@dataclass(frozen=True)
 class JolikaPortfolioIntelligence:
     """Immutable structural intelligence for the consolidated JOLIKA portfolio."""
 
@@ -104,6 +114,7 @@ class JolikaPortfolioIntelligence:
     consolidation_alerts: tuple[str, ...]
     priority: JolikaPriorityAssessment
     materiality: JolikaStructuralMateriality
+    diversification: JolikaStructuralDiversification
     source_files: tuple[str, ...]
 
 
@@ -370,6 +381,67 @@ def _materiality(
     )
 
 
+def _diversification(
+    portfolio: ConsolidatedPortfolio,
+    totals_by_currency: dict[str, Decimal],
+    economic_allocation: dict[str, dict[EconomicAssetClass, Decimal]],
+) -> JolikaStructuralDiversification:
+    """Measure diversification by asset and economic class using HHI."""
+
+    asset_hhi_values: list[Decimal] = []
+    for currency, total in sorted(totals_by_currency.items()):
+        if total <= 0:
+            continue
+        weights = [
+            position.market_value / total
+            for position in portfolio.positions
+            if position.currency == currency
+        ]
+        asset_hhi_values.append(
+            sum((weight * weight for weight in weights), Decimal("0"))
+        )
+
+    class_hhi_values: list[Decimal] = []
+    for currency, allocation in sorted(economic_allocation.items()):
+        total = totals_by_currency.get(currency, Decimal("0"))
+        if total <= 0:
+            continue
+        weights = [
+            value / total
+            for value in allocation.values()
+        ]
+        class_hhi_values.append(
+            sum((weight * weight for weight in weights), Decimal("0"))
+        )
+
+    asset_hhi = max(asset_hhi_values, default=Decimal("0"))
+    class_hhi = max(class_hhi_values, default=Decimal("0"))
+    structural_hhi = max(asset_hhi, class_hhi)
+
+    if structural_hhi <= Decimal("0.25"):
+        return JolikaStructuralDiversification(
+            level="Alta",
+            asset_hhi=asset_hhi,
+            class_hhi=class_hhi,
+            driver=None,
+        )
+
+    if structural_hhi <= Decimal("0.50"):
+        return JolikaStructuralDiversification(
+            level="Média",
+            asset_hhi=asset_hhi,
+            class_hhi=class_hhi,
+            driver="asset_and_class_concentration",
+        )
+
+    return JolikaStructuralDiversification(
+        level="Baixa",
+        asset_hhi=asset_hhi,
+        class_hhi=class_hhi,
+        driver="asset_and_class_concentration",
+    )
+
+
 def build_jolika_portfolio_intelligence(
     positions: Iterable[PortfolioPosition],
     *,
@@ -442,5 +514,10 @@ def build_jolika_portfolio_intelligence(
             duplicates,
         ),
         materiality=_materiality(concentration),
+        diversification=_diversification(
+            consolidated,
+            totals,
+            allocation,
+        ),
         source_files=source_files,
     )

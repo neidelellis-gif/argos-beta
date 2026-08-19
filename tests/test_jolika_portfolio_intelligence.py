@@ -482,3 +482,99 @@ def test_materiality_is_low_for_well_distributed_positions():
     assert result.materiality.level == "Baixa"
     assert result.materiality.max_position_weight == Decimal("0.2")
     assert result.materiality.driver is None
+
+
+def test_diversification_is_high_for_evenly_distributed_assets_and_classes():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="CCC",
+                asset_name="Gamma",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.CASH,
+            ),
+            position(
+                identifier="DDD",
+                asset_name="Delta",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.GOLD_AND_COMMODITIES,
+            ),
+        ]
+    )
+
+    assert result.diversification.level == "Alta"
+    assert result.diversification.asset_hhi == Decimal("0.25")
+    assert result.diversification.class_hhi == Decimal("0.25")
+    assert result.diversification.driver is None
+
+
+def test_diversification_is_medium_for_moderately_concentrated_structure():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="40",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="30",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="CCC",
+                asset_name="Gamma",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.CASH,
+            ),
+            position(
+                identifier="DDD",
+                asset_name="Delta",
+                market_value="10",
+                economic_asset_class=EconomicAssetClass.GOLD_AND_COMMODITIES,
+            ),
+        ]
+    )
+
+    assert result.diversification.level == "Média"
+    assert result.diversification.asset_hhi == Decimal("0.30")
+    assert result.diversification.class_hhi == Decimal("0.30")
+    assert result.diversification.driver == "asset_and_class_concentration"
+
+
+def test_diversification_is_low_when_one_asset_and_class_dominate():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="80",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+        ]
+    )
+
+    assert result.diversification.level == "Baixa"
+    assert result.diversification.asset_hhi == Decimal("0.68")
+    assert result.diversification.class_hhi == Decimal("0.68")
+    assert result.diversification.driver == "asset_and_class_concentration"

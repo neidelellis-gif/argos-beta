@@ -164,6 +164,12 @@ def test_empty_dashboard_response():
                 "max_position_weight": "0",
                 "driver": None,
             },
+            "diversification": {
+                "level": "Alta",
+                "asset_hhi": "0",
+                "class_hhi": "0",
+                "driver": None,
+            },
             "source_files": [],
         },
     }
@@ -433,4 +439,11 @@ def test_dashboard_exposes_jolika_intelligence_inside_consolidated():
         "level": "Alta",
         "max_position_weight": "0.75",
         "driver": "concentration",
+    }
+
+    assert intelligence["diversification"] == {
+        "level": "Baixa",
+        "asset_hhi": "0.6250",
+        "class_hhi": "0.6250",
+        "driver": "asset_and_class_concentration",
     }
