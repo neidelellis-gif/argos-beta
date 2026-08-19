@@ -39,6 +39,59 @@ class Quote:
         data["timestamp"] = self.timestamp.isoformat()
         return data
 
+
+
+@dataclass(frozen=True)
+class PricePoint:
+    """One normalized historical closing price."""
+
+    date: str
+    close: float
+
+
+@dataclass(frozen=True)
+class PriceHistory:
+    """Normalized historical price series returned by market providers."""
+
+    ticker: str
+    currency: Optional[str]
+    provider: str
+    points: tuple[PricePoint, ...]
+    status: str
+    error: Optional[str] = None
+
+    @classmethod
+    def unavailable(
+        cls,
+        ticker: str,
+        provider: str = "none",
+        error: Optional[str] = None,
+    ) -> "PriceHistory":
+        return cls(
+            ticker=ticker.upper().strip(),
+            currency=None,
+            provider=provider,
+            points=(),
+            status="unavailable",
+            error=error,
+        )
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "ticker": self.ticker,
+            "currency": self.currency,
+            "provider": self.provider,
+            "points": [
+                {
+                    "date": point.date,
+                    "close": point.close,
+                }
+                for point in self.points
+            ],
+            "status": self.status,
+            "error": self.error,
+        }
+
 @dataclass(frozen=True)
 class MarketIntelligence:
     """Resposta consolidada da Camada de Inteligência de Mercado do ARGOS."""

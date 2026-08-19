@@ -224,19 +224,48 @@ const InstitutionAnalysis = (() => {
     }
 
     function buildProjection(institution, profile, context) {
-        if (!context.macroAvailable || !context.assetAvailable) {
+        const missing = [];
+
+        if (!context.macroAvailable) {
+            missing.push("cenário macroeconômico atual");
+        }
+
+        if (!context.assetAvailable) {
+            missing.push("dados atuais dos ativos");
+        }
+
+        const quantitative = institution?.intelligence?.quantitative_analysis;
+        const hasQuantitativeScenarios = Boolean(
+            quantitative
+            && quantitative.scenarios
+            && quantitative.risk_metrics
+        );
+
+        if (missing.length || !hasQuantitativeScenarios) {
+            const missingText = [
+                ...missing,
+                ...(!hasQuantitativeScenarios
+                    ? ["modelagem quantitativa da carteira"]
+                    : [])
+            ];
+
             return {
                 title: "Perspectiva para 12 meses",
-                description: "Projeção não publicada. Fato: faltam dados macroeconômicos ou evidências atuais dos ativos. Inferência: sem essas bases, uma faixa de 12 meses seria frágil. Confiança: baixa. Evidência: validação de dados do diagnóstico."
+                description:
+                    `Fato: ainda faltam ${missingText.join(", ")} para uma projeção numérica robusta. ` +
+                    "Inferência: o ARGOS não publica uma faixa de retorno enquanto essas bases não estiverem disponíveis. " +
+                    "Confiança: alta sobre a limitação dos dados. " +
+                    "Evidência: validação da carteira, dos ativos, do cenário macroeconômico e das métricas quantitativas."
             };
         }
-        const conservative = ["VERY_LOW", "LOW"].includes(profile.risk_level) || profile.capital_preservation_level === "CRITICAL";
-        const low = conservative ? "0% a 4%" : "-3% a 3%";
-        const base = conservative ? "5% a 9%" : "6% a 12%";
-        const high = conservative ? "10% a 13%" : "13% a 18%";
+
         return {
             title: "Perspectiva para 12 meses",
-            description: `Fato: há carteira, perfil, cenário macro e dados dos ativos suficientes para publicar faixa. Projeção: cenário negativo ${low} (confiança média), cenário-base ${base} (confiança média) e cenário positivo ${high} (confiança baixa). Premissas: carteira importada, cenário macro disponível, fatos recentes e coerência com ${profileDescription(profile)}. Não é promessa de retorno. Inferência: a faixa expressa possibilidade, não garantia. Confiança: média. Evidência: indicadores quantitativos e de risco avaliados internamente.`
+            description:
+                "Fato: a modelagem quantitativa necessária está disponível. " +
+                "Inferência: os cenários serão apresentados a partir dos resultados calculados pelo motor quantitativo, e não por faixas predefinidas. " +
+                "Confiança: condicionada à qualidade dos dados e às premissas dos cenários. " +
+                "Evidência: carteira importada, dados dos ativos, cenário macroeconômico e métricas quantitativas do ARGOS."
         };
     }
 
@@ -261,23 +290,172 @@ const InstitutionAnalysis = (() => {
             return { situation: "Perfil pendente", summary: `Perfil Estratégico obrigatório. A carteira de ${institution.name} tem dados importados, mas o diagnóstico fica bloqueado até o perfil estar preenchido e dentro do prazo de revisão anual.`, attention: [item], risks: [item], theses: [item], changes: [item], projection: [item], action: [{ title: "Preciso agir agora?", description: "Vale acompanhar. A próxima etapa clínica é atualizar o Perfil Estratégico antes de avaliar ajustes de carteira." }], nextReview: [item] };
         }
 
-        const conservative = ["VERY_LOW", "LOW"].includes(profile.risk_level) || profile.capital_preservation_level === "CRITICAL";
-        const liquidityMismatch = profile.liquidity_needs === "HIGH" && positions <= 1;
-        const currencyMismatch = conservative && currencies.length > 1;
-        const materialRisks = [];
-        if (warnings.length) materialRisks.push("qualidade da importação requer conferência");
-        if (positions === 1) materialRisks.push("concentração elevada em uma única posição");
-        if (positions > 30) materialRisks.push("fragmentação excessiva, com acompanhamento potencialmente oneroso");
-        if (currencyMismatch) materialRisks.push("exposição a mais de uma moeda para perfil conservador");
-        if (!macroAvailable) materialRisks.push("cenário macroeconômico ausente");
-        if (!assetAvailable) materialRisks.push("dados atuais dos ativos ausentes");
-        const coherent = !warnings.length && positions > 1 && !liquidityMismatch && !currencyMismatch;
-        const actionLevel = materialRisks.length >= 2 ? "A carteira merece revisão mais aprofundada." : materialRisks.length === 1 ? "Vale acompanhar." : "Não há necessidade de ação imediata.";
-        const situation = materialRisks.length >= 2 ? "Atenção" : materialRisks.length === 1 ? "Em observação" : "Saudável";
+        const intelligence = institution.intelligence || {};
+        const priority = intelligence.priority || {};
+        const materiality = intelligence.materiality || {};
+        const diversification = intelligence.diversification || {};
+        const coverage = intelligence.coverage || {};
+        const concentrations = Array.isArray(intelligence.concentration_by_currency)
+            ? intelligence.concentration_by_currency
+            : [];
+        const duplicates = Array.isArray(intelligence.duplicate_exposures)
+            ? intelligence.duplicate_exposures
+            : [];
 
-        const health = { title: "Saúde da carteira", description: `Conclusão executiva: ${institution.name} está ${situation.toLowerCase()}. Fato: ${positions} investimentos importados${currencies.length ? ` em ${currencies.join(" e ")}` : ""}. Inferência: ${coherent ? "a estrutura parece equilibrada para o perfil informado" : "há pontos objetivos que reduzem a convicção do diagnóstico"}. Confiança: ${macroAvailable && assetAvailable ? "média" : "baixa"}. Evidência: carteira importada, fatos das últimas 24 horas, newsletters disponíveis e indicadores internos.` };
-        const profileItem = { title: "Coerência com o perfil", description: `${coherent ? "Compatível" : "Parcialmente compatível"} com objetivo, tolerância a oscilações, horizonte, liquidez e representatividade patrimonial declarados no ${profileDescription(profile)}. Fato: perfil válido até ${profile.review_date}. Inferência: ${coherent ? "não há desalinhamento material visível" : "os pontos de atenção exigem leitura clínica antes de nova conclusão"}. Confiança: média. Evidência: Perfil Estratégico e carteira importada.` };
-        const risks = materialRisks.length ? materialRisks.slice(0, 4).map((risk) => ({ title: "Ponto que merece atenção", description: `Fato: ${risk}. Inferência: pode afetar a adequação da carteira ao perfil se persistir. Confiança: média. Evidência: diagnóstico interno e dados disponíveis.` })) : [{ title: "Pontos que merecem atenção", description: "Fato: nenhum risco material dominante foi identificado. Inferência: a carteira não exige intervenção imediata. Confiança: média. Evidência: indicadores internos e fatos recentes disponíveis." }];
+        const totalAssets = Number(
+            coverage.consolidated_asset_count || positions || 0
+        );
+        const classifiedAssets = Number(
+            coverage.assets_with_economic_class || 0
+        );
+        const coverageRatio = totalAssets
+            ? classifiedAssets / totalAssets
+            : 0;
+
+        const strongest = concentrations.length
+            ? concentrations.reduce((current, item) => (
+                Number(item?.top_1_weight || 0) >
+                Number(current?.top_1_weight || 0)
+                    ? item
+                    : current
+            ), concentrations[0])
+            : null;
+
+        const strongestWeight = Number(
+            strongest?.top_1_weight ||
+            materiality.max_position_weight ||
+            0
+        );
+
+        const duplicateCount = duplicates.filter(
+            (item) => item.within_same_institution
+        ).length;
+
+        const conservative =
+            ["VERY_LOW", "LOW"].includes(profile.risk_level)
+            || profile.capital_preservation_level === "CRITICAL";
+
+        const materialRisks = [];
+
+        if (warnings.length) {
+            materialRisks.push(
+                "há pontos na qualidade dos dados que precisam ser conferidos"
+            );
+        }
+
+        if (strongestWeight >= 0.35) {
+            materialRisks.push(
+                `o maior ativo representa ${(strongestWeight * 100).toFixed(1)}% da moeda mais concentrada`
+            );
+        } else if (strongestWeight > 0.20) {
+            materialRisks.push(
+                `o maior ativo representa ${(strongestWeight * 100).toFixed(1)}% da moeda mais concentrada, um peso relevante para acompanhamento`
+            );
+        }
+
+        if (diversification.level === "Baixa") {
+            materialRisks.push(
+                "a carteira está pouco distribuída entre ativos ou classes"
+            );
+        } else if (diversification.level === "Média") {
+            materialRisks.push(
+                "a distribuição entre ativos e classes ainda apresenta alguma concentração"
+            );
+        }
+
+        if (totalAssets && coverageRatio < 0.95) {
+            materialRisks.push(
+                `${(coverageRatio * 100).toFixed(1)}% dos ativos têm classificação econômica definida, o que limita parte da análise`
+            );
+        }
+
+        if (duplicateCount) {
+            materialRisks.push(
+                `${duplicateCount} ${duplicateCount === 1 ? "ativo aparece" : "ativos aparecem"} mais de uma vez dentro da instituição`
+            );
+        }
+
+        if (conservative && currencies.length > 1) {
+            materialRisks.push(
+                `a carteira tem exposição em ${currencies.length} moedas; para este perfil, o efeito cambial merece ser acompanhado`
+            );
+        }
+
+        if (!macroAvailable) {
+            materialRisks.push(
+                "o cenário macroeconômico atual ainda não está disponível"
+            );
+        }
+
+        if (!assetAvailable) {
+            materialRisks.push(
+                "faltam dados atuais dos ativos para aprofundar a leitura"
+            );
+        }
+
+        const structuralLevel = priority.level || "Baixa";
+        const situation =
+            structuralLevel === "Alta"
+                ? "Atenção"
+                : structuralLevel === "Média"
+                    ? "Em observação"
+                    : "Sem alerta estrutural";
+
+        const coherent =
+            structuralLevel !== "Alta"
+            && !warnings.length
+            && !(conservative && currencies.length > 1);
+
+        const actionLevel =
+            structuralLevel === "Alta"
+                ? "Há pontos relevantes que justificam uma análise mais aprofundada."
+                : structuralLevel === "Média"
+                    ? "Há pontos que merecem acompanhamento mais próximo."
+                    : "Não há alerta estrutural dominante nos dados atuais.";
+
+        const reading = intelligence.portfolio_reading
+            || "A carteira foi importada, mas ainda não há uma leitura estrutural completa.";
+
+        const health = {
+            title: "Como está a carteira",
+            description:
+                `Leitura: ${reading} ` +
+                `Fato: ${positions} investimentos importados` +
+                `${currencies.length ? ` em ${currencies.join(" e ")}` : ""}. ` +
+                `Inferência: ${actionLevel} ` +
+                `Confiança: ${macroAvailable && assetAvailable ? "média" : "baixa"}. ` +
+                "Evidência: carteira importada e métricas estruturais calculadas pelo ARGOS."
+        };
+
+        const profileItem = {
+            title: "Como isso conversa com o seu perfil",
+            description:
+                `Fato: seu perfil está válido até ${profile.review_date} e considera ${profileDescription(profile)}. ` +
+                `Inferência: ${coherent
+                    ? "não há desalinhamento estrutural evidente nos dados disponíveis"
+                    : "existem pontos que precisam ser considerados junto ao seu perfil antes de uma conclusão mais forte"}. ` +
+                "Confiança: média. " +
+                "Evidência: Perfil Estratégico e métricas da carteira importada. " +
+                "Esta leitura avalia coerência e risco; não representa indicação de compra ou venda."
+        };
+
+        const risks = materialRisks.length
+            ? materialRisks.slice(0, 5).map((risk) => ({
+                title: "Ponto que merece atenção",
+                description:
+                    `Fato: ${risk}. ` +
+                    "Inferência: esse ponto pode alterar o risco ou a leitura da carteira e merece entrar no aprofundamento. " +
+                    "Confiança: média. " +
+                    "Evidência: carteira importada e métricas estruturais calculadas pelo ARGOS."
+            }))
+            : [{
+                title: "Pontos que merecem atenção",
+                description:
+                    "Fato: nenhum alerta estrutural dominante apareceu nas métricas atuais. " +
+                    "Inferência: isso reduz a urgência estrutural, mas não elimina riscos de mercado, dos ativos ou do cenário econômico. " +
+                    "Confiança: média. " +
+                    "Evidência: carteira importada e métricas estruturais calculadas pelo ARGOS."
+            }];
         const theses = assetAvailable && (analyses.length || facts.length) ? [...analyses, ...facts].slice(0, 3).map((item) => ({ title: item.title || "Tese em observação", description: `Fato: ${item.summary || item.reason || item.context || "evento acompanhado"}. Inferência: tese em observação, sem ordem de execução. Confiança: ${item.confidence || "média"}. ${sourceLabel(item)}` })) : [{ title: assetAvailable ? "Teses sem mudança material" : "Teses sem evidência suficiente", description: `${assetAvailable ? "Fato: não surgiu tese fortalecida ou enfraquecida material." : "Fato: não há dados atuais suficientes dos ativos."} Inferência: manter em observação. Confiança: ${assetAvailable ? "média" : "baixa"}. Evidência: análise individual dos ativos em segundo plano.` }];
         const projection = buildProjection(institution, profile, { macroAvailable, assetAvailable });
         return { situation, summary: `${health.description} ${actionLevel}`, attention: [health, profileItem, projection, { title: "Preciso agir agora?", description: `Fato: ${actionLevel} Inferência: sugestões, se houver, devem ser neutras e vinculadas à coerência com o perfil; não há ordem de execução nem indicação de instrumento. Confiança: média. Evidência: diagnóstico executivo atual.` }, { title: "O que está faltando?", description: `${!macroAvailable ? "Fato: falta cenário macroeconômico atual. " : ""}${!assetAvailable ? "Fato: Faltam dados atuais dos ativos. " : ""}${macroAvailable && assetAvailable ? "Fato: não há lacuna crítica evidente. Inferência: a próxima melhoria é refinar realidade de vida, liquidez e representatividade patrimonial do cliente." : "Inferência: sem essas bases, a conclusão permanece limitada."} Confiança: média. Evidência: Perfil Estratégico, carteira importada e validação de dados.` }], risks, theses, changes: [{ title: "Próxima revisão", description: `${firstRelevantReason(institution)} Próxima revisão: mudanças macro, fatos relevantes, alteração de perfil, liquidez ou concentração podem alterar a conclusão.` }], projection: [projection], action: [{ title: "Preciso agir agora?", description: actionLevel }], nextReview: [{ title: "Próxima revisão", description: "Reavaliar quando houver novos fatos das últimas 24 horas, mudança de cenário macro, alteração de perfil, vencimento anual do perfil ou inconsistência de importação." }] };

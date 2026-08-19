@@ -445,8 +445,13 @@ def _diversification(
 
 def _portfolio_reading(
     diversification: JolikaStructuralDiversification,
+    *,
+    asset_count: int,
 ) -> str:
     """Explain the portfolio structure in plain, non-technical language."""
+    if asset_count == 0:
+        return "Ainda não há carteira carregada para fazer uma leitura."
+
     if diversification.level == "Baixa":
         return (
             "A carteira está concentrada em poucos ativos e isso merece mais atenção agora. "
@@ -542,6 +547,9 @@ def build_jolika_portfolio_intelligence(
         ),
         materiality=_materiality(concentration),
         diversification=diversification,
-        portfolio_reading=_portfolio_reading(diversification),
+        portfolio_reading=_portfolio_reading(
+            diversification,
+            asset_count=len(consolidated.positions),
+        ),
         source_files=source_files,
     )

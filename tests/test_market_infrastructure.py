@@ -61,3 +61,63 @@ class MarketInfrastructureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DummyHistoryProvider(DummyProvider):
+    def get_history(self, ticker: str, *, days: int):
+        from backend.market import PriceHistory, PricePoint
+
+        return PriceHistory(
+            ticker=ticker,
+            currency="USD",
+            provider=self.name,
+            points=(
+                PricePoint(date="2026-08-17", close=100.0),
+                PricePoint(date="2026-08-18", close=102.0),
+                PricePoint(date="2026-08-19", close=101.0),
+            ),
+            status="ok",
+        )
+
+
+class FailingHistoryProvider(DummyProvider):
+    def get_history(self, ticker: str, *, days: int):
+        raise RuntimeError("history provider offline")
+
+
+def test_returns_normalized_price_history():
+    connector = MarketConnector(
+        providers=[DummyHistoryProvider()]
+    )
+
+    history = connector.get_history(" nvda ", days=3)
+
+    assert history.ticker == "NVDA"
+    assert history.status == "ok"
+    assert history.currency == "USD"
+    assert [point.close for point in history.points] == [
+        100.0,
+        102.0,
+        101.0,
+    ]
+
+
+def test_history_provider_failure_does_not_break_connector():
+    connector = MarketConnector(
+        providers=[FailingHistoryProvider()]
+    )
+
+    history = connector.get_history("NVDA", days=30)
+
+    assert history.status == "unavailable"
+    assert history.points == ()
+    assert "history provider offline" in (history.error or "")
+
+
+def test_history_without_provider_returns_unavailable():
+    connector = MarketConnector()
+
+    history = connector.get_history("NVDA", days=30)
+
+    assert history.status == "unavailable"
+    assert history.points == ()

@@ -40,7 +40,12 @@ def _economic_allocation(
     }
 
 
-def _institution_payload(diagnostic: InstitutionDiagnostic) -> Dict:
+def _institution_payload(
+    diagnostic: InstitutionDiagnostic,
+    positions: Iterable[PortfolioPosition],
+) -> Dict:
+    institution_positions = tuple(positions)
+
     return {
         "name": diagnostic.institution,
         "position_count": diagnostic.position_count,
@@ -52,6 +57,9 @@ def _institution_payload(diagnostic: InstitutionDiagnostic) -> Dict:
             diagnostic.economic_allocation_by_currency
         ),
         "warnings": list(diagnostic.data_quality_warnings),
+        "intelligence": _jolika_intelligence_payload(
+            institution_positions
+        ),
     }
 
 
@@ -278,7 +286,13 @@ def build_dashboard(
         "modules": modules,
         "important_facts": [item["message"] for item in daily_situation],
         "institutions": [
-            _institution_payload(diagnostic)
+            _institution_payload(
+                diagnostic,
+                consolidation.positions_by_institution.get(
+                    diagnostic.institution,
+                    (),
+                ),
+            )
             for diagnostic in institution_diagnostics
         ],
         "consolidated": {

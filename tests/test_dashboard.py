@@ -170,6 +170,9 @@ def test_empty_dashboard_response():
                 "class_hhi": "0",
                 "driver": None,
             },
+            "portfolio_reading": (
+                "Ainda não há carteira carregada para fazer uma leitura."
+            ),
             "source_files": [],
         },
     }
@@ -192,6 +195,14 @@ def test_dashboard_diagnoses_multiple_institutions():
         "UBS",
     ]
     assert result["institutions"][1]["currencies"] == ["EUR", "USD"]
+
+    assert result["institutions"][0]["intelligence"]["consolidated_asset_count"] == 1
+    assert result["institutions"][0]["intelligence"]["priority"]["level"] == "Alta"
+
+    assert result["institutions"][1]["intelligence"]["consolidated_asset_count"] == 2
+    assert result["institutions"][1]["intelligence"]["concentration_by_currency"][0]["currency"] == "EUR"
+    assert result["institutions"][1]["intelligence"]["concentration_by_currency"][1]["currency"] == "USD"
+
     assert result["consolidated"]["institution_count"] == 2
     assert result["consolidated"]["position_count"] == 3
     assert result["consolidated"]["unique_asset_count"] == 2
