@@ -149,6 +149,7 @@ def _jolika_intelligence_payload(positions: Iterable[PortfolioPosition]) -> Dict
             "class_hhi": str(intelligence.diversification.class_hhi),
             "driver": intelligence.diversification.driver,
         },
+        "portfolio_reading": intelligence.portfolio_reading,
         "source_files": list(intelligence.source_files),
     }
 

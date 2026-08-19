@@ -447,3 +447,8 @@ def test_dashboard_exposes_jolika_intelligence_inside_consolidated():
         "class_hhi": "0.6250",
         "driver": "asset_and_class_concentration",
     }
+
+    assert intelligence["portfolio_reading"] == (
+        "A carteira está concentrada em poucos ativos e isso merece mais atenção agora. "
+        "A distribuição entre classes também está mais limitada."
+    )

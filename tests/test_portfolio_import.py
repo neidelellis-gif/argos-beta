@@ -623,3 +623,95 @@ def test_santander_real_structure_inspect_and_import_match(server, tmp_path):
     assert fixed_income["identifier"] == "US0000000001"
     assert fixed_income["asset_name"].startswith("Issuer A")
     assert fixed_income["market_value"] == "520000.0"
+
+
+def test_pasted_portfolio_builds_positions_and_brief_reading(server):
+    status, payload = post_json(
+        server,
+        "/api/portfolios/paste",
+        {
+            "owner": "JOLIKA",
+            "text": (
+                "instituição\tativo\tidentificador\tvalor\tmoeda\tclasse\n"
+                "UBS\tApple\tAAPL\t80000\tUSD\tAções\n"
+                "UBS\tTreasury Bond\tUS123\t20000\tUSD\tRenda Fixa\n"
+            ),
+        },
+    )
+
+    assert status == 200
+    assert payload["ok"] is True
+
+    assert [
+        (
+            item["institution"],
+            item["asset_name"],
+            item["identifier"],
+            item["market_value"],
+            item["currency"],
+        )
+        for item in payload["positions"]
+    ] == [
+        ("UBS", "Apple", "AAPL", "80000", "USD"),
+        ("UBS", "Treasury Bond", "US123", "20000", "USD"),
+    ]
+
+    intelligence = payload["dashboard"]["consolidated"]["intelligence"]
+
+    assert intelligence["portfolio_reading"] == (
+        "A carteira está concentrada em poucos ativos e isso merece mais atenção agora. "
+        "A distribuição entre classes também está mais limitada."
+    )
+
+
+def test_pasted_portfolio_rejects_empty_text(server):
+    status, payload = post_json(
+        server,
+        "/api/portfolios/paste",
+        {
+            "owner": "JOLIKA",
+            "text": "   ",
+        },
+    )
+
+    assert status == 400
+    assert payload["ok"] is False
+    assert "Cole uma carteira" in payload["error"]
+
+
+def test_pasted_portfolio_rejects_missing_required_columns(server):
+    status, payload = post_json(
+        server,
+        "/api/portfolios/paste",
+        {
+            "owner": "JOLIKA",
+            "text": (
+                "ativo\tidentificador\tvalor\n"
+                "Apple\tAAPL\t80000\n"
+            ),
+        },
+    )
+
+    assert status == 400
+    assert payload["ok"] is False
+    assert "colunas" in payload["error"]
+    assert payload["positions"] == []
+
+
+def test_pasted_portfolio_rejects_invalid_market_value(server):
+    status, payload = post_json(
+        server,
+        "/api/portfolios/paste",
+        {
+            "owner": "JOLIKA",
+            "text": (
+                "instituição\tativo\tidentificador\tvalor\tmoeda\tclasse\n"
+                "UBS\tApple\tAAPL\tvalor inválido\tUSD\tAções\n"
+            ),
+        },
+    )
+
+    assert status == 400
+    assert payload["ok"] is False
+    assert "valor da posição" in payload["error"]
+    assert payload["positions"] == []

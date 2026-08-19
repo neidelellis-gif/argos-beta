@@ -578,3 +578,98 @@ def test_diversification_is_low_when_one_asset_and_class_dominate():
     assert result.diversification.asset_hhi == Decimal("0.68")
     assert result.diversification.class_hhi == Decimal("0.68")
     assert result.diversification.driver == "asset_and_class_concentration"
+
+
+def test_portfolio_reading_explains_concentrated_structure_in_plain_language():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="80",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+        ]
+    )
+
+    assert result.portfolio_reading == (
+        "A carteira está concentrada em poucos ativos e isso merece mais atenção agora. "
+        "A distribuição entre classes também está mais limitada."
+    )
+
+
+def test_portfolio_reading_explains_intermediate_structure_in_plain_language():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="40",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="30",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="CCC",
+                asset_name="Gamma",
+                market_value="20",
+                economic_asset_class=EconomicAssetClass.CASH,
+            ),
+            position(
+                identifier="DDD",
+                asset_name="Delta",
+                market_value="10",
+                economic_asset_class=EconomicAssetClass.GOLD_AND_COMMODITIES,
+            ),
+        ]
+    )
+
+    assert result.portfolio_reading == (
+        "A carteira tem uma distribuição razoável, mas ainda há alguns pontos de concentração "
+        "que merecem acompanhamento."
+    )
+
+
+def test_portfolio_reading_explains_well_distributed_structure_in_plain_language():
+    result = build_jolika_portfolio_intelligence(
+        [
+            position(
+                identifier="AAA",
+                asset_name="Alpha",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.EQUITIES,
+            ),
+            position(
+                identifier="BBB",
+                asset_name="Beta",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.FIXED_INCOME,
+            ),
+            position(
+                identifier="CCC",
+                asset_name="Gamma",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.CASH,
+            ),
+            position(
+                identifier="DDD",
+                asset_name="Delta",
+                market_value="25",
+                economic_asset_class=EconomicAssetClass.GOLD_AND_COMMODITIES,
+            ),
+        ]
+    )
+
+    assert result.portfolio_reading == (
+        "A carteira está bem distribuída e, no momento, não há nenhum ponto estrutural dominante."
+    )

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional, TypedDict, cast
 
-from backend.models import PortfolioPosition
+from backend.models import PortfolioOwner, PortfolioPosition
 
 if __package__ in {None, ""}:
     project_root = Path(__file__).resolve().parent.parent
@@ -25,6 +25,9 @@ from backend.dashboard import build_dashboard
 from backend.canonical_portfolio import serialize_portfolio_positions
 from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
 from backend.portfolio_import import import_portfolios
+from backend.pasted_portfolio import parse_pasted_portfolio
+from backend.portfolio_classification import classify_jolika_positions
+from backend.asset_resolution import resolve_jolika_positions
 from backend.market_agenda import MarketAgendaEvent, import_market_agenda
 from backend.market_agenda_serializer import serialize_market_agenda
 from backend.decision_context import DecisionProfile, import_decision_profile, validate_decision_profile
@@ -322,6 +325,9 @@ class ArgosRequestHandler(
         if self.path == "/api/portfolios/import":
             self._import_portfolios()
             return
+        if self.path == "/api/portfolios/paste":
+            self._paste_portfolio()
+            return
 
         handlers = {
             # Compatibility only: delegates to the official import/dashboard flow.
@@ -507,6 +513,101 @@ class ArgosRequestHandler(
             content = cast(bytes, part.get_payload(decode=True))
             files.append((file_name, content))
         return files
+
+    def _paste_portfolio(self):
+        try:
+            content_length = self._content_length()
+            if content_length <= 0:
+                raise ValueError("Cole uma carteira antes de continuar.")
+
+            payload = json.loads(
+                self.rfile.read(content_length).decode("utf-8")
+            )
+
+            if not isinstance(payload, dict):
+                raise ValueError("Dados da carteira inválidos.")
+
+            text = payload.get("text")
+            owner_value = payload.get("owner")
+
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError("Cole uma carteira antes de continuar.")
+
+            try:
+                owner = PortfolioOwner(owner_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Titular da carteira inválido.") from exc
+
+            positions = parse_pasted_portfolio(
+                text,
+                owner=owner,
+            )
+
+            if owner is PortfolioOwner.JOLIKA:
+                positions = resolve_jolika_positions(
+                    classify_jolika_positions(positions)
+                )
+
+            imported_institutions = {
+                position.institution for position in positions
+            }
+
+            session_id = self._session_id() or secrets.token_urlsafe(24)
+            imported_at = datetime.now(timezone.utc)
+
+            current_session = SESSION_PORTFOLIOS.get(session_id)
+            current_positions = (
+                current_session["positions"]
+                if current_session is not None
+                else ()
+            )
+
+            preserved_positions = tuple(
+                position
+                for position in current_positions
+                if position.institution not in imported_institutions
+            )
+
+            session_positions = preserved_positions + tuple(positions)
+
+            SESSION_PORTFOLIOS[session_id] = {
+                "positions": session_positions,
+                "last_import_at": imported_at,
+            }
+
+            dashboard = build_dashboard(
+                session_positions,
+                last_import_at=imported_at,
+            )
+
+            self._send_json(
+                {
+                    "ok": True,
+                    "source": "pasted",
+                    "dashboard": dashboard,
+                    "positions": serialize_portfolio_positions(
+                        session_positions
+                    ),
+                },
+                status=200,
+                extra_headers={
+                    "Set-Cookie": (
+                        f"{SESSION_COOKIE}={session_id}; Path=/; "
+                        "HttpOnly; SameSite=Strict"
+                    )
+                },
+            )
+
+        except Exception as exc:
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": str(exc),
+                    "dashboard": build_dashboard(()),
+                    "positions": [],
+                },
+                status=400,
+            )
 
     def _import_portfolios(self):
         paths = []

@@ -115,6 +115,7 @@ class JolikaPortfolioIntelligence:
     priority: JolikaPriorityAssessment
     materiality: JolikaStructuralMateriality
     diversification: JolikaStructuralDiversification
+    portfolio_reading: str
     source_files: tuple[str, ...]
 
 
@@ -442,6 +443,27 @@ def _diversification(
     )
 
 
+def _portfolio_reading(
+    diversification: JolikaStructuralDiversification,
+) -> str:
+    """Explain the portfolio structure in plain, non-technical language."""
+    if diversification.level == "Baixa":
+        return (
+            "A carteira está concentrada em poucos ativos e isso merece mais atenção agora. "
+            "A distribuição entre classes também está mais limitada."
+        )
+
+    if diversification.level == "Média":
+        return (
+            "A carteira tem uma distribuição razoável, mas ainda há alguns pontos de concentração "
+            "que merecem acompanhamento."
+        )
+
+    return (
+        "A carteira está bem distribuída e, no momento, não há nenhum ponto estrutural dominante."
+    )
+
+
 def build_jolika_portfolio_intelligence(
     positions: Iterable[PortfolioPosition],
     *,
@@ -471,6 +493,11 @@ def build_jolika_portfolio_intelligence(
     )
     coverage = _coverage(consolidated)
     duplicates = _duplicates(consolidated)
+    diversification = _diversification(
+        consolidated,
+        totals,
+        allocation,
+    )
 
     institutions = tuple(
         sorted(
@@ -514,10 +541,7 @@ def build_jolika_portfolio_intelligence(
             duplicates,
         ),
         materiality=_materiality(concentration),
-        diversification=_diversification(
-            consolidated,
-            totals,
-            allocation,
-        ),
+        diversification=diversification,
+        portfolio_reading=_portfolio_reading(diversification),
         source_files=source_files,
     )

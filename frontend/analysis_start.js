@@ -132,7 +132,58 @@ const AnalysisStart = (() => {
         paste.addEventListener("input", () => {
             $("usePastedPortfolio").disabled = paste.value.trim().length < 10;
         });
-        $("usePastedPortfolio").addEventListener("click", continueToOwners);
+
+        $("usePastedPortfolio").addEventListener("click", async () => {
+            const button = $("usePastedPortfolio");
+            button.disabled = true;
+            button.textContent = "Lendo carteira...";
+
+            try {
+                const response = await fetch("/api/portfolios/paste", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        owner: "JOLIKA",
+                        text: paste.value
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.ok) {
+                    throw new Error(
+                        result.error || "Não foi possível ler a carteira."
+                    );
+                }
+
+                dashboard = result.dashboard;
+
+                const reading =
+                    result.dashboard?.consolidated?.intelligence?.portfolio_reading
+                    || "A carteira foi lida, mas ainda não há informação suficiente para uma leitura resumida.";
+
+                $("portfolioReadingText").textContent = reading;
+                $("portfolioReadingStage").hidden = false;
+                $("ownerStage").hidden = true;
+                $("institutionStage").hidden = true;
+
+                $("portfolioReadingStage").scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+            } catch (error) {
+                window.alert(
+                    error instanceof Error
+                        ? error.message
+                        : "Não foi possível ler a carteira."
+                );
+            } finally {
+                button.disabled = paste.value.trim().length < 10;
+                button.textContent = "Continuar";
+            }
+        });
 
         const files = $("analysisFiles");
         files.addEventListener("change", () => {
@@ -142,7 +193,74 @@ const AnalysisStart = (() => {
                 : "Nenhum arquivo selecionado.";
             $("useUploadedPortfolio").disabled = names.length === 0;
         });
-        $("useUploadedPortfolio").addEventListener("click", continueToOwners);
+        $("useUploadedPortfolio").addEventListener("click", async () => {
+            const button = $("useUploadedPortfolio");
+            const selectedFiles = Array.from(files.files || []);
+
+            if (!selectedFiles.length) {
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "Lendo carteira...";
+
+            try {
+                const formData = new FormData();
+                selectedFiles.forEach((file) => {
+                    formData.append("files", file, file.name);
+                });
+
+                const response = await fetch("/api/portfolios/import", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.ok) {
+                    throw new Error(
+                        result.error || "Não foi possível ler a carteira."
+                    );
+                }
+
+                dashboard = result.dashboard;
+
+                const reading =
+                    result.dashboard?.consolidated?.intelligence?.portfolio_reading
+                    || "A carteira foi lida, mas ainda não há informação suficiente para uma leitura resumida.";
+
+                $("portfolioReadingText").textContent = reading;
+                $("portfolioReadingStage").hidden = false;
+                $("ownerStage").hidden = true;
+                $("institutionStage").hidden = true;
+
+                $("portfolioReadingStage").scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+            } catch (error) {
+                window.alert(
+                    error instanceof Error
+                        ? error.message
+                        : "Não foi possível ler a carteira."
+                );
+            } finally {
+                button.disabled = selectedFiles.length === 0;
+                button.textContent = "Continuar";
+            }
+        });
+
+        $("deepenPortfolioAnalysis").addEventListener("click", () => {
+            $("portfolioReadingStage").hidden = true;
+            continueToOwners();
+        });
+
+        $("finishBriefReading").addEventListener("click", () => {
+            $("portfolioReadingStage").hidden = true;
+            $("ownerStage").hidden = true;
+            $("institutionStage").hidden = true;
+        });
+
         $("startIndividualAnalysis").addEventListener("click", openFirstInstitution);
     }
 

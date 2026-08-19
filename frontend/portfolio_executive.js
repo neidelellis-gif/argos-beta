@@ -154,43 +154,15 @@ const PortfolioExecutive = (() => {
                     ));
                 }
 
-                const materiality = intelligence.materiality;
-                if (materiality) {
-                    const materialityPercent =
-                        Number(materiality.max_position_weight || 0) * 100;
-                    const materialityTone =
-                        materiality.level === "Alta"
+                if (intelligence.portfolio_reading) {
+                    list.append(attentionRow(
+                        "Leitura da carteira",
+                        intelligence.portfolio_reading,
+                        intelligence.priority?.level === "Alta"
                             ? "warning"
-                            : materiality.level === "Baixa"
+                            : intelligence.priority?.level === "Baixa"
                                 ? "success"
-                                : "accent";
-
-                    list.append(attentionRow(
-                        "Materialidade estrutural",
-                        materiality.driver === "concentration"
-                            ? `${materiality.level}. A maior exposição representa ${materialityPercent.toFixed(1)}% da moeda analisada.`
-                            : `${materiality.level}. Nenhum fator estrutural dominante foi identificado.`,
-                        materialityTone
-                    ));
-                }
-
-                const diversification = intelligence.diversification;
-                if (diversification) {
-                    const assetHhi = Number(diversification.asset_hhi || 0);
-                    const classHhi = Number(diversification.class_hhi || 0);
-                    const diversificationTone =
-                        diversification.level === "Alta"
-                            ? "success"
-                            : diversification.level === "Baixa"
-                                ? "warning"
-                                : "accent";
-
-                    list.append(attentionRow(
-                        "Diversificação estrutural",
-                        diversification.driver
-                            ? `${diversification.level}. HHI por ativos: ${assetHhi.toFixed(3)} · HHI por classes: ${classHhi.toFixed(3)}.`
-                            : `${diversification.level}. A distribuição estrutural não apresenta concentração relevante pelas métricas atuais.`,
-                        diversificationTone
+                                : "accent"
                     ));
                 }
 
