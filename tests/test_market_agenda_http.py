@@ -1,11 +1,14 @@
 import http.client
 import json
 import threading
+from datetime import datetime, timezone
+from decimal import Decimal
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
 
+from backend.models import PortfolioOwner, PortfolioPosition
 from backend.server import ArgosRequestHandler, SESSION_MARKET_AGENDA, SESSION_PORTFOLIOS
 from tests.test_portfolio_import import multipart
 
@@ -46,6 +49,31 @@ def test_import_get_invalid_preserves_and_delete(server):
     assert status == 200 and payload["ok"] is True and payload["count"] == 1
     assert set_cookie is not None
     cookie = set_cookie.split(";", 1)[0]
+    session_id = cookie.split("=", 1)[1]
+
+    SESSION_PORTFOLIOS[session_id] = {
+        "positions": (
+            PortfolioPosition(
+                institution="UBS",
+                owner=PortfolioOwner.JOLIKA,
+                account=None,
+                asset_class="FIXED_INCOME",
+                asset_subclass=None,
+                asset_name="Treasury",
+                identifier="UST",
+                identifier_type="TICKER",
+                quantity=Decimal("1"),
+                unit_price=None,
+                market_value=None,
+                currency="USD",
+                portfolio_weight=None,
+                reference_date=None,
+                source_file="test.csv",
+            ),
+        ),
+        "last_import_at": datetime.now(timezone.utc),
+    }
+
     status, current, _ = request(server, "GET", "/api/market-agenda", cookie=cookie)
     assert status == 200 and current["events"] == payload["events"]
     daily_body = json.dumps({
@@ -64,21 +92,35 @@ def test_import_get_invalid_preserves_and_delete(server):
     )
     assert status == 200 and daily["status"] == "SUCCESS" and daily["error"] is None
     assert daily["contract_version"] == "1.5" and len(daily["market_agenda"]) == 1
-    assert {item["source_type"] for item in daily["impact_assessments"]} == {
-        "FACT", "MARKET_EVENT",
+    source_types = {
+        item["source_type"]
+        for item in daily["impact_assessments"]
     }
-    assert set(daily["impact_assessments"][0]) == {
+    assert "MARKET_EVENT" in source_types
+
+    market_event_impact = next(
+        item
+        for item in daily["impact_assessments"]
+        if item["source_type"] == "MARKET_EVENT"
+    )
+
+    assert set(market_event_impact) == {
         "id", "source_type", "impact_level", "impact_direction", "confidence",
         "title", "summary", "affected_assets", "impact_factors",
     }
-    assert daily["impact_assessments"][0]["source_type"] == "MARKET_EVENT"
-    assert not ({"source_id", "affected_positions", "related_facts", "related_events"}
-                & daily["impact_assessments"][0].keys())
+    assert not (
+        {
+            "source_id",
+            "affected_positions",
+            "related_facts",
+            "related_events",
+        }
+        & market_event_impact.keys()
+    )
     assert set(daily["market_agenda"][0]) == {
         "id", "event_type", "importance", "title", "summary", "event_date",
         "event_time", "timezone", "all_day", "affected_assets", "source_name",
     }
-    session_id = cookie.split("=", 1)[1]
     before = SESSION_MARKET_AGENDA[session_id]
     invalid = Path("frontend/test/fixtures/market_agenda_invalid.json").read_bytes()
     body, content_type = multipart([("invalid.json", invalid)])

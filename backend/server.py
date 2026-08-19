@@ -384,7 +384,7 @@ class ArgosRequestHandler(
 
     def _daily_experience(self) -> None:
         market_facts = MARKET_CONNECTOR_MANAGER.load_facts()
-        market_agenda = MARKET_CONNECTOR_MANAGER.load_agenda()
+        market_agenda = self._session_agenda()
         session_positions = self._session_positions()
         try:
             content_length = self._content_length()
