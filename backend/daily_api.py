@@ -44,6 +44,8 @@ from backend.portfolio_impact_engine import PortfolioImpactAssessmentEngine
 from backend.decision_context_engine import DecisionContextEngine
 from backend.data_quality_engine import DataQualityEngine
 from backend.daily_experience_orchestrator import DailyExperienceOrchestrator
+from backend.ubs_daily_intelligence import UBSDailyIntelligenceService
+from backend.models import PortfolioOwner
 
 
 def _utc_now() -> datetime:
@@ -96,6 +98,7 @@ class DailyApiFacade:
         decision_context_engine: DecisionContextEngine | None = None,
         data_quality_engine: DataQualityEngine | None = None,
         experience_orchestrator: DailyExperienceOrchestrator | None = None,
+        ubs_intelligence_service: UBSDailyIntelligenceService | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -113,6 +116,7 @@ class DailyApiFacade:
         self._decision_context_engine = decision_context_engine or DecisionContextEngine()
         self._data_quality_engine = data_quality_engine or DataQualityEngine()
         self._experience_orchestrator = experience_orchestrator or DailyExperienceOrchestrator()
+        self._ubs_intelligence_service = ubs_intelligence_service
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -184,7 +188,42 @@ class DailyApiFacade:
                 decision_contexts=response.decision_contexts,
                 impact_assessments=response.impact_assessments, market_agenda=response.market_agenda,
             )
-            return replace(response, experience={"status": assembly.status.value})
+            public_experience: dict[str, object] = {
+                "status": assembly.status.value
+            }
+
+            if self._ubs_intelligence_service is not None:
+                ubs_positions = tuple(
+                    position
+                    for position in request.positions
+                    if (
+                        position.institution == "UBS"
+                        and position.owner is PortfolioOwner.JOLIKA
+                    )
+                )
+
+                if ubs_positions:
+                    try:
+                        ubs_intelligence = (
+                            self._ubs_intelligence_service.build(
+                                ubs_positions
+                            )
+                        )
+
+                        if ubs_intelligence is not None:
+                            public_experience[
+                                "portfolio_intelligence"
+                            ] = ubs_intelligence.to_dict()
+                    except Exception:
+                        # UBS market intelligence is additive.
+                        # Failure here must never break the official
+                        # daily experience.
+                        pass
+
+            return replace(
+                response,
+                experience=public_experience,
+            )
         except DailyOrchestrationError as error:
             return self._error_response(
                 generated_at,

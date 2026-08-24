@@ -326,7 +326,7 @@ class DailyApiResponse:
     impact_assessments: tuple[DailyApiImpactAssessment, ...] = ()
     decision_contexts: tuple[DailyApiDecisionContext, ...] = ()
     data_quality: DailyApiDataQuality | None = None
-    experience: Mapping[str, str] | None = None
+    experience: Mapping[str, object] | None = None
     contract_version: str = CONTRACT_VERSION
 
     def __post_init__(self) -> None:
@@ -355,8 +355,46 @@ class DailyApiResponse:
             raise TypeError("data_quality must be a DailyApiDataQuality")
         if self.experience is None:
             object.__setattr__(self, "experience", {"status": PublicExperienceStatus.ERROR.value})
-        if not isinstance(self.experience, Mapping) or set(self.experience) != {"status"} or self.experience["status"] not in {item.value for item in PublicExperienceStatus}:
-            raise ValueError("experience must contain one official status")
+        if not isinstance(self.experience, Mapping):
+            raise ValueError(
+                "experience must be a mapping"
+            )
+
+        allowed_experience_keys = {
+            "status",
+            "portfolio_intelligence",
+        }
+
+        if (
+            "status" not in self.experience
+            or not set(self.experience).issubset(
+                allowed_experience_keys
+            )
+            or self.experience["status"]
+            not in {
+                item.value
+                for item in PublicExperienceStatus
+            }
+        ):
+            raise ValueError(
+                "experience must contain one official status "
+                "and only supported components"
+            )
+
+        portfolio_intelligence = self.experience.get(
+            "portfolio_intelligence"
+        )
+
+        if (
+            portfolio_intelligence is not None
+            and not isinstance(
+                portfolio_intelligence,
+                Mapping,
+            )
+        ):
+            raise ValueError(
+                "portfolio_intelligence must be a mapping"
+            )
         if self.status is DailyApiStatus.SUCCESS:
             self._validate_success()
         else:
@@ -427,6 +465,9 @@ def validate_daily_api_response_payload(payload: object) -> bool:
         and isinstance(payload["summary"], Mapping)
         and isinstance(payload["data_quality"], Mapping)
         and isinstance(payload["experience"], Mapping) and set(payload["experience"]) == {"status"}
+        and (
+            True
+        )
         and payload["experience"].get("status") in {item.value for item in PublicExperienceStatus}
         and payload["experience"].get("status") != PublicExperienceStatus.ERROR.value
         and payload["error"] is None
