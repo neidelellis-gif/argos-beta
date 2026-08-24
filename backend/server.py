@@ -30,6 +30,7 @@ from backend.santander_daily_intelligence import SantanderDailyIntelligenceServi
 from backend.jolika_daily_intelligence import JolikaDailyIntelligenceService
 from backend.market.market_connector import MarketConnector
 from backend.market.finnhub_provider import FinnhubMarketProvider
+from backend.market.twelve_data_provider import TwelveDataMarketProvider
 from backend.portfolio_import import import_portfolios
 from backend.pasted_portfolio import parse_pasted_portfolio
 from backend.portfolio_classification import classify_jolika_positions
@@ -75,6 +76,7 @@ SESSION_DECISION_CONTEXT: dict[str, DecisionProfile] = {}
 PORTFOLIO_MARKET_CONNECTOR = MarketConnector(
     providers=[
         FinnhubMarketProvider(),
+        TwelveDataMarketProvider(),
     ]
 )
 
