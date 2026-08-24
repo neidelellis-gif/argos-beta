@@ -198,7 +198,7 @@ def test_daily_api_exposes_ubs_portfolio_intelligence():
 
     intelligence = result.experience[
         "portfolio_intelligence"
-    ]
+    ]["UBS"]
 
     assert intelligence["institution"] == "UBS"
     assert intelligence["owner"] == "JOLIKA"
@@ -244,7 +244,7 @@ def test_daily_api_keeps_quantitative_unavailability_visible():
 
     intelligence = result.experience[
         "portfolio_intelligence"
-    ]
+    ]["UBS"]
 
     coverage = intelligence[
         "quantitative_coverage"

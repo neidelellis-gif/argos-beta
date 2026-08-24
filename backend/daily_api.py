@@ -45,6 +45,7 @@ from backend.decision_context_engine import DecisionContextEngine
 from backend.data_quality_engine import DataQualityEngine
 from backend.daily_experience_orchestrator import DailyExperienceOrchestrator
 from backend.ubs_daily_intelligence import UBSDailyIntelligenceService
+from backend.santander_daily_intelligence import SantanderDailyIntelligenceService
 from backend.models import PortfolioOwner
 
 
@@ -99,6 +100,7 @@ class DailyApiFacade:
         data_quality_engine: DataQualityEngine | None = None,
         experience_orchestrator: DailyExperienceOrchestrator | None = None,
         ubs_intelligence_service: UBSDailyIntelligenceService | None = None,
+        santander_intelligence_service: SantanderDailyIntelligenceService | None = None,
     ) -> None:
         self._orchestrator = orchestrator if orchestrator is not None else DailyOrchestrator(
             DailyPortfolioSnapshotBuilder(),
@@ -117,6 +119,7 @@ class DailyApiFacade:
         self._data_quality_engine = data_quality_engine or DataQualityEngine()
         self._experience_orchestrator = experience_orchestrator or DailyExperienceOrchestrator()
         self._ubs_intelligence_service = ubs_intelligence_service
+        self._santander_intelligence_service = santander_intelligence_service
 
     def execute(self, request: DailyApiRequest) -> DailyApiResponse:
         try:
@@ -192,6 +195,8 @@ class DailyApiFacade:
                 "status": assembly.status.value
             }
 
+            portfolio_intelligence: dict[str, object] = {}
+
             if self._ubs_intelligence_service is not None:
                 ubs_positions = tuple(
                     position
@@ -211,14 +216,47 @@ class DailyApiFacade:
                         )
 
                         if ubs_intelligence is not None:
-                            public_experience[
-                                "portfolio_intelligence"
+                            portfolio_intelligence[
+                                "UBS"
                             ] = ubs_intelligence.to_dict()
                     except Exception:
-                        # UBS market intelligence is additive.
+                        # Institutional intelligence is additive.
                         # Failure here must never break the official
                         # daily experience.
                         pass
+
+            if self._santander_intelligence_service is not None:
+                santander_positions = tuple(
+                    position
+                    for position in request.positions
+                    if (
+                        position.institution == "Santander"
+                        and position.owner is PortfolioOwner.JOLIKA
+                    )
+                )
+
+                if santander_positions:
+                    try:
+                        santander_intelligence = (
+                            self._santander_intelligence_service.build(
+                                santander_positions
+                            )
+                        )
+
+                        if santander_intelligence is not None:
+                            portfolio_intelligence[
+                                "Santander"
+                            ] = santander_intelligence.to_dict()
+                    except Exception:
+                        # Institutional intelligence is additive.
+                        # Failure here must never break the official
+                        # daily experience.
+                        pass
+
+            if portfolio_intelligence:
+                public_experience[
+                    "portfolio_intelligence"
+                ] = portfolio_intelligence
 
             return replace(
                 response,
