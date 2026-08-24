@@ -335,3 +335,124 @@ test("does not expose technical relationship fields in the rendered DOM", () => 
     ]);
     assert.doesNotMatch(rendered, /private-fact|private-analysis|related_facts|related_analyses/);
 });
+
+test("renders real JOLIKA portfolio intelligence instead of fallback assets", () => {
+    const { elements, renderer } = setup();
+
+    renderer.render(response({
+        facts: [],
+        priorities: [],
+        analyses: [],
+        impact_assessments: [],
+        experience: {
+            status: "READY",
+            portfolio_intelligence: {
+                JOLIKA: {
+                    institution: "JOLIKA",
+                    owner: "JOLIKA",
+                    position_count: 24,
+                    overall_level: "Média",
+                    executive_reading: "A carteira consolidada merece acompanhamento."
+                },
+                UBS: {
+                    institution: "UBS",
+                    owner: "JOLIKA",
+                    position_count: 14,
+                    overall_level: "Alta",
+                    executive_reading: "A carteira UBS apresenta pontos relevantes de atenção."
+                },
+                Santander: {
+                    institution: "Santander",
+                    owner: "JOLIKA",
+                    position_count: 10,
+                    overall_level: "Baixa",
+                    executive_reading: "A carteira Santander não apresenta fator dominante."
+                }
+            }
+        }
+    }));
+
+    const items = elements.get("jolikaInvestmentImpact").children;
+
+    assert.equal(items.length, 3);
+
+    assert.equal(
+        items[0].children[0].children[0].textContent,
+        "Jolika consolidada"
+    );
+    assert.equal(
+        items[0].children[0].children[1].textContent,
+        "Média"
+    );
+    assert.match(
+        items[0].children[1].textContent,
+        /24 ativos consolidados/
+    );
+
+    assert.equal(
+        items[1].children[0].children[0].textContent,
+        "UBS"
+    );
+    assert.equal(
+        items[1].children[0].children[1].textContent,
+        "Alta"
+    );
+
+    assert.equal(
+        items[2].children[0].children[0].textContent,
+        "Santander"
+    );
+    assert.equal(
+        items[2].children[0].children[1].textContent,
+        "Baixa"
+    );
+
+    assert.doesNotMatch(
+        renderedText(items),
+        /AIQ|EQIX|GLD/
+    );
+});
+
+test("real JOLIKA market impact keeps priority over structural intelligence", () => {
+    const { elements, renderer } = setup();
+
+    renderer.render(response({
+        impact_assessments: [{
+            affected_assets: ["GLD"],
+            impact_direction: "NEGATIVE",
+            summary: "Impacto real do mercado."
+        }],
+        experience: {
+            status: "READY",
+            portfolio_intelligence: {
+                JOLIKA: {
+                    position_count: 24,
+                    overall_level: "Média",
+                    executive_reading: "Leitura estrutural."
+                },
+                UBS: {
+                    position_count: 14,
+                    overall_level: "Alta",
+                    executive_reading: "Leitura UBS."
+                },
+                Santander: {
+                    position_count: 10,
+                    overall_level: "Baixa",
+                    executive_reading: "Leitura Santander."
+                }
+            }
+        }
+    }));
+
+    const items = elements.get("jolikaInvestmentImpact").children;
+
+    assert.equal(items.length, 1);
+    assert.equal(
+        items[0].children[0].children[0].textContent,
+        "GLD"
+    );
+    assert.equal(
+        items[0].children[1].textContent,
+        "Impacto real do mercado."
+    );
+});

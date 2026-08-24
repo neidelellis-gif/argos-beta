@@ -185,40 +185,178 @@ const DailyExperienceRenderer = (() => {
         };
     }
 
+    function portfolioIntelligence(response) {
+        const nested = response?.experience?.portfolio_intelligence;
+        if (nested && typeof nested === "object") return nested;
+
+        const direct = response?.portfolio_intelligence;
+        if (direct && typeof direct === "object") return direct;
+
+        return null;
+    }
+
+    function intelligenceBadge(level) {
+        const normalized = text(level);
+
+        if (normalized === "Alta") {
+            return { label: "Alta", className: "negative" };
+        }
+
+        if (normalized === "Média") {
+            return { label: "Média", className: "watch" };
+        }
+
+        return { label: normalized || "Baixa", className: "positive" };
+    }
+
+    function intelligenceCard(title, intelligence, consolidated = false) {
+        const level = intelligenceBadge(intelligence?.overall_level);
+        const card = document.createElement("article");
+        card.className = `daily-asset-impact daily-asset-impact-${level.className}`;
+
+        const top = document.createElement("div");
+        top.className = "daily-asset-impact-top";
+
+        const heading = document.createElement("strong");
+        heading.textContent = title;
+
+        const badge = document.createElement("span");
+        badge.className = `daily-impact-badge daily-impact-badge-${level.className}`;
+        badge.textContent = level.label;
+
+        top.append(heading, badge);
+
+        const description = document.createElement("p");
+        const count = Number(intelligence?.position_count);
+        const countText = Number.isFinite(count)
+            ? `${count} ${consolidated ? "ativos consolidados" : "posições"}. `
+            : "";
+
+        description.textContent = clean(
+            `${countText}${text(intelligence?.executive_reading)}`
+        );
+
+        card.append(top, description);
+        return card;
+    }
+
+    function renderJolikaPortfolioIntelligence(response, container) {
+        const intelligence = portfolioIntelligence(response);
+        if (!intelligence || !container) return 0;
+
+        const entries = [
+            ["Jolika consolidada", intelligence.JOLIKA, true],
+            ["UBS", intelligence.UBS, false],
+            ["Santander", intelligence.Santander, false]
+        ].filter(([, value]) => value && typeof value === "object");
+
+        entries.slice(0, LIMITS.ownerImpacts).forEach(
+            ([title, value, consolidated]) => {
+                container.appendChild(
+                    intelligenceCard(title, value, consolidated)
+                );
+            }
+        );
+
+        return entries.length;
+    }
+
     function renderOwnerImpacts(response, marketEntries) {
         const containers = {
             nei: panel("neiInvestmentImpact"),
             jolika: panel("jolikaInvestmentImpact")
         };
-        Object.values(containers).forEach((container) => container?.replaceChildren());
 
-        const impacts = Array.isArray(response.impact_assessments) ? response.impact_assessments : [];
+        Object.values(containers).forEach(
+            (container) => container?.replaceChildren()
+        );
+
+        const impacts = Array.isArray(response.impact_assessments)
+            ? response.impact_assessments
+            : [];
+
         const grouped = { nei: [], jolika: [] };
 
         impacts.forEach((impact) => {
             assetNames(impact).forEach((asset) => {
                 const owner = ownerForAsset(asset);
-                if (owner && grouped[owner].length < LIMITS.ownerImpacts) {
+
+                if (
+                    owner
+                    && grouped[owner].length < LIMITS.ownerImpacts
+                ) {
                     grouped[owner].push({ asset, impact });
                 }
             });
         });
 
-        ["nei", "jolika"].forEach((owner) => {
-            const container = containers[owner];
-            if (!container) return;
+        const neiContainer = containers.nei;
 
-            const entries = grouped[owner].length
-                ? grouped[owner]
-                : FALLBACK_ASSETS[owner].map((asset, index) => ({
+        if (neiContainer) {
+            const neiEntries = grouped.nei.length
+                ? grouped.nei
+                : FALLBACK_ASSETS.nei.map((asset, index) => ({
                     asset,
-                    impact: referenceImpact(asset, marketEntries[index % Math.max(1, marketEntries.length)])
+                    impact: referenceImpact(
+                        asset,
+                        marketEntries[
+                            index % Math.max(1, marketEntries.length)
+                        ]
+                    )
                 }));
 
-            entries.slice(0, LIMITS.ownerImpacts).forEach(({ asset, impact }) => {
-                container.appendChild(impactCard(asset, impact));
+            neiEntries
+                .slice(0, LIMITS.ownerImpacts)
+                .forEach(({ asset, impact }) => {
+                    neiContainer.appendChild(
+                        impactCard(asset, impact)
+                    );
+                });
+        }
+
+        const jolikaContainer = containers.jolika;
+
+        if (!jolikaContainer) return;
+
+        if (grouped.jolika.length) {
+            grouped.jolika
+                .slice(0, LIMITS.ownerImpacts)
+                .forEach(({ asset, impact }) => {
+                    jolikaContainer.appendChild(
+                        impactCard(asset, impact)
+                    );
+                });
+
+            return;
+        }
+
+        if (
+            renderJolikaPortfolioIntelligence(
+                response,
+                jolikaContainer
+            )
+        ) {
+            return;
+        }
+
+        FALLBACK_ASSETS.jolika
+            .slice(0, LIMITS.ownerImpacts)
+            .forEach((asset, index) => {
+                jolikaContainer.appendChild(
+                    impactCard(
+                        asset,
+                        referenceImpact(
+                            asset,
+                            marketEntries[
+                                index % Math.max(
+                                    1,
+                                    marketEntries.length
+                                )
+                            ]
+                        )
+                    )
+                );
             });
-        });
     }
 
     function bindDecisionActions() {
