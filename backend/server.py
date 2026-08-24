@@ -24,6 +24,12 @@ if __package__ in {None, ""}:
 from backend.dashboard import build_dashboard
 from backend.canonical_portfolio import serialize_portfolio_positions
 from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
+from backend.daily_api import DailyApiFacade
+from backend.ubs_daily_intelligence import UBSDailyIntelligenceService
+from backend.santander_daily_intelligence import SantanderDailyIntelligenceService
+from backend.jolika_daily_intelligence import JolikaDailyIntelligenceService
+from backend.market.market_connector import MarketConnector
+from backend.market.finnhub_provider import FinnhubMarketProvider
 from backend.portfolio_import import import_portfolios
 from backend.pasted_portfolio import parse_pasted_portfolio
 from backend.portfolio_classification import classify_jolika_positions
@@ -65,7 +71,27 @@ class SessionPortfolio(TypedDict):
 SESSION_PORTFOLIOS: dict[str, SessionPortfolio] = {}
 SESSION_MARKET_AGENDA: dict[str, tuple[MarketAgendaEvent, ...]] = {}
 SESSION_DECISION_CONTEXT: dict[str, DecisionProfile] = {}
-DAILY_HTTP_ADAPTER = DailyHttpAdapter()
+
+PORTFOLIO_MARKET_CONNECTOR = MarketConnector(
+    providers=[
+        FinnhubMarketProvider(),
+    ]
+)
+
+DAILY_HTTP_ADAPTER = DailyHttpAdapter(
+    DailyApiFacade(
+        ubs_intelligence_service=UBSDailyIntelligenceService(
+            PORTFOLIO_MARKET_CONNECTOR,
+            history_days=252,
+        ),
+        santander_intelligence_service=SantanderDailyIntelligenceService(
+            PORTFOLIO_MARKET_CONNECTOR,
+            history_days=252,
+        ),
+        jolika_intelligence_service=JolikaDailyIntelligenceService(),
+    )
+)
+
 MARKET_CONNECTOR_MANAGER = ConnectorManager()
 MARKET_CONNECTOR_MANAGER.register("BCB", BcbMarketConnector(), active=True)
 MARKET_CONNECTOR_MANAGER.register("LOCAL", LocalMarketConnector())
