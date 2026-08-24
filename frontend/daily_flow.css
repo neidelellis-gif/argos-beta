@@ -244,3 +244,11 @@
         flex-direction: column;
     }
 }
+
+.daily-owner-empty {
+    margin: 18px 0 0;
+    max-width: 360px;
+    color: var(--text-muted, #8f8f8f);
+    font-size: 14px;
+    line-height: 1.55;
+}

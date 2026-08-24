@@ -318,6 +318,15 @@ const DailyExperienceRenderer = (() => {
                     );
                     renderedCount += 1;
                 });
+
+            if (grouped.nei.length === 0) {
+                const emptyState = document.createElement("p");
+                emptyState.className = "daily-owner-empty";
+                emptyState.textContent = (
+                    "Nenhum impacto relevante identificado hoje."
+                );
+                neiContainer.appendChild(emptyState);
+            }
         }
 
         const jolikaContainer = containers.jolika;

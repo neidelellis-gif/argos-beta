@@ -202,7 +202,11 @@ test("represents an evidence-free response without fact or market entries", () =
     assert.equal(elements.get("daily-market-reaction").hidden, true);
     assert.equal(elements.get("importantFacts").children.length, 0);
     assert.equal(elements.get("marketReaction").children.length, 0);
-    assert.equal(elements.get("neiInvestmentImpact").children.length, 0);
+    assert.equal(elements.get("neiInvestmentImpact").children.length, 1);
+    assert.equal(
+        elements.get("neiInvestmentImpact").children[0].textContent,
+        "Nenhum impacto relevante identificado hoje."
+    );
     assert.equal(elements.get("jolikaInvestmentImpact").children.length, 0);
     assert.equal(elements.get("daily-investment-impact").hidden, true);
     assert.equal(elements.get("daily-decision").hidden, true);
@@ -478,7 +482,11 @@ test("never invents portfolio assets when no real impact or intelligence exists"
         elements.get("jolikaInvestmentImpact")
     ]);
 
-    assert.equal(elements.get("neiInvestmentImpact").children.length, 0);
+    assert.equal(elements.get("neiInvestmentImpact").children.length, 1);
+    assert.equal(
+        elements.get("neiInvestmentImpact").children[0].textContent,
+        "Nenhum impacto relevante identificado hoje."
+    );
     assert.equal(elements.get("jolikaInvestmentImpact").children.length, 0);
     assert.doesNotMatch(rendered, /BTC|ETH|PENDLE|AIQ|EQIX|GLD/);
 });
