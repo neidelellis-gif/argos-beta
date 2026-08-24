@@ -140,7 +140,7 @@ test("renders the current daily flow and preserves the public header", () => {
     assert.match(elements.get("lastUpdate").textContent, /^hoje às \d{2}:\d{2}$/);
     assert.equal(elements.get("daily-facts").hidden, false);
     assert.equal(elements.get("daily-market-reaction").hidden, false);
-    assert.equal(elements.get("daily-investment-impact").hidden, false);
+    assert.equal(elements.get("daily-investment-impact").hidden, true);
     assert.equal(elements.get("daily-decision").hidden, false);
     assert.match(decisionCopy.textContent, /Aprofundar análise/);
 });
@@ -185,10 +185,12 @@ test("combines, deduplicates and limits facts without reordering", () => {
     }));
 
     const items = elements.get("importantFacts").children;
-    assert.equal(items.length, 3);
+    assert.equal(items.length, 5);
     assert.equal(items[0].children[1].children[0].textContent, "Primeiro");
     assert.equal(items[1].children[1].children[0].textContent, "Duplicado");
     assert.equal(items[2].children[1].children[0].textContent, "Terceiro");
+    assert.equal(items[3].children[1].children[0].textContent, "Quarto");
+    assert.equal(items[4].children[1].children[0].textContent, "Quinto");
     assert.equal(items[0].children[0].attributes["aria-hidden"], "true");
 });
 
@@ -200,7 +202,10 @@ test("represents an evidence-free response without fact or market entries", () =
     assert.equal(elements.get("daily-market-reaction").hidden, true);
     assert.equal(elements.get("importantFacts").children.length, 0);
     assert.equal(elements.get("marketReaction").children.length, 0);
-    assert.equal(elements.get("daily-decision").hidden, false);
+    assert.equal(elements.get("neiInvestmentImpact").children.length, 0);
+    assert.equal(elements.get("jolikaInvestmentImpact").children.length, 0);
+    assert.equal(elements.get("daily-investment-impact").hidden, true);
+    assert.equal(elements.get("daily-decision").hidden, true);
 });
 
 test("renders market entries uniquely and limits them to three", () => {
@@ -455,4 +460,103 @@ test("real JOLIKA market impact keeps priority over structural intelligence", ()
         items[0].children[1].textContent,
         "Impacto real do mercado."
     );
+});
+
+
+test("never invents portfolio assets when no real impact or intelligence exists", () => {
+    const { elements, renderer } = setup();
+
+    renderer.render(response({
+        facts: [],
+        priorities: [],
+        analyses: [],
+        impact_assessments: []
+    }));
+
+    const rendered = renderedText([
+        elements.get("neiInvestmentImpact"),
+        elements.get("jolikaInvestmentImpact")
+    ]);
+
+    assert.equal(elements.get("neiInvestmentImpact").children.length, 0);
+    assert.equal(elements.get("jolikaInvestmentImpact").children.length, 0);
+    assert.doesNotMatch(rendered, /BTC|ETH|PENDLE|AIQ|EQIX|GLD/);
+});
+
+
+test("five important entries can be rendered without exceeding the official limit", () => {
+    const { elements, renderer } = setup();
+
+    renderer.render(response({
+        facts: [
+            { title: "Fato 1" },
+            { title: "Fato 2" },
+            { title: "Fato 3" },
+            { title: "Fato 4" },
+            { title: "Fato 5" },
+            { title: "Fato 6" }
+        ],
+        priorities: [],
+        analyses: []
+    }));
+
+    const items = elements.get("importantFacts").children;
+
+    assert.equal(items.length, 5);
+    assert.equal(
+        items[4].children[1].children[0].textContent,
+        "Fato 5"
+    );
+});
+
+
+test("medium JOLIKA intelligence makes deeper analysis available", () => {
+    const { elements, renderer } = setup();
+
+    renderer.render(response({
+        facts: [],
+        priorities: [],
+        analyses: [],
+        impact_assessments: [],
+        experience: {
+            status: "READY",
+            portfolio_intelligence: {
+                JOLIKA: {
+                    institution: "JOLIKA",
+                    position_count: 20,
+                    overall_level: "Média",
+                    executive_reading: "Há pontos que merecem acompanhamento."
+                }
+            }
+        }
+    }));
+
+    assert.equal(elements.get("daily-investment-impact").hidden, false);
+    assert.equal(elements.get("daily-decision").hidden, false);
+});
+
+
+test("low portfolio intelligence alone does not force deeper analysis", () => {
+    const { elements, renderer } = setup();
+
+    renderer.render(response({
+        facts: [],
+        priorities: [],
+        analyses: [],
+        impact_assessments: [],
+        experience: {
+            status: "READY",
+            portfolio_intelligence: {
+                JOLIKA: {
+                    institution: "JOLIKA",
+                    position_count: 20,
+                    overall_level: "Baixa",
+                    executive_reading: "Não há fator dominante de atenção."
+                }
+            }
+        }
+    }));
+
+    assert.equal(elements.get("daily-investment-impact").hidden, false);
+    assert.equal(elements.get("daily-decision").hidden, true);
 });

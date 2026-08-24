@@ -1,12 +1,7 @@
 "use strict";
 
 const DailyExperienceRenderer = (() => {
-    const LIMITS = Object.freeze({ facts: 3, market: 3, ownerImpacts: 3 });
-
-    const FALLBACK_ASSETS = Object.freeze({
-        nei: ["ETH", "PENDLE", "BTC"],
-        jolika: ["AIQ", "EQIX", "GLD"]
-    });
+    const LIMITS = Object.freeze({ facts: 5, market: 3, ownerImpacts: 3 });
 
     const OWNER_ASSETS = Object.freeze({
         nei: new Set([
@@ -176,15 +171,6 @@ const DailyExperienceRenderer = (() => {
         return null;
     }
 
-    function referenceImpact(asset, marketEntry) {
-        return {
-            impact_direction: "UNCERTAIN",
-            summary: marketEntry
-                ? `${clean(marketEntry.title)} pode ter relação com este ativo. Use a análise aprofundada para confirmar o efeito na posição atual.`
-                : "A última carteira conhecida mantém este ativo em acompanhamento."
-        };
-    }
-
     function portfolioIntelligence(response) {
         const nested = response?.experience?.portfolio_intelligence;
         if (nested && typeof nested === "object") return nested;
@@ -193,6 +179,35 @@ const DailyExperienceRenderer = (() => {
         if (direct && typeof direct === "object") return direct;
 
         return null;
+    }
+
+    function portfolioIntelligenceNeedsAttention(response) {
+        const intelligence = portfolioIntelligence(response);
+
+        if (!intelligence) return false;
+
+        return Object.values(intelligence).some((value) => {
+            if (!value || typeof value !== "object") return false;
+
+            const level = text(value.overall_level);
+
+            return level === "Alta" || level === "Média";
+        });
+    }
+
+    function hasDecisionEvidence(response) {
+        const impacts = Array.isArray(response.impact_assessments)
+            ? response.impact_assessments
+            : [];
+
+        return Boolean(
+            response?.summary?.requires_attention
+            || response?.summary?.requires_decision
+            || response.priorities.length
+            || response.analyses.length
+            || impacts.length
+            || portfolioIntelligenceNeedsAttention(response)
+        );
     }
 
     function intelligenceBadge(level) {
@@ -261,7 +276,7 @@ const DailyExperienceRenderer = (() => {
         return entries.length;
     }
 
-    function renderOwnerImpacts(response, marketEntries) {
+    function renderOwnerImpacts(response) {
         const containers = {
             nei: panel("neiInvestmentImpact"),
             jolika: panel("jolikaInvestmentImpact")
@@ -290,33 +305,24 @@ const DailyExperienceRenderer = (() => {
             });
         });
 
+        let renderedCount = 0;
+
         const neiContainer = containers.nei;
 
         if (neiContainer) {
-            const neiEntries = grouped.nei.length
-                ? grouped.nei
-                : FALLBACK_ASSETS.nei.map((asset, index) => ({
-                    asset,
-                    impact: referenceImpact(
-                        asset,
-                        marketEntries[
-                            index % Math.max(1, marketEntries.length)
-                        ]
-                    )
-                }));
-
-            neiEntries
+            grouped.nei
                 .slice(0, LIMITS.ownerImpacts)
                 .forEach(({ asset, impact }) => {
                     neiContainer.appendChild(
                         impactCard(asset, impact)
                     );
+                    renderedCount += 1;
                 });
         }
 
         const jolikaContainer = containers.jolika;
 
-        if (!jolikaContainer) return;
+        if (!jolikaContainer) return renderedCount;
 
         if (grouped.jolika.length) {
             grouped.jolika
@@ -325,38 +331,18 @@ const DailyExperienceRenderer = (() => {
                     jolikaContainer.appendChild(
                         impactCard(asset, impact)
                     );
+                    renderedCount += 1;
                 });
 
-            return;
+            return renderedCount;
         }
 
-        if (
-            renderJolikaPortfolioIntelligence(
-                response,
-                jolikaContainer
-            )
-        ) {
-            return;
-        }
+        renderedCount += renderJolikaPortfolioIntelligence(
+            response,
+            jolikaContainer
+        );
 
-        FALLBACK_ASSETS.jolika
-            .slice(0, LIMITS.ownerImpacts)
-            .forEach((asset, index) => {
-                jolikaContainer.appendChild(
-                    impactCard(
-                        asset,
-                        referenceImpact(
-                            asset,
-                            marketEntries[
-                                index % Math.max(
-                                    1,
-                                    marketEntries.length
-                                )
-                            ]
-                        )
-                    )
-                );
-            });
+        return renderedCount;
     }
 
     function bindDecisionActions() {
@@ -416,13 +402,21 @@ const DailyExperienceRenderer = (() => {
             "daily-flow-item-market"
         );
 
-        renderOwnerImpacts(response, market.length ? market : facts);
-        panel("daily-investment-impact").hidden = false;
-        panel("daily-decision").hidden = false;
+        const renderedImpacts = renderOwnerImpacts(response);
+        panel("daily-investment-impact").hidden = renderedImpacts === 0;
 
-        const decisionCopy = panel("daily-decision")?.querySelector(".daily-decision-copy p");
-        if (decisionCopy) {
-            decisionCopy.textContent = "Para uma avaliação mais precisa das implicações atuais, clique em Aprofundar análise.";
+        const decisionVisible = hasDecisionEvidence(response);
+        panel("daily-decision").hidden = !decisionVisible;
+
+        const decisionCopy = panel("daily-decision")?.querySelector(
+            ".daily-decision-copy p"
+        );
+
+        if (decisionCopy && decisionVisible) {
+            decisionCopy.textContent = (
+                "Há elementos que justificam uma avaliação mais detalhada. "
+                + "Clique em Aprofundar análise."
+            );
         }
 
         bindDecisionActions();
