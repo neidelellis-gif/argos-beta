@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from backend.market.market_connector import MarketConnector
+from backend.market_symbol_resolution import resolve_market_symbol
 from backend.models import PortfolioOwner, PortfolioPosition
 from backend.portfolio_quantitative_analysis import (
     calculate_drawdown,
@@ -211,21 +212,22 @@ def _analyze_position(
     lookback_days: int,
 ) -> SantanderPositionQuantitativeMetrics:
     identifier = _normalized_identifier(position)
+    market_symbol = resolve_market_symbol(position)
 
     if identifier is None:
         return _unavailable_position(
             position,
-            error="ticker identifier required",
+            error="market identifier required",
         )
 
-    if not _is_ticker(position):
+    if market_symbol is None:
         return _unavailable_position(
             position,
-            error="market history requires a ticker identifier",
+            error="market symbol unavailable",
         )
 
     history = market_connector.get_history(
-        identifier,
+        market_symbol,
         days=lookback_days,
     )
 
@@ -453,8 +455,7 @@ def build_santander_quantitative_intelligence(
     )
 
     ticker_position_count = sum(
-        _normalized_identifier(position) is not None
-        and _is_ticker(position)
+        resolve_market_symbol(position) is not None
         for position in ordered_positions
     )
 

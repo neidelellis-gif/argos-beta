@@ -77,7 +77,12 @@ PORTFOLIO_MARKET_CONNECTOR = MarketConnector(
     providers=[
         FinnhubMarketProvider(),
         TwelveDataMarketProvider(),
-    ]
+    ],
+    cache_ttl_seconds=300,
+    history_cache_ttl_seconds=86400,
+    persistent_history_cache_dir=(
+        Path.home() / ".argos" / "cache" / "market_history"
+    ),
 )
 
 DAILY_HTTP_ADAPTER = DailyHttpAdapter(

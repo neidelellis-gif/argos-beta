@@ -542,8 +542,19 @@ const InstitutionAnalysis = (() => {
         const status = $("institutionStatus");
         status.textContent = done ? "Concluída" : "Em análise";
         status.classList.toggle("done", done);
-        $("completeInstitution").textContent = incomplete ? "Complete a importação para concluir" : done ? "Ir para a próxima instituição →" : "Concluir análise desta instituição →";
-        $("completeInstitution").disabled = incomplete;
+        const profileValid = isProfileValid();
+
+        $("completeInstitution").textContent =
+            incomplete
+                ? "Complete a importação para concluir"
+                : !profileValid
+                    ? "Preencha o Perfil Estratégico para concluir"
+                    : done
+                        ? "Ir para a próxima instituição →"
+                        : "Concluir análise desta instituição →";
+
+        $("completeInstitution").disabled =
+            incomplete || !profileValid;
 
         renderList("attentionList", healthReport.attention, "Nenhuma resposta prioritária foi gerada.");
         renderList("riskList", healthReport.risks, "Nenhum risco específico foi identificado com os dados disponíveis.");
@@ -569,6 +580,7 @@ const InstitutionAnalysis = (() => {
         $("completeInstitution").addEventListener("click", () => {
             const institution = selectedInstitution();
             if (isImportIncomplete(institution)) return;
+            if (!isProfileValid()) return;
             if (!isCompleted(institution.name)) markCompleted(institution.name);
             if (currentIndex < institutions.length - 1) {
                 goToIndex(currentIndex + 1);

@@ -187,7 +187,7 @@ def test_missing_identifier_is_unavailable_without_market_call():
 
     assert item.status == "unavailable"
     assert item.identifier is None
-    assert item.error == "ticker identifier required"
+    assert item.error == "market identifier required"
 
     assert connector.calls == []
 
@@ -209,9 +209,7 @@ def test_non_ticker_identifier_is_not_sent_to_market_connector():
 
     assert item.status == "unavailable"
     assert item.identifier_type == "ISIN"
-    assert item.error == (
-        "market history requires a ticker identifier"
-    )
+    assert item.error == "market symbol unavailable"
 
     assert connector.calls == []
 

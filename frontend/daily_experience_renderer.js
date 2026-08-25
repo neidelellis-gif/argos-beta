@@ -2,6 +2,7 @@
 
 const DailyExperienceRenderer = (() => {
     const LIMITS = Object.freeze({ facts: 5, market: 3, ownerImpacts: 3 });
+    const INVESTOR_PROFILE_KEY = "argos.investor-profile";
 
     const OWNER_ASSETS = Object.freeze({
         nei: new Set([
@@ -181,7 +182,60 @@ const DailyExperienceRenderer = (() => {
         return null;
     }
 
+    function investorProfile() {
+        try {
+            const stored = JSON.parse(
+                window.localStorage?.getItem(INVESTOR_PROFILE_KEY) || "null"
+            );
+            return stored?.profile || null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function todayUtc() {
+        const now = new Date();
+        return new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate()
+        ));
+    }
+
+    function isProfileValid(
+        profile = investorProfile(),
+        referenceDate = todayUtc()
+    ) {
+        if (!profile || typeof profile !== "object") {
+            return false;
+        }
+
+        const required = [
+            "profile_name",
+            "risk_level",
+            "investment_horizon",
+            "liquidity_needs",
+            "capital_preservation_level",
+            "review_date"
+        ];
+
+        if (required.some(
+            (field) => !String(profile[field] || "").trim()
+        )) {
+            return false;
+        }
+
+        const reviewDate = new Date(
+            `${profile.review_date}T00:00:00Z`
+        );
+
+        return Number.isFinite(reviewDate.getTime())
+            && reviewDate >= referenceDate;
+    }
+
     function portfolioIntelligenceNeedsAttention(response) {
+        if (!isProfileValid()) return false;
+
         const intelligence = portfolioIntelligence(response);
 
         if (!intelligence) return false;
@@ -225,7 +279,11 @@ const DailyExperienceRenderer = (() => {
     }
 
     function intelligenceCard(title, intelligence, consolidated = false) {
-        const level = intelligenceBadge(intelligence?.overall_level);
+        const profileValid = isProfileValid();
+        const level = profileValid
+            ? intelligenceBadge(intelligence?.overall_level)
+            : { label: "Perfil pendente", className: "watch" };
+
         const card = document.createElement("article");
         card.className = `daily-asset-impact daily-asset-impact-${level.className}`;
 
@@ -247,9 +305,14 @@ const DailyExperienceRenderer = (() => {
             ? `${count} ${consolidated ? "ativos consolidados" : "posições"}. `
             : "";
 
-        description.textContent = clean(
-            `${countText}${text(intelligence?.executive_reading)}`
-        );
+        const reading = profileValid
+            ? text(intelligence?.executive_reading)
+            : (
+                "A leitura quantitativa está disponível, mas a conclusão estratégica "
+                + "será apresentada após o preenchimento do Perfil Estratégico."
+            );
+
+        description.textContent = clean(`${countText}${reading}`);
 
         card.append(top, description);
         return card;

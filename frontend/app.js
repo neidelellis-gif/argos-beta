@@ -111,7 +111,12 @@ function selectedInvestorProfileStepValue(form) {
 const INVESTOR_PROFILE_SUMMARY = Object.freeze({
     primaryGoal: { preservation: "Preservação", growth: "Crescimento consistente", income: "Renda recorrente", balance: "Equilíbrio" },
     riskTolerance: { low: "Redução de exposição", moderate: "Manutenção da estratégia", high: "Avaliação de oportunidades" },
-    horizon: { short: "Até 2 anos", medium: "Entre 2 e 5 anos", long: "Acima de 5 anos" },
+    horizon: {
+        up_to_1: "Até 1 ano",
+        one_to_2: "De 1 a 2 anos",
+        two_to_5: "De 2 a 5 anos",
+        over_5: "Mais de 5 anos"
+    },
     liquidity: { high: "Alta", moderate: "Moderada", low: "Baixa" }
 });
 
@@ -121,13 +126,18 @@ function buildInvestorProfileSummary(answers = {}) {
 
 function investorProfileReviewDate() {
     const date = new Date();
-    date.setUTCFullYear(date.getUTCFullYear() + 1);
+    date.setUTCDate(date.getUTCDate() + 90);
     return date.toISOString().slice(0, 10);
 }
 
 function buildDecisionProfile(answers) {
     const riskMap = { low: "LOW", moderate: "MODERATE", high: "HIGH" };
-    const horizonMap = { short: "SHORT_TERM", medium: "MEDIUM_TERM", long: "LONG_TERM" };
+    const horizonMap = {
+        up_to_1: "SHORT_TERM",
+        one_to_2: "MEDIUM_TERM",
+        two_to_5: "MEDIUM_TERM",
+        over_5: "LONG_TERM"
+    };
     const liquidityMap = { high: "HIGH", moderate: "MODERATE", low: "LOW" };
     const objectiveMap = {
         preservation: "CAPITAL_PRESERVATION",
@@ -743,8 +753,16 @@ function setupPortfolioFilePicker() {
                 progressBar.value = 100;
                 progressText.textContent = "Todas as carteiras foram removidas.";
                 clearPortfolioImportConfirmation();
+                writeInstitutionImportStatus({});
+                importedPortfolioPositions = [];
                 storeCanonicalPortfolioPositions(result.positions);
                 renderDashboard(result.dashboard);
+
+                if (typeof PortfolioExecutive !== "undefined") {
+                    await PortfolioExecutive.load();
+                }
+
+                await loadDailyExperience();
             } catch (error) {
                 console.error(error);
                 progressBar.value = 0;

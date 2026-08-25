@@ -64,7 +64,14 @@ function setup() {
         createElement: node,
         getElementById(id) { return elements.get(id); }
     };
-    global.window = { location: { href: "/" } };
+    global.window = {
+        location: { href: "/" },
+        localStorage: {
+            getItem() { return null; },
+            setItem() {},
+            removeItem() {}
+        }
+    };
     delete require.cache[require.resolve("./daily_experience_renderer.js")];
     const { DailyExperienceRenderer } = require("./daily_experience_renderer.js");
     return { decisionCopy, elements, renderer: DailyExperienceRenderer };
@@ -348,6 +355,17 @@ test("does not expose technical relationship fields in the rendered DOM", () => 
 test("renders real JOLIKA portfolio intelligence instead of fallback assets", () => {
     const { elements, renderer } = setup();
 
+    global.window.localStorage.getItem = () => JSON.stringify({
+        profile: {
+            profile_name: "Perfil Estratégico Jolika",
+            risk_level: "HIGH",
+            investment_horizon: "MEDIUM_TERM",
+            liquidity_needs: "LOW",
+            capital_preservation_level: "MODERATE",
+            review_date: "2099-12-31"
+        }
+    });
+
     renderer.render(response({
         facts: [],
         priorities: [],
@@ -518,8 +536,19 @@ test("five important entries can be rendered without exceeding the official limi
 });
 
 
-test("medium JOLIKA intelligence makes deeper analysis available", () => {
+test("medium JOLIKA intelligence with valid profile makes deeper analysis available", () => {
     const { elements, renderer } = setup();
+
+    global.window.localStorage.getItem = () => JSON.stringify({
+        profile: {
+            profile_name: "Perfil Estratégico Jolika",
+            risk_level: "HIGH",
+            investment_horizon: "MEDIUM_TERM",
+            liquidity_needs: "LOW",
+            capital_preservation_level: "MODERATE",
+            review_date: "2099-12-31"
+        }
+    });
 
     renderer.render(response({
         facts: [],
@@ -541,6 +570,42 @@ test("medium JOLIKA intelligence makes deeper analysis available", () => {
 
     assert.equal(elements.get("daily-investment-impact").hidden, false);
     assert.equal(elements.get("daily-decision").hidden, false);
+});
+
+
+test("portfolio intelligence remains non-strategic while profile is pending", () => {
+    const { elements, renderer } = setup();
+
+    renderer.render(response({
+        facts: [],
+        priorities: [],
+        analyses: [],
+        impact_assessments: [],
+        experience: {
+            status: "READY",
+            portfolio_intelligence: {
+                JOLIKA: {
+                    institution: "JOLIKA",
+                    position_count: 20,
+                    overall_level: "Alta",
+                    executive_reading: "Leitura quantitativa de alta atenção."
+                }
+            }
+        }
+    }));
+
+    const items = elements.get("jolikaInvestmentImpact").children;
+
+    assert.equal(items.length, 1);
+    assert.equal(
+        items[0].children[0].children[1].textContent,
+        "Perfil pendente"
+    );
+    assert.match(
+        items[0].children[1].textContent,
+        /conclusão estratégica será apresentada após o preenchimento do Perfil Estratégico/
+    );
+    assert.equal(elements.get("daily-decision").hidden, true);
 });
 
 

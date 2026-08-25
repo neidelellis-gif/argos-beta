@@ -196,3 +196,171 @@ def test_market_connector_falls_back_to_twelve_data_history():
         423.00,
         425.27,
     ]
+
+
+def test_twelve_data_retries_http_429_then_succeeds():
+    from urllib.error import HTTPError
+
+    calls = []
+    sleeps = []
+
+    success_payload = {
+        "values": [
+            {
+                "datetime": "2026-08-24",
+                "close": "763.48",
+            }
+        ]
+    }
+
+    def opener(url, timeout=20):
+        calls.append(url)
+
+        if len(calls) == 1:
+            raise HTTPError(
+                url=url,
+                code=429,
+                msg="Too Many Requests",
+                hdrs=None,
+                fp=None,
+            )
+
+        return FakeResponse(success_payload)
+
+    provider = TwelveDataMarketProvider(
+        api_key="test-key",
+        opener=opener,
+        sleep_fn=sleeps.append,
+        rate_limit_retries=3,
+        rate_limit_base_wait_seconds=10,
+    )
+
+    history = provider.get_history(
+        "SPY",
+        days=252,
+    )
+
+    assert history.status == "ok"
+    assert history.provider == "TwelveData"
+    assert len(history.points) == 1
+    assert len(calls) == 2
+    assert sleeps == [10.0]
+
+
+def test_twelve_data_retries_payload_429_then_succeeds():
+    calls = []
+    sleeps = []
+
+    payloads = [
+        {
+            "status": "error",
+            "code": 429,
+            "message": "Too many requests",
+        },
+        {
+            "values": [
+                {
+                    "datetime": "2026-08-24",
+                    "close": "425.27",
+                }
+            ]
+        },
+    ]
+
+    def opener(url, timeout=20):
+        calls.append(url)
+        return FakeResponse(
+            payloads.pop(0)
+        )
+
+    provider = TwelveDataMarketProvider(
+        api_key="test-key",
+        opener=opener,
+        sleep_fn=sleeps.append,
+        rate_limit_retries=3,
+        rate_limit_base_wait_seconds=10,
+    )
+
+    history = provider.get_history(
+        "GLD",
+        days=252,
+    )
+
+    assert history.status == "ok"
+    assert len(calls) == 2
+    assert sleeps == [10.0]
+
+
+def test_twelve_data_stops_after_rate_limit_retries():
+    from urllib.error import HTTPError
+
+    calls = []
+    sleeps = []
+
+    def opener(url, timeout=20):
+        calls.append(url)
+
+        raise HTTPError(
+            url=url,
+            code=429,
+            msg="Too Many Requests",
+            hdrs=None,
+            fp=None,
+        )
+
+    provider = TwelveDataMarketProvider(
+        api_key="test-key",
+        opener=opener,
+        sleep_fn=sleeps.append,
+        rate_limit_retries=2,
+        rate_limit_base_wait_seconds=10,
+    )
+
+    history = provider.get_history(
+        "SPY",
+        days=252,
+    )
+
+    assert history.status == "unavailable"
+    assert "rate limit" in (
+        history.error or ""
+    ).lower()
+
+    assert len(calls) == 3
+    assert sleeps == [
+        10.0,
+        20.0,
+    ]
+
+
+def test_twelve_data_does_not_retry_non_rate_limit_error():
+    from urllib.error import HTTPError
+
+    calls = []
+    sleeps = []
+
+    def opener(url, timeout=20):
+        calls.append(url)
+
+        raise HTTPError(
+            url=url,
+            code=401,
+            msg="Unauthorized",
+            hdrs=None,
+            fp=None,
+        )
+
+    provider = TwelveDataMarketProvider(
+        api_key="test-key",
+        opener=opener,
+        sleep_fn=sleeps.append,
+    )
+
+    history = provider.get_history(
+        "SPY",
+        days=252,
+    )
+
+    assert history.status == "unavailable"
+    assert len(calls) == 1
+    assert sleeps == []

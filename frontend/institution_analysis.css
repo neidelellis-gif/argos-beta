@@ -252,3 +252,18 @@ body {
     .institution-metrics article:nth-child(-n+2) { border-bottom: 1px solid rgba(236, 235, 231, 0.08); }
     .institution-grid { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* Institution analysis owns its page scroll.
+   The global ARGOS shell locks body scrolling for the notebook interface,
+   but this standalone analysis page must remain vertically scrollable. */
+body {
+    height: auto;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.institution-shell {
+    min-height: 100vh;
+    height: auto;
+}

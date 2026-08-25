@@ -92,7 +92,7 @@ function createContext(dashboard) {
     return { context, elements };
 }
 
-test("renders Jolika intelligence in executive attention", async () => {
+test("keeps consolidated intelligence hidden before explicit authorization", async () => {
     const dashboard = {
         institutions: [
             {
@@ -117,10 +117,12 @@ test("renders Jolika intelligence in executive attention", async () => {
                         "cross_institution_duplicate"
                     ]
                 },
-                portfolio_reading: "A carteira está concentrada em poucos ativos e isso merece mais atenção agora.",
+                portfolio_reading:
+                    "A carteira está concentrada em poucos ativos e isso merece mais atenção agora.",
                 coverage: {
                     consolidated_asset_count: 2,
-                    assets_with_economic_class: 2
+                    assets_with_economic_class: 2,
+                    assets_with_identifier: 2
                 },
                 concentration_by_currency: [
                     {
@@ -145,20 +147,22 @@ test("renders Jolika intelligence in executive attention", async () => {
         elements.get("portfolioExecutiveAttention")
     );
 
-    assert.match(text, /Prioridade de análise/);
-    assert.match(text, /Alta\. Fatores:/);
-    assert.match(text, /concentração relevante/);
-    assert.match(text, /ativo presente em mais de uma instituição/);
-    assert.match(text, /Leitura da carteira/);
-    assert.match(text, /concentrada em poucos ativos/);
-    assert.match(text, /Cobertura da classificação/);
-    assert.match(text, /100\.0% dos ativos consolidados/);
-    assert.match(text, /Maior concentração individual/);
-    assert.match(text, /USD: 75\.0% no maior ativo/);
-    assert.match(text, /Duplicidades entre instituições/);
-    assert.match(text, /1 ativo aparece em mais de uma instituição/);
-    assert.doesNotMatch(text, /Materialidade estrutural/);
-    assert.doesNotMatch(text, /Diversificação estrutural/);
+    assert.match(text, /Análises individuais primeiro/);
+    assert.match(text, /O consolidado permanece bloqueado/);
+    assert.match(text, /Importação completa/);
+
+    assert.doesNotMatch(text, /Prioridade de análise/);
+    assert.doesNotMatch(text, /Alta\. Fatores:/);
+    assert.doesNotMatch(text, /concentração relevante/);
+    assert.doesNotMatch(
+        text,
+        /ativo presente em mais de uma instituição/
+    );
+    assert.doesNotMatch(text, /Leitura da carteira/);
+    assert.doesNotMatch(text, /Cobertura da classificação/);
+    assert.doesNotMatch(text, /Maior concentração individual/);
+    assert.doesNotMatch(text, /Duplicidades entre instituições/);
+    assert.doesNotMatch(text, /ativos consolidados/);
 });
 
 test("keeps executive attention working without Jolika intelligence", async () => {

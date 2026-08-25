@@ -270,6 +270,7 @@ def _map_block_headers(header):
         normalized = _normalize_header(value)
         if normalized in {"ISIN", "TICKER", "CÓDIGO", "CODIGO", "TICKER/ISIN"}:
             mapping["symbol"] = index
+            mapping["symbol_header"] = normalized
         elif normalized in {
             "NOME DA CARTEIRA",
             "NOME DO ATIVO",
@@ -441,6 +442,22 @@ def _parse_positions(rows, *, context="load_positions", source_file=None):
             if not symbol or symbol.upper() == "N/A":
                 symbol = str(_safe_get(row, 0) or "").strip() or ""
 
+            symbol_header = mapping.get("symbol_header")
+            if symbol_header == "TICKER":
+                identifier_type = "ticker"
+            elif symbol_header == "ISIN":
+                identifier_type = "isin"
+            elif symbol_header in {"CÓDIGO", "CODIGO"}:
+                identifier_type = "code"
+            elif symbol_header == "TICKER/ISIN":
+                normalized_symbol = symbol.strip().upper()
+                if re.fullmatch(r"[A-Z]{2}[A-Z0-9]{9}[0-9]", normalized_symbol):
+                    identifier_type = "isin"
+                else:
+                    identifier_type = "ticker"
+            else:
+                identifier_type = None
+
             name = _build_display_name(row, mapping, symbol)
             if not name:
                 skipped_rows["missing_name"] += 1
@@ -461,6 +478,7 @@ def _parse_positions(rows, *, context="load_positions", source_file=None):
                     "institution": "Santander",
                     "account": account,
                     "symbol": symbol,
+                    "identifier_type": identifier_type,
                     "name": name,
                     "description": name,
                     "asset_class": asset_class,
@@ -508,7 +526,7 @@ def _to_portfolio_position(position, source_file):
         asset_subclass=None,
         asset_name=position["name"],
         identifier=identifier,
-        identifier_type=None,
+        identifier_type=position.get("identifier_type"),
         quantity=None,
         unit_price=None,
         market_value=Decimal(str(position["value"])),

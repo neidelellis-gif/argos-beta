@@ -125,7 +125,7 @@ test("Strategic Profile presents private banking copy and hides technical termin
     for (const input of [
         ['primaryGoal', 'preservation'], ['primaryGoal', 'growth'], ['primaryGoal', 'income'], ['primaryGoal', 'balance'],
         ['riskTolerance', 'low'], ['riskTolerance', 'moderate'], ['riskTolerance', 'high'],
-        ['horizon', 'short'], ['horizon', 'medium'], ['horizon', 'long'],
+        ['horizon', 'up_to_1'], ['horizon', 'one_to_2'], ['horizon', 'two_to_5'], ['horizon', 'over_5'],
         ['liquidity', 'high'], ['liquidity', 'moderate'], ['liquidity', 'low']
     ]) assert.match(profile, new RegExp(`name="${input[0]}" value="${input[1]}"`));
     assert.match(fs.readFileSync("frontend/app.js", "utf8"), /Confirmar Perfil Estratégico/);
@@ -199,8 +199,8 @@ test("Strategic Profile summary stays executive after save", () => {
     })[id];
 
     context.renderInvestorProfileSummary({
-        answers: { primaryGoal: "balance", riskTolerance: "moderate", horizon: "long", liquidity: "moderate" },
-        profile: { review_date: "2027-08-05" },
+        answers: { primaryGoal: "balance", riskTolerance: "moderate", horizon: "over_5", liquidity: "moderate" },
+        profile: { review_date: "2026-11-03" },
         saved_at: "2026-08-05T12:00:00.000Z"
     });
 
@@ -209,12 +209,12 @@ test("Strategic Profile summary stays executive after save", () => {
     assert.equal(status.textContent, "Perfil vigente");
     assert.match(summary.innerHTML, /Objetivo predominante<\/dt><dd>Equilíbrio/);
     assert.match(summary.innerHTML, /Postura<\/dt><dd>Manutenção da estratégia/);
-    assert.match(summary.innerHTML, /Horizonte<\/dt><dd>Acima de 5 anos/);
+    assert.match(summary.innerHTML, /Horizonte<\/dt><dd>Mais de 5 anos/);
     assert.match(summary.innerHTML, /Liquidez<\/dt><dd>Moderada/);
     assert.match(summary.innerHTML, /Última revisão/);
     assert.match(summary.innerHTML, /Próxima revisão/);
     assert.match(summary.innerHTML, /5 de agosto de 2026/);
-    assert.match(summary.innerHTML, /5 de agosto de 2027/);
+    assert.match(summary.innerHTML, /3 de novembro de 2026/);
     assert.match(summary.innerHTML, /Revisar Perfil/);
     assert.doesNotMatch(summary.innerHTML, /Motor|Decision Profile|algoritmo|análise automatizada|perfil calculado/i);
     summaryButtonListener();
@@ -224,14 +224,14 @@ test("Strategic Profile summary stays executive after save", () => {
 
 test("Strategic Profile summary is deterministic and changes only with the four saved answers", () => {
     const balanced = context.buildInvestorProfileSummary({
-        primaryGoal: "balance", riskTolerance: "moderate", horizon: "long", liquidity: "moderate"
+        primaryGoal: "balance", riskTolerance: "moderate", horizon: "over_5", liquidity: "moderate"
     });
     const preserving = context.buildInvestorProfileSummary({
-        primaryGoal: "preservation", riskTolerance: "low", horizon: "short", liquidity: "high"
+        primaryGoal: "preservation", riskTolerance: "low", horizon: "up_to_1", liquidity: "high"
     });
 
-    assert.deepEqual(JSON.parse(JSON.stringify(balanced)), { primaryGoal: "Equilíbrio", riskTolerance: "Manutenção da estratégia", horizon: "Acima de 5 anos", liquidity: "Moderada" });
-    assert.deepEqual(JSON.parse(JSON.stringify(preserving)), { primaryGoal: "Preservação", riskTolerance: "Redução de exposição", horizon: "Até 2 anos", liquidity: "Alta" });
+    assert.deepEqual(JSON.parse(JSON.stringify(balanced)), { primaryGoal: "Equilíbrio", riskTolerance: "Manutenção da estratégia", horizon: "Mais de 5 anos", liquidity: "Moderada" });
+    assert.deepEqual(JSON.parse(JSON.stringify(preserving)), { primaryGoal: "Preservação", riskTolerance: "Redução de exposição", horizon: "Até 1 ano", liquidity: "Alta" });
     assert.notDeepEqual(balanced, preserving);
     assert.doesNotMatch(JSON.stringify({ balanced, preserving }), /LOW|MODERATE|HIGH|SHORT_TERM|LONG_TERM|CAPITAL_|DIVERSIFICATION|profile_id/);
 });
@@ -253,8 +253,8 @@ test("Strategic Profile first access shows its action without an empty summary o
 test("Strategic Profile toggles through confirmed, editing, and reconfirmed without simultaneous visibility", () => {
     const fixture = createInvestorProfileFixture();
     const stored = {
-        answers: { primaryGoal: "balance", riskTolerance: "moderate", horizon: "long", liquidity: "moderate" },
-        profile: { review_date: "2027-08-05" },
+        answers: { primaryGoal: "balance", riskTolerance: "moderate", horizon: "over_5", liquidity: "moderate" },
+        profile: { review_date: "2026-11-03" },
         saved_at: "2026-08-05T12:00:00.000Z"
     };
 
@@ -271,7 +271,7 @@ test("Strategic Profile toggles through confirmed, editing, and reconfirmed with
     assert.equal(fixture.summary.innerHTML, "");
     assert.equal(fixture.inputs.get("primaryGoal:balance").checked, true);
     assert.equal(fixture.inputs.get("riskTolerance:moderate").checked, true);
-    assert.equal(fixture.inputs.get("horizon:long").checked, true);
+    assert.equal(fixture.inputs.get("horizon:over_5").checked, true);
     assert.equal(fixture.inputs.get("liquidity:moderate").checked, true);
 
     context.renderInvestorProfileSummary(stored);
@@ -408,10 +408,10 @@ test("Strategic Profile form submits only from the final step and returns to sum
             setItem(_key, value) { this.saved = value; }
         }
     };
-    context.fetch = async () => ({ ok: true, async json() { return { ok: true, profile: { review_date: "2027-08-05" } }; } });
+    context.fetch = async () => ({ ok: true, async json() { return { ok: true, profile: { review_date: "2026-11-03" } }; } });
 
     context.setupInvestorProfileFlow();
-    fixture.form.values = { primaryGoal: "balance", riskTolerance: "moderate", horizon: "long", liquidity: "moderate" };
+    fixture.form.values = { primaryGoal: "balance", riskTolerance: "moderate", horizon: "over_5", liquidity: "moderate" };
     context.renderInvestorProfileStep(fixture.form, 3);
     fixture.nextButton.listener();
     await new Promise((resolve) => setImmediate(resolve));

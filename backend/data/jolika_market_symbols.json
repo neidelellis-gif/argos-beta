@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "resolutions": [
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US78468R6633",
+      "market_symbol": "BIL",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "SPDR Bloomberg 1-3 Month T-Bill ETF"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US1912161007",
+      "market_symbol": "KO",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Coca-Cola Co"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US19247G1076",
+      "market_symbol": "COHR",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Coherent Corp"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US21037T1097",
+      "market_symbol": "CEG",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Constellation Energy"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US36828A1016",
+      "market_symbol": "GEV",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "GE Vernova"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US45866F1049",
+      "market_symbol": "ICE",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Intercontinental Exchange"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US4781601046",
+      "market_symbol": "JNJ",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Johnson & Johnson"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US5738741041",
+      "market_symbol": "MRVL",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Marvell Technology"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US81762P1021",
+      "market_symbol": "NOW",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "ServiceNow"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US92537N1081",
+      "market_symbol": "VRT",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Vertiv Holdings"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US8740391003",
+      "market_symbol": "TSM",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Taiwan Semiconductor ADR"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:CA4969024047",
+      "market_symbol": "KGC",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "Kinross Gold"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US33734X8469",
+      "market_symbol": "CIBR",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "First Trust Nasdaq Cybersecurity ETF"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US33737A1088",
+      "market_symbol": "GRID",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "First Trust Nasdaq Clean Edge Smart Grid Infrastructure ETF"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US46429B6636",
+      "market_symbol": "HDV",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "iShares Core High Dividend ETF"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US78462F1030",
+      "market_symbol": "SPY",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "SPDR S&P 500 ETF Trust"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US92189H8218",
+      "market_symbol": "DAPP",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "VanEck Digital Transformation ETF"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US46429B5984",
+      "market_symbol": "INDA",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "iShares MSCI India ETF"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US46435U3749",
+      "market_symbol": "EWJV",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "iShares MSCI Japan Value ETF"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US46438F1012",
+      "market_symbol": "IBIT",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "iShares Bitcoin Trust ETF"
+    },
+    {
+      "stable_key": "JOLIKA|SANTANDER|ISIN:US78463V1070",
+      "market_symbol": "GLD",
+      "status": "confirmed",
+      "resolution_source": "human_review",
+      "note": "SPDR Gold Trust"
+    }
+  ]
+}
