@@ -49,7 +49,7 @@ def test_report_rejects_missing_or_reordered_stages() -> None:
         )
 
 
-def test_unavailable_stage_declares_limitation_instead_of_inventing_result() -> None:
+def test_unavailable_stage_declares_limitation_once_instead_of_inventing_result() -> None:
     stage = unavailable_stage(
         "market_context",
         "Carteira × ambiente de mercado",
@@ -57,5 +57,5 @@ def test_unavailable_stage_declares_limitation_instead_of_inventing_result() -> 
     )
 
     assert stage.status == "limited"
-    assert stage.items[0].title == "Limitação dos dados"
-    assert stage.items[0].confidence == "Alta"
+    assert stage.summary == "Contexto de mercado atual não disponível."
+    assert stage.items == ()
