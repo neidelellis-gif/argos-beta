@@ -150,12 +150,12 @@ def build_jolika_patrimonial_report(
     master_assumptions = unavailable_stage(
         "master_assumptions",
         "Aderência às Premissas Mestres da JOLIKA",
-        "A fonte canônica das Premissas Mestres ainda não está formalizada no backend; nenhuma aderência consolidada é inferida.",
+        "As Premissas Mestres da JOLIKA ainda não foram formalizadas como referência oficial no ARGOS. Até essa definição, nenhuma aderência será presumida.",
     )
     market_context = unavailable_stage(
         "market_context",
         "Carteira × ambiente de mercado",
-        "O contexto editorial de mercado e newsletters ainda não está conectado a este relatório consolidado; nenhuma leitura externa é inventada.",
+        "O contexto editorial de mercado e as newsletters ainda não fazem parte desta análise. Até a conexão dessas fontes, o ARGOS não atribuirá conclusões externas à carteira.",
     )
     final_diagnosis = PatrimonialAnalysisStage(
         key="final_diagnosis",
