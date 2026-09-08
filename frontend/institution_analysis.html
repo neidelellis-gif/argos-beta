@@ -12,6 +12,18 @@
     <link rel="stylesheet" href="design/layout.css">
     <link rel="stylesheet" href="design/components.css">
     <link rel="stylesheet" href="institution_analysis.css">
+    <script>
+        (() => {
+            const consolidated = new URLSearchParams(window.location.search).get("consolidated") === "1";
+            if (consolidated) document.documentElement.classList.add("consolidated-loading");
+        })();
+    </script>
+    <style>
+        html.consolidated-loading .institution-main,
+        html.consolidated-loading .institution-sidebar {
+            visibility: hidden;
+        }
+    </style>
 </head>
 <body>
 <div class="institution-shell">
