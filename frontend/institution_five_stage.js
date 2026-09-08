@@ -10,6 +10,11 @@ const InstitutionFiveStage = (() => {
             && new URLSearchParams(window.location.search).get("consolidated") === "1";
     }
 
+    function revealConsolidatedView() {
+        if (typeof document === "undefined") return;
+        document.documentElement.classList.remove("consolidated-loading");
+    }
+
     function installConsolidationGuard() {
         if (!nativeFetch || typeof window === "undefined") return;
         window.fetch = async (input, init = {}) => {
@@ -247,10 +252,11 @@ const InstitutionFiveStage = (() => {
 
     async function load() {
         prepareConsolidatedLoading();
+        const consolidatedMode = isConsolidatedMode();
         const state = document.getElementById("fiveStageState");
         if (state) {
             state.hidden = false;
-            state.textContent = isConsolidatedMode()
+            state.textContent = consolidatedMode
                 ? "Carregando análise consolidada…"
                 : "Preparando as cinco etapas da análise…";
         }
@@ -260,9 +266,11 @@ const InstitutionFiveStage = (() => {
                 loadDashboard()
             ]);
             renderReport(selectedReport(intelligence), dashboard);
+            if (consolidatedMode) revealConsolidatedView();
         } catch (error) {
             console.error("Five-stage patrimonial analysis failed", error);
             if (state) state.textContent = "Não foi possível carregar o relatório patrimonial agora.";
+            if (consolidatedMode) revealConsolidatedView();
         }
     }
 
@@ -313,7 +321,8 @@ const InstitutionFiveStage = (() => {
             applyConsolidatedPresentation,
             formatCurrency,
             isConsolidatedMode,
-            prepareConsolidatedLoading
+            prepareConsolidatedLoading,
+            revealConsolidatedView
         })
     });
 })();
