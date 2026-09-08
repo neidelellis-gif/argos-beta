@@ -173,6 +173,16 @@ def build_institution_patrimonial_report(
     """Apply the official five-stage method to UBS or Santander in isolation."""
 
     institution = structural.institution
+    analyzed_count = quantitative.analyzed_position_count
+    unavailable_count = quantitative.unavailable_position_count
+    total_quantitative = analyzed_count + unavailable_count
+    coverage_note = (
+        f"A leitura estrutural usa toda a carteira importada. A leitura de risco histórico cobre "
+        f"{analyzed_count} de {total_quantitative} posições; {unavailable_count} ainda não possuem "
+        "histórico suficiente para essa camada quantitativa."
+        if total_quantitative
+        else "A leitura estrutural usa toda a carteira importada; não há cobertura histórica suficiente para a camada quantitativa."
+    )
 
     diagnosis = PatrimonialAnalysisStage(
         key="diagnosis",
@@ -180,18 +190,14 @@ def build_institution_patrimonial_report(
         summary=operational.executive_reading,
         items=(
             PatrimonialAnalysisItem(
-                title="Leitura executiva",
-                reading=operational.executive_reading,
+                title="Abrangência da análise",
+                reading=coverage_note,
                 evidence=(
                     "carteira importada",
                     "métricas estruturais",
-                    "métricas quantitativas históricas",
+                    "cobertura quantitativa disponível",
                 ),
-                confidence=(
-                    "Média"
-                    if quantitative.analyzed_position_count
-                    else "Baixa"
-                ),
+                confidence="Alta" if unavailable_count == 0 and total_quantitative else "Parcial",
             ),
         ),
     )
@@ -212,13 +218,13 @@ def build_institution_patrimonial_report(
     master_assumptions = unavailable_stage(
         "master_assumptions",
         "Aderência às Premissas Mestres da JOLIKA",
-        "As Premissas Mestres ainda não estão disponíveis para este serviço de backend; nenhuma aderência é inferida sem essa base.",
+        "As Premissas Mestres da JOLIKA ainda não foram formalizadas como referência oficial no ARGOS. Até essa definição, nenhuma aderência será presumida.",
     )
 
     market_context = unavailable_stage(
         "market_context",
         "Carteira × ambiente de mercado",
-        "O contexto editorial de mercado e newsletters ainda não está conectado a este relatório institucional; o ARGOS mantém esta etapa explícita sem inventar uma leitura externa.",
+        "O contexto editorial de mercado e as newsletters ainda não fazem parte desta análise. Até a conexão dessas fontes, o ARGOS não atribuirá conclusões externas à carteira.",
     )
 
     final_diagnosis = PatrimonialAnalysisStage(
