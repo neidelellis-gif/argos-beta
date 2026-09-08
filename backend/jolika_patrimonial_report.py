@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Iterable
 
+from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
 from backend.patrimonial_analysis_method import (
     PatrimonialAnalysisItem,
     PatrimonialAnalysisReport,
@@ -147,10 +148,9 @@ def build_jolika_patrimonial_report(
         ),
         items=_composition_items(structural),
     )
-    master_assumptions = unavailable_stage(
-        "master_assumptions",
-        "Aderência às Premissas Mestres da JOLIKA",
-        "As Premissas Mestres da JOLIKA ainda não foram formalizadas como referência oficial no ARGOS. Até essa definição, nenhuma aderência será presumida.",
+    master_assumptions = build_master_assumptions_stage(
+        structural,
+        operational=operational,
     )
     market_context = unavailable_stage(
         "market_context",
