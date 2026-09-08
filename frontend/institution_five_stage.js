@@ -79,6 +79,35 @@ const InstitutionFiveStage = (() => {
         return article;
     }
 
+    function applyConsolidatedPresentation() {
+        const title = document.getElementById("institutionName");
+        const meta = document.getElementById("institutionMeta");
+        const kicker = document.getElementById("analysisModeKicker");
+        const status = document.getElementById("institutionStatus");
+        const legacySummary = document.getElementById("executiveSummary")?.closest(".institution-summary");
+        const legacyMetrics = document.getElementById("metricValue")?.closest(".institution-metrics");
+        const decision = document.getElementById("consolidatedDecision");
+        const footer = document.querySelector("main.institution-main > footer.institution-actions");
+        const lock = document.querySelector(".institution-consolidation-lock");
+
+        if (title) title.textContent = "JOLIKA consolidada";
+        if (meta) meta.textContent = `Jolika · análise consolidada · ${new Intl.DateTimeFormat("pt-BR").format(new Date())}`;
+        if (kicker) kicker.textContent = "LEITURA CONSOLIDADA";
+        if (status) status.textContent = "Concluída";
+        if (legacySummary) legacySummary.hidden = true;
+        if (legacyMetrics) legacyMetrics.hidden = true;
+        if (decision) decision.hidden = true;
+        if (footer) footer.hidden = true;
+        if (lock) {
+            const label = lock.querySelector("strong");
+            if (label) label.textContent = "Leituras individuais concluídas";
+        }
+
+        document.querySelectorAll("#institutionNav .institution-nav-status").forEach((node) => {
+            node.textContent = "Concluída";
+        });
+    }
+
     function renderReport(report) {
         const container = document.getElementById("fiveStageReport");
         const state = document.getElementById("fiveStageState");
@@ -94,14 +123,8 @@ const InstitutionFiveStage = (() => {
         state.hidden = true;
         report.stages.forEach((stage, index) => container.append(renderStage(stage, index)));
 
-        const consolidated = report.scope === "consolidated";
-        const title = document.getElementById("institutionName");
-        const meta = document.getElementById("institutionMeta");
-        const kicker = document.getElementById("analysisModeKicker");
-        if (consolidated) {
-            if (title) title.textContent = "JOLIKA consolidada";
-            if (meta) meta.textContent = `Jolika · análise consolidada · ${new Intl.DateTimeFormat("pt-BR").format(new Date())}`;
-            if (kicker) kicker.textContent = "LEITURA CONSOLIDADA";
+        if (report.scope === "consolidated") {
+            applyConsolidatedPresentation();
         }
     }
 
@@ -154,7 +177,7 @@ const InstitutionFiveStage = (() => {
     bindConsolidatedDecision();
     return Object.freeze({
         load,
-        _test: Object.freeze({ selectedReport, authorizeConsolidation })
+        _test: Object.freeze({ selectedReport, authorizeConsolidation, applyConsolidatedPresentation })
     });
 })();
 
