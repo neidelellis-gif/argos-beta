@@ -24,7 +24,7 @@ if __package__ in {None, ""}:
 from backend.dashboard import build_dashboard
 from backend.canonical_portfolio import serialize_portfolio_positions
 from backend.daily_http import DailyHttpAdapter, MAX_DAILY_REQUEST_BYTES
-from backend.daily_api import DailyApiFacade
+from backend.daily_api import DailyApiFacade, daily_consolidation_authorization
 from backend.ubs_daily_intelligence import UBSDailyIntelligenceService
 from backend.santander_daily_intelligence import SantanderDailyIntelligenceService
 from backend.jolika_daily_intelligence import JolikaDailyIntelligenceService
@@ -67,6 +67,8 @@ def _log_server_import(message, **details):
 class SessionPortfolio(TypedDict):
     positions: tuple[PortfolioPosition, ...]
     last_import_at: datetime
+    completed_institutions: tuple[str, ...]
+    consolidation_authorized: bool
 
 
 SESSION_PORTFOLIOS: dict[str, SessionPortfolio] = {}
@@ -361,6 +363,12 @@ class ArgosRequestHandler(
         if self.path == "/api/portfolios/paste":
             self._paste_portfolio()
             return
+        if self.path == "/api/portfolios/analysis-complete":
+            self._complete_portfolio_analysis()
+            return
+        if self.path == "/api/portfolios/consolidate":
+            self._consolidate_portfolio()
+            return
 
         handlers = {
             # Compatibility only: delegates to the official import/dashboard flow.
@@ -419,18 +427,31 @@ class ArgosRequestHandler(
         market_facts = MARKET_CONNECTOR_MANAGER.load_facts()
         market_agenda = self._session_agenda()
         session_positions = self._session_positions()
+        session_portfolio = self._session_portfolio()
+        consolidation_authorized = (
+            session_portfolio.get("consolidation_authorized", False)
+            if session_portfolio is not None
+            else False
+        )
+
+        def handle_daily(*args):
+            with daily_consolidation_authorization(
+                consolidation_authorized
+            ):
+                return DAILY_HTTP_ADAPTER.handle(*args)
+
         try:
             content_length = self._content_length()
         except ValueError:
             content_length = -1
         if content_length < 0:
-            response = DAILY_HTTP_ADAPTER.handle(
+            response = handle_daily(
                 self.command, dict(self.headers), b"", market_agenda, self._session_decision_profile(),
                 session_positions,
                 market_facts,
             )
         elif content_length > MAX_DAILY_REQUEST_BYTES:
-            response = DAILY_HTTP_ADAPTER.handle(
+            response = handle_daily(
                 self.command,
                 dict(self.headers),
                 b" " * (MAX_DAILY_REQUEST_BYTES + 1),
@@ -441,7 +462,7 @@ class ArgosRequestHandler(
             )
         else:
             body = self.rfile.read(content_length)
-            response = DAILY_HTTP_ADAPTER.handle(
+            response = handle_daily(
                 self.command, dict(self.headers), body, market_agenda, self._session_decision_profile(),
                 session_positions,
                 market_facts,
@@ -520,6 +541,19 @@ class ArgosRequestHandler(
             portfolio["last_import_at"] if portfolio is not None else None
         )
         dashboard = build_dashboard(positions, last_import_at=last_import_at)
+
+        session = dashboard.setdefault("session", {})
+        session["completed_institutions"] = (
+            list(portfolio.get("completed_institutions", ()))
+            if portfolio is not None
+            else []
+        )
+        session["consolidation_authorized"] = (
+            bool(portfolio.get("consolidation_authorized", False))
+            if portfolio is not None
+            else False
+        )
+
         if include_positions:
             dashboard["positions"] = serialize_portfolio_positions(positions)
         return dashboard
@@ -606,6 +640,8 @@ class ArgosRequestHandler(
             SESSION_PORTFOLIOS[session_id] = {
                 "positions": session_positions,
                 "last_import_at": imported_at,
+                "completed_institutions": (),
+                "consolidation_authorized": False,
             }
 
             dashboard = build_dashboard(
@@ -676,6 +712,8 @@ class ArgosRequestHandler(
                 SESSION_PORTFOLIOS[session_id] = {
                     "positions": preserved_positions + imported_positions,
                     "last_import_at": imported_at,
+                    "completed_institutions": (),
+                    "consolidation_authorized": False,
                 }
                 result["dashboard"] = build_dashboard(
                     SESSION_PORTFOLIOS[session_id]["positions"],
@@ -696,15 +734,119 @@ class ArgosRequestHandler(
                 )
             except Exception as exc:
                 session_id = self._session_id()
-                if session_id:
-                    SESSION_PORTFOLIOS.pop(session_id, None)
-                empty_dashboard = build_dashboard(())
+                current_session = (
+                    SESSION_PORTFOLIOS.get(session_id)
+                    if session_id
+                    else None
+                )
+                current_positions = (
+                    current_session["positions"]
+                    if current_session is not None
+                    else ()
+                )
+                last_import_at = (
+                    current_session.get("last_import_at")
+                    if current_session is not None
+                    else None
+                )
                 self._send_json({
                     "ok": False,
                     "error": str(exc),
-                    "dashboard": empty_dashboard,
-                    "positions": [],
+                    "dashboard": build_dashboard(
+                        current_positions,
+                        last_import_at=last_import_at,
+                    ),
+                    "positions": serialize_portfolio_positions(
+                        current_positions
+                    ),
                 }, status=400)
+
+    def _complete_portfolio_analysis(self) -> None:
+        try:
+            session_id = self._session_id()
+            portfolio = SESSION_PORTFOLIOS.get(session_id) if session_id else None
+            if portfolio is None:
+                raise ValueError("Nenhuma carteira carregada nesta sessão.")
+
+            content_length = self._content_length()
+            if content_length <= 0:
+                raise ValueError("Informe a instituição analisada em JSON.")
+            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("Dados inválidos.")
+            institution = payload.get("institution")
+            if not isinstance(institution, str) or not institution.strip():
+                raise ValueError("Informe a instituição analisada.")
+
+            loaded_institutions = {
+                position.institution
+                for position in portfolio["positions"]
+                if position.owner is PortfolioOwner.JOLIKA
+            }
+            if institution not in loaded_institutions:
+                raise ValueError(
+                    "Instituição não encontrada na carteira carregada."
+                )
+
+            completed_institutions = portfolio["completed_institutions"]
+            if institution not in completed_institutions:
+                completed_institutions = completed_institutions + (institution,)
+
+            SESSION_PORTFOLIOS[session_id] = {
+                "positions": portfolio["positions"],
+                "last_import_at": portfolio["last_import_at"],
+                "completed_institutions": completed_institutions,
+                "consolidation_authorized": portfolio["consolidation_authorized"],
+            }
+
+            self._send_json(
+                {
+                    "ok": True,
+                    "completed_institutions": list(completed_institutions),
+                    "consolidation_authorized": portfolio["consolidation_authorized"],
+                },
+                status=200,
+            )
+        except Exception as exc:
+            self._send_json({"ok": False, "error": str(exc)}, status=400)
+
+    def _consolidate_portfolio(self) -> None:
+        try:
+            session_id = self._session_id()
+            portfolio = SESSION_PORTFOLIOS.get(session_id) if session_id else None
+            if portfolio is None:
+                raise ValueError("Nenhuma carteira carregada nesta sessão.")
+
+            loaded_institutions = {
+                position.institution
+                for position in portfolio["positions"]
+                if position.owner is PortfolioOwner.JOLIKA
+            }
+            completed_institutions = portfolio["completed_institutions"]
+            missing_institutions = loaded_institutions - set(completed_institutions)
+            if missing_institutions:
+                raise ValueError(
+                    "Existem instituições sem análise concluída: "
+                    + ", ".join(sorted(missing_institutions))
+                )
+
+            SESSION_PORTFOLIOS[session_id] = {
+                "positions": portfolio["positions"],
+                "last_import_at": portfolio["last_import_at"],
+                "completed_institutions": completed_institutions,
+                "consolidation_authorized": True,
+            }
+
+            self._send_json(
+                {
+                    "ok": True,
+                    "completed_institutions": list(completed_institutions),
+                    "consolidation_authorized": True,
+                },
+                status=200,
+            )
+        except Exception as exc:
+            self._send_json({"ok": False, "error": str(exc)}, status=400)
 
     def _import_market_agenda(self) -> None:
         try:

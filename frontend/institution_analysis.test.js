@@ -373,3 +373,10 @@ test("does not call a few-position portfolio concentrated without dominant weigh
         restore();
     }
 });
+
+
+test("uses backend consolidation only for JOLIKA", () => {
+    assert.equal(helpers.usesBackendConsolidation("jolika"), true);
+    assert.equal(helpers.usesBackendConsolidation("nei_pf"), false);
+    assert.equal(helpers.usesBackendConsolidation(""), false);
+});

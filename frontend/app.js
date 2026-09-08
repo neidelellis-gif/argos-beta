@@ -392,7 +392,19 @@ function setupNotebookNavigation(root = document) {
             activateNotebookTab(item.dataset.tab, navigationItems, panels);
         });
     });
-    activateNotebookTab("daily", navigationItems, panels);
+    const requestedTab = new URLSearchParams(
+        window.location.search
+    ).get("tab");
+
+    const validTabs = new Set(
+        navigationItems.map((item) => item.dataset.tab)
+    );
+
+    activateNotebookTab(
+        validTabs.has(requestedTab) ? requestedTab : "daily",
+        navigationItems,
+        panels
+    );
 }
 
 function storeCanonicalPortfolioPositions(positions) {
@@ -1159,67 +1171,79 @@ function renderDashboard(data) {
         institutions.append(card);
     });
 
-    consolidated.append(
-        createMetric("Instituições", data.consolidated.institution_count),
-        createMetric("Posições", data.consolidated.position_count),
-        createMetric("Ativos únicos", data.consolidated.unique_asset_count),
-        createMetric("Ativos repetidos", data.consolidated.repeated_asset_count)
-    );
-    appendTotals(consolidated, data.consolidated.totals_by_currency);
-    appendWarnings(consolidated, data.consolidated.warnings);
+    const consolidationAuthorized =
+        data?.session?.consolidation_authorized === true;
 
-    const intelligence = data.consolidated.intelligence;
-    if (intelligence) {
+    if (!consolidationAuthorized) {
         consolidated.append(
             createMetric(
-                "Ativos consolidados",
-                intelligence.consolidated_asset_count
-            ),
-            createMetric(
-                "Cobertura de classificação",
-                intelligence.coverage.consolidated_asset_count
-                    ? formatPercentage(
-                        intelligence.coverage.assets_with_economic_class
-                        / intelligence.coverage.consolidated_asset_count
-                        * 100
-                    )
-                    : formatPercentage(0)
-            ),
-            createMetric(
-                "Duplicidades entre instituições",
-                intelligence.duplicate_exposures.filter(
-                    (item) => item.across_institutions
-                ).length
+                "Consolidação",
+                "Disponível após todas as análises individuais"
             )
         );
+    } else {
+        consolidated.append(
+            createMetric("Instituições", data.consolidated.institution_count),
+            createMetric("Posições", data.consolidated.position_count),
+            createMetric("Ativos únicos", data.consolidated.unique_asset_count),
+            createMetric("Ativos repetidos", data.consolidated.repeated_asset_count)
+        );
+        appendTotals(consolidated, data.consolidated.totals_by_currency);
+        appendWarnings(consolidated, data.consolidated.warnings);
 
-        intelligence.concentration_by_currency.forEach((item) => {
+        const intelligence = data.consolidated.intelligence;
+        if (intelligence) {
             consolidated.append(
                 createMetric(
-                    `Concentração Top 1 ${item.currency}`,
-                    item.top_1_weight !== null
-                        ? formatPercentage(Number(item.top_1_weight) * 100)
-                        : "N/A"
+                    "Ativos consolidados",
+                    intelligence.consolidated_asset_count
                 ),
                 createMetric(
-                    `Concentração Top 3 ${item.currency}`,
-                    item.top_3_weight !== null
-                        ? formatPercentage(Number(item.top_3_weight) * 100)
-                        : "N/A"
+                    "Cobertura de classificação",
+                    intelligence.coverage.consolidated_asset_count
+                        ? formatPercentage(
+                            intelligence.coverage.assets_with_economic_class
+                            / intelligence.coverage.consolidated_asset_count
+                            * 100
+                        )
+                        : formatPercentage(0)
                 ),
                 createMetric(
-                    `Concentração Top 5 ${item.currency}`,
-                    item.top_5_weight !== null
-                        ? formatPercentage(Number(item.top_5_weight) * 100)
-                        : "N/A"
+                    "Duplicidades entre instituições",
+                    intelligence.duplicate_exposures.filter(
+                        (item) => item.across_institutions
+                    ).length
                 )
             );
-        });
 
-        appendWarnings(
-            consolidated,
-            intelligence.consolidation_alerts
-        );
+            intelligence.concentration_by_currency.forEach((item) => {
+                consolidated.append(
+                    createMetric(
+                        `Concentração Top 1 ${item.currency}`,
+                        item.top_1_weight !== null
+                            ? formatPercentage(Number(item.top_1_weight) * 100)
+                            : "N/A"
+                    ),
+                    createMetric(
+                        `Concentração Top 3 ${item.currency}`,
+                        item.top_3_weight !== null
+                            ? formatPercentage(Number(item.top_3_weight) * 100)
+                            : "N/A"
+                    ),
+                    createMetric(
+                        `Concentração Top 5 ${item.currency}`,
+                        item.top_5_weight !== null
+                            ? formatPercentage(Number(item.top_5_weight) * 100)
+                            : "N/A"
+                    )
+                );
+            });
+
+            appendWarnings(
+                consolidated,
+                intelligence.consolidation_alerts
+            );
+        }
     }
 
     data.daily_situation.forEach((item, index) => {

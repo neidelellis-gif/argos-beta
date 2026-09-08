@@ -1,5 +1,7 @@
 """Stable public facade for the official ARGOS daily experience."""
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from collections.abc import Callable, Iterable
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -84,6 +86,22 @@ def _data_quality_contract(value: dict[str, object] | None) -> DailyApiDataQuali
                                tuple(dict(item) for item in diagnostics if isinstance(item, dict)))
 
 
+
+_DAILY_CONSOLIDATION_AUTHORIZED = ContextVar(
+    "daily_consolidation_authorized",
+    default=True,
+)
+
+
+@contextmanager
+def daily_consolidation_authorization(authorized: bool):
+    token = _DAILY_CONSOLIDATION_AUTHORIZED.set(authorized)
+    try:
+        yield
+    finally:
+        _DAILY_CONSOLIDATION_AUTHORIZED.reset(token)
+
+
 class DailyApiFacade:
     """Coordinate official daily services and protect the public boundary."""
 
@@ -124,7 +142,14 @@ class DailyApiFacade:
         self._santander_intelligence_service = santander_intelligence_service
         self._jolika_intelligence_service = jolika_intelligence_service
 
-    def execute(self, request: DailyApiRequest) -> DailyApiResponse:
+    def execute(
+        self,
+        request: DailyApiRequest,
+        *,
+        consolidation_authorized: bool | None = None,
+    ) -> DailyApiResponse:
+        if consolidation_authorized is None:
+            consolidation_authorized = _DAILY_CONSOLIDATION_AUTHORIZED.get()
         try:
             generated_at = _aware_utc(self._clock())
         except Exception:
@@ -259,7 +284,7 @@ class DailyApiFacade:
                         pass
 
             if self._jolika_intelligence_service is not None:
-                if (
+                if consolidation_authorized and (
                     ubs_intelligence is not None
                     or santander_intelligence is not None
                 ):

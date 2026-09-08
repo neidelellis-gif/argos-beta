@@ -147,9 +147,9 @@ test("keeps consolidated intelligence hidden before explicit authorization", asy
         elements.get("portfolioExecutiveAttention")
     );
 
-    assert.match(text, /Análises individuais primeiro/);
-    assert.match(text, /O consolidado permanece bloqueado/);
-    assert.match(text, /Importação completa/);
+    assert.match(text, /Análises disponíveis/);
+    assert.match(text, /UBS e Santander estão disponíveis para análise individual/);
+    assert.match(text, /Análises disponíveis/);
 
     assert.doesNotMatch(text, /Prioridade de análise/);
     assert.doesNotMatch(text, /Alta\. Fatores:/);
@@ -186,7 +186,7 @@ test("keeps executive attention working without Jolika intelligence", async () =
         elements.get("portfolioExecutiveAttention")
     );
 
-    assert.match(text, /Análises individuais primeiro/);
+    assert.match(text, /Análises disponíveis/);
     assert.match(text, /Carteiras ainda não carregadas/);
     assert.doesNotMatch(text, /Cobertura da classificação/);
 });

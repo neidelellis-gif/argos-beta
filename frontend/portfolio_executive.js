@@ -225,27 +225,74 @@ const PortfolioExecutive = (() => {
         const loaded = new Set(institutions.map((institution) => normalize(institution.name)));
         const missing = owner.institutions.filter((name) => !loaded.has(normalize(name)));
         const list = element("div", "portfolio-attention-list");
+        const consolidationAuthorized =
+            owner?.id === "jolika"
+            && dashboard?.session?.consolidation_authorized === true;
 
         if (institutions.length === 0) {
             list.append(attentionRow(
                 "Importação necessária",
                 `Importe as carteiras de ${owner.name} para iniciar as análises individuais.`
             ));
-        } else {
+        } else if (consolidationAuthorized) {
             list.append(attentionRow(
-                "Análises individuais primeiro",
-                `${institutions.length} ${institutions.length === 1 ? "instituição carregada" : "instituições carregadas"}. O consolidado permanece bloqueado.`,
+                "Análise consolidada — Jolika",
+                intelligence?.portfolio_reading
+                    || "A visão consolidada está disponível para análise.",
                 "accent"
             ));
 
-            /*
-             * Regra patrimonial do ARGOS:
-             * inteligência consolidada não pode ser exibida antes da
-             * autorização explícita do usuário para consolidar.
-             *
-             * Nesta etapa, cada instituição permanece integralmente
-             * independente, inclusive quando existem ativos iguais.
-             */
+            const priority = intelligence?.priority;
+            if (priority?.level) {
+                list.append(attentionRow(
+                    "Prioridade da análise",
+                    `${priority.level}${Array.isArray(priority.reasons) && priority.reasons.length
+                        ? `. Fatores: ${priority.reasons.join(" · ")}`
+                        : ""}`
+                ));
+            }
+
+            const coverage = intelligence?.coverage;
+            if (coverage?.consolidated_asset_count !== undefined) {
+                list.append(attentionRow(
+                    "Cobertura da classificação",
+                    `${coverage.assets_with_economic_class || 0} de ${coverage.consolidated_asset_count || 0} ativos consolidados classificados economicamente.`
+                ));
+            }
+
+            const concentration = Array.isArray(
+                intelligence?.concentration_by_currency
+            )
+                ? intelligence.concentration_by_currency[0]
+                : null;
+
+            if (concentration?.top_1_weight !== undefined) {
+                list.append(attentionRow(
+                    "Maior concentração individual",
+                    `${concentration.currency || "Carteira"}: ${(Number(concentration.top_1_weight) * 100).toFixed(1)}%`
+                ));
+            }
+
+            const duplicates = Array.isArray(intelligence?.duplicate_exposures)
+                ? intelligence.duplicate_exposures.filter(
+                    (item) => item.across_institutions
+                ).length
+                : 0;
+
+            list.append(attentionRow(
+                "Duplicidades entre instituições",
+                duplicates === 0
+                    ? "Nenhuma duplicidade material entre instituições foi identificada."
+                    : `${duplicates} exposição(ões) aparece(m) em mais de uma instituição.`
+            ));
+        } else {
+            list.append(attentionRow(
+                "Análises disponíveis",
+                institutions.length === 2
+                    ? `${institutions[0].name} e ${institutions[1].name} estão disponíveis para análise individual.`
+                    : `${institutions.length} ${institutions.length === 1 ? "instituição está disponível" : "instituições estão disponíveis"} para análise individual.`,
+                "accent"
+            ));
 
             if (missing.length) {
                 list.append(attentionRow(
@@ -254,11 +301,12 @@ const PortfolioExecutive = (() => {
                 ));
             } else {
                 list.append(attentionRow(
-                    "Importação completa",
-                    "Todas as instituições previstas estão carregadas. A próxima etapa é concluir cada análise individual."
+                    "Próxima etapa",
+                    "Após essas leituras, o ARGOS poderá apresentar a visão consolidada da carteira."
                 ));
             }
         }
+
         container.append(list);
     }
 
@@ -358,6 +406,9 @@ const PortfolioExecutive = (() => {
     }
 
     function isConsolidationAuthorized(owner) {
+        if (owner?.id === "jolika") {
+            return dashboard?.session?.consolidation_authorized === true;
+        }
         return Boolean(consolidationAuthorizationMap()[owner.id]);
     }
 
@@ -396,7 +447,7 @@ const PortfolioExecutive = (() => {
             return;
         }
 
-        button.textContent = "Consolidar carteiras";
+        button.textContent = "Analisar carteira consolidada →";
 
         if (!button.dataset.consolidationBound) {
             button.dataset.consolidationBound = "true";
@@ -420,7 +471,9 @@ const PortfolioExecutive = (() => {
 
                 if (!canAuthorize) return;
 
-                authorizeConsolidation(activeOwner);
+                if (activeOwner?.id !== "jolika") {
+                    authorizeConsolidation(activeOwner);
+                }
                 render();
             });
         }

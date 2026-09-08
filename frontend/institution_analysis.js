@@ -52,13 +52,25 @@ const InstitutionAnalysis = (() => {
     }
 
     function isCompleted(name) {
+        if (owner?.id === "jolika") {
+            const completed = dashboard?.session?.completed_institutions;
+            return Array.isArray(completed)
+                && completed.some(
+                    (institution) => normalize(institution) === normalize(name)
+                );
+        }
+
         const map = completedMap();
         return Boolean(map[owner.id]?.includes(normalize(name)));
     }
 
     function markCompleted(name) {
+        if (owner?.id === "jolika") return;
+
         const map = completedMap();
-        const list = new Set(Array.isArray(map[owner.id]) ? map[owner.id] : []);
+        const list = new Set(
+            Array.isArray(map[owner.id]) ? map[owner.id] : []
+        );
         list.add(normalize(name));
         map[owner.id] = Array.from(list);
         window.localStorage.setItem(COMPLETED_KEY, JSON.stringify(map));
@@ -556,6 +568,13 @@ const InstitutionAnalysis = (() => {
         $("completeInstitution").disabled =
             incomplete || !profileValid;
 
+        const allCompleted =
+            institutions.length > 0 &&
+            institutions.every((item) => isCompleted(item.name));
+
+        $("previousInstitution").hidden = allCompleted;
+        $("completeInstitution").hidden = allCompleted;
+
         renderList("attentionList", healthReport.attention, "Nenhuma resposta prioritária foi gerada.");
         renderList("riskList", healthReport.risks, "Nenhum risco específico foi identificado com os dados disponíveis.");
         renderList("favorableList", healthReport.theses, "Nenhuma tese específica foi confirmada ainda.");
@@ -575,20 +594,129 @@ const InstitutionAnalysis = (() => {
         render();
     }
 
-    function bindActions() {
-        $("previousInstitution").addEventListener("click", () => goToIndex(currentIndex - 1));
-        $("completeInstitution").addEventListener("click", () => {
-            const institution = selectedInstitution();
-            if (isImportIncomplete(institution)) return;
-            if (!isProfileValid()) return;
-            if (!isCompleted(institution.name)) markCompleted(institution.name);
-            if (currentIndex < institutions.length - 1) {
-                goToIndex(currentIndex + 1);
+    async function postPortfolioAction(url, body = null) {
+        const options = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        };
+
+        if (body !== null) {
+            options.body = JSON.stringify(body);
+        }
+
+        const response = await fetch(url, options);
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+            throw new Error(
+                result.error || "Não foi possível concluir esta etapa da análise."
+            );
+        }
+
+        return result;
+    }
+
+    function usesBackendConsolidation(ownerId) {
+        return ownerId === "jolika";
+    }
+
+    async function completeCurrentInstitution() {
+        const institution = selectedInstitution();
+        if (!institution) return;
+        if (isImportIncomplete(institution)) return;
+        if (!isProfileValid()) return;
+
+        const button = $("completeInstitution");
+        button.disabled = true;
+
+        try {
+            if (!isCompleted(institution.name)) {
+                if (usesBackendConsolidation(owner.id)) {
+                    const result = await postPortfolioAction(
+                        "/api/portfolios/analysis-complete",
+                        { institution: institution.name }
+                    );
+
+                    dashboard.session = dashboard.session || {};
+                    dashboard.session.completed_institutions =
+                        Array.isArray(result.completed_institutions)
+                            ? result.completed_institutions
+                            : [];
+                } else {
+                    markCompleted(institution.name);
+                }
+            }
+
+            const nextIncompleteIndex = institutions.findIndex(
+                (item) => !isCompleted(item.name)
+            );
+
+            if (nextIncompleteIndex >= 0) {
+                goToIndex(nextIncompleteIndex);
                 return;
             }
+
+            if (usesBackendConsolidation(owner.id)) {
+                const result = await postPortfolioAction(
+                    "/api/portfolios/consolidate"
+                );
+
+                dashboard.session = dashboard.session || {};
+                dashboard.session.consolidation_authorized =
+                    result.consolidation_authorized === true;
+
+                render();
+
+                const decision = $("consolidatedDecision");
+                if (decision) {
+                    decision.hidden = false;
+                    decision.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+                return;
+            }
+
             render();
-            window.alert(`Todas as instituições de ${owner.name} foram analisadas pelo Diagnóstico Executivo da Carteira.`);
-        });
+
+            window.alert(
+                `Todas as instituições de ${owner.name} foram analisadas pelo Diagnóstico Executivo da Carteira.`
+            );
+        } catch (error) {
+            console.error("Institution analysis completion failed", error);
+            window.alert(
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível concluir esta etapa da análise."
+            );
+            render();
+        }
+    }
+
+    function bindActions() {
+        $("previousInstitution").addEventListener(
+            "click",
+            () => goToIndex(currentIndex - 1)
+        );
+        $("completeInstitution").addEventListener(
+            "click",
+            completeCurrentInstitution
+        );
+
+        const openConsolidated = $("openConsolidated");
+        if (openConsolidated) {
+            openConsolidated.addEventListener("click", () => {
+                window.location.href = "/?tab=portfolios";
+            });
+        }
+
+        const consolidatedLater = $("consolidatedLater");
+        if (consolidatedLater) {
+            consolidatedLater.addEventListener("click", () => {
+                const decision = $("consolidatedDecision");
+                if (decision) decision.hidden = true;
+            });
+        }
     }
 
     async function load() {
@@ -642,6 +770,7 @@ const InstitutionAnalysis = (() => {
             profileDescription,
             isProfileValid,
             buildHealthReport,
+            usesBackendConsolidation,
             setDashboardForTest(value) { dashboard = value; }
         })
     });

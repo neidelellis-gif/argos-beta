@@ -253,3 +253,113 @@ def test_failure_in_one_institution_does_not_remove_the_other():
 
     assert set(intelligence) == {"UBS"}
     assert intelligence["UBS"]["institution"] == "UBS"
+
+def test_daily_api_does_not_consolidate_jolika_before_authorization():
+    from backend.jolika_daily_intelligence import JolikaDailyIntelligenceService
+
+    provider = FakeProvider(
+        {
+            "UBS1": history("UBS1", [100, 101, 99, 102, 100]),
+            "SAN1": history("SAN1", [100, 99, 101, 98, 102]),
+        }
+    )
+
+    connector = MarketConnector(
+        providers=[provider],
+        cache_ttl_seconds=300,
+    )
+
+    api = DailyApiFacade(
+        clock=lambda: datetime(
+            2026,
+            8,
+            24,
+            12,
+            0,
+            tzinfo=timezone.utc,
+        ),
+        ubs_intelligence_service=UBSDailyIntelligenceService(
+            connector,
+            history_days=252,
+        ),
+        santander_intelligence_service=SantanderDailyIntelligenceService(
+            connector,
+            history_days=252,
+        ),
+        jolika_intelligence_service=JolikaDailyIntelligenceService(),
+    )
+
+    result = api.execute(
+        request_with_positions(
+            [
+                position("UBS", "UBS1"),
+                position("Santander", "SAN1"),
+            ]
+        ),
+        consolidation_authorized=False,
+    )
+
+    intelligence = result.experience["portfolio_intelligence"]
+
+    assert set(intelligence) == {"UBS", "Santander"}
+    assert "JOLIKA" not in intelligence
+
+
+def test_daily_api_context_respects_consolidation_authorization():
+    from backend.daily_api import daily_consolidation_authorization
+    from backend.jolika_daily_intelligence import (
+        JolikaDailyIntelligenceService,
+    )
+
+    provider = FakeProvider(
+        {
+            "UBS1": history("UBS1", [100, 101, 99, 102, 100]),
+            "SAN1": history("SAN1", [100, 99, 101, 98, 102]),
+        }
+    )
+
+    connector = MarketConnector(
+        providers=[provider],
+        cache_ttl_seconds=300,
+    )
+
+    api = DailyApiFacade(
+        clock=lambda: datetime(
+            2026,
+            8,
+            24,
+            12,
+            0,
+            tzinfo=timezone.utc,
+        ),
+        ubs_intelligence_service=UBSDailyIntelligenceService(
+            connector,
+            history_days=252,
+        ),
+        santander_intelligence_service=SantanderDailyIntelligenceService(
+            connector,
+            history_days=252,
+        ),
+        jolika_intelligence_service=JolikaDailyIntelligenceService(),
+    )
+
+    request = request_with_positions(
+        [
+            position("UBS", "UBS1"),
+            position("Santander", "SAN1"),
+        ]
+    )
+
+    with daily_consolidation_authorization(False):
+        blocked = api.execute(request)
+
+    assert set(
+        blocked.experience["portfolio_intelligence"]
+    ) == {"UBS", "Santander"}
+
+    with daily_consolidation_authorization(True):
+        authorized = api.execute(request)
+
+    assert set(
+        authorized.experience["portfolio_intelligence"]
+    ) == {"UBS", "Santander", "JOLIKA"}

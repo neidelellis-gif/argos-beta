@@ -516,12 +516,15 @@ def test_sequential_import_replaces_only_the_reimported_institution(server):
     ]
 
 
-def test_invalid_import_clears_existing_session_and_returns_empty_dashboard(server):
-    _, _, set_cookie = post_files(
+def test_invalid_import_preserves_existing_session_and_dashboard(server):
+    _, imported, set_cookie = post_files(
         server, [(UBS_FIXTURE.name, UBS_FIXTURE.read_bytes())]
     )
+
     assert set_cookie is not None
     session_id = set_cookie.split(";", 1)[0].split("=", 1)[1]
+    positions_before = SESSION_PORTFOLIOS[session_id]["positions"]
+
     body, content_type = multipart([("invalid.pdf", b"invalid")])
     connection = http.client.HTTPConnection("127.0.0.1", server.server_port)
     connection.request(
@@ -539,10 +542,14 @@ def test_invalid_import_clears_existing_session_and_returns_empty_dashboard(serv
     connection.close()
 
     assert response.status == 400
-    assert payload["positions"] == []
-    assert payload["dashboard"]["institutions"] == []
-    assert payload["dashboard"]["consolidated"]["position_count"] == 0
-    assert session_id not in SESSION_PORTFOLIOS
+    assert session_id in SESSION_PORTFOLIOS
+    assert SESSION_PORTFOLIOS[session_id]["positions"] == positions_before
+    assert payload["positions"] == imported["positions"]
+    assert {item["institution"] for item in payload["positions"]} == {"UBS"}
+    assert payload["dashboard"]["session"]["institution_count"] == 1
+    assert payload["dashboard"]["consolidated"]["position_count"] == len(
+        positions_before
+    )
 
 
 def test_clear_all_portfolios_empties_session_and_dashboard(server):
@@ -715,3 +722,118 @@ def test_pasted_portfolio_rejects_invalid_market_value(server):
     assert payload["ok"] is False
     assert "valor da posição" in payload["error"]
     assert payload["positions"] == []
+
+
+def test_jolika_consolidation_gate_ignores_nei_positions(server):
+    session_id = "mixed-owner-test"
+    cookie = f"argos_session={session_id}"
+
+    jolika_ubs = session_position("UBS", "UBS1", "100")
+    jolika_santander = session_position("Santander", "SAN1", "100")
+
+    nei_bradesco = PortfolioPosition(
+        institution="Bradesco",
+        owner=PortfolioOwner.NEI,
+        account=None,
+        asset_class=None,
+        asset_subclass=None,
+        asset_name="NEI1",
+        identifier="NEI1",
+        identifier_type="ticker",
+        quantity=Decimal("1"),
+        unit_price=Decimal("100"),
+        market_value=Decimal("100"),
+        currency="BRL",
+        portfolio_weight=Decimal("100"),
+        reference_date=date(2026, 7, 28),
+        source_file="bradesco.csv",
+    )
+
+    SESSION_PORTFOLIOS[session_id] = {
+        "positions": (jolika_ubs, jolika_santander, nei_bradesco),
+        "last_import_at": None,
+        "completed_institutions": ("UBS",),
+        "consolidation_authorized": False,
+    }
+
+    status, payload = request_with_cookie(
+        server,
+        "POST",
+        "/api/portfolios/consolidate",
+        cookie,
+    )
+
+    assert status == 400
+    assert "Santander" in payload["error"]
+    assert "Bradesco" not in payload["error"]
+
+    SESSION_PORTFOLIOS[session_id]["completed_institutions"] = (
+        "UBS",
+        "Santander",
+    )
+
+    status, payload = request_with_cookie(
+        server,
+        "POST",
+        "/api/portfolios/consolidate",
+        cookie,
+    )
+
+    assert status == 200
+    assert payload["ok"] is True
+    assert payload["consolidation_authorized"] is True
+
+
+def test_jolika_analysis_completion_rejects_nei_institution(server):
+    session_id = "mixed-owner-completion-test"
+    cookie = f"argos_session={session_id}"
+
+    SESSION_PORTFOLIOS[session_id] = {
+        "positions": (
+            session_position("UBS", "UBS1", "100"),
+            PortfolioPosition(
+                institution="Bradesco",
+                owner=PortfolioOwner.NEI,
+                account=None,
+                asset_class=None,
+                asset_subclass=None,
+                asset_name="NEI1",
+                identifier="NEI1",
+                identifier_type="ticker",
+                quantity=Decimal("1"),
+                unit_price=Decimal("100"),
+                market_value=Decimal("100"),
+                currency="BRL",
+                portfolio_weight=Decimal("100"),
+                reference_date=date(2026, 7, 28),
+                source_file="bradesco.csv",
+            ),
+        ),
+        "last_import_at": None,
+        "completed_institutions": (),
+        "consolidation_authorized": False,
+    }
+
+    body = json.dumps({"institution": "Bradesco"}).encode()
+    connection = http.client.HTTPConnection(
+        "127.0.0.1",
+        server.server_port,
+    )
+    connection.request(
+        "POST",
+        "/api/portfolios/analysis-complete",
+        body=body,
+        headers={
+            "Cookie": cookie,
+            "Content-Type": "application/json",
+            "Content-Length": len(body),
+        },
+    )
+    response = connection.getresponse()
+    payload = json.loads(response.read())
+    connection.close()
+
+    assert response.status == 400
+    assert payload["ok"] is False
+    assert "Instituição não encontrada" in payload["error"]
+    assert SESSION_PORTFOLIOS[session_id]["completed_institutions"] == ()

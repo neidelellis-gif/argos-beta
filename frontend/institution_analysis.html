@@ -28,9 +28,9 @@
         </div>
 
         <nav id="institutionNav" class="institution-nav" aria-label="Instituições do patrimônio"></nav>
-        <div class="institution-consolidation-lock" aria-label="Consolidação bloqueada">
-            <span>Consolidação</span>
-            <strong>Disponível após todas as análises</strong>
+        <div class="institution-consolidation-lock">
+            <span>Análise consolidada</span>
+            <strong>Após as leituras individuais</strong>
         </div>
         <a class="institution-back" href="/analysis_start.html">← Voltar à preparação</a>
     </aside>
@@ -88,6 +88,16 @@
                 <div class="institution-panel-heading"><div><p class="institution-kicker">PRÓXIMA REVISÃO</p><h2>Fatos e eventos que podem alterar a conclusão</h2></div></div>
                 <div id="assetList" class="institution-assets"></div>
             </article>
+        </section>
+
+        <section id="consolidatedDecision" class="institution-summary" hidden>
+            <p class="institution-kicker">ANÁLISE CONSOLIDADA DISPONÍVEL</p>
+            <h2>As análises individuais foram concluídas.</h2>
+            <p class="institution-summary-text">Deseja fazer agora a análise consolidada da carteira da Jolika?</p>
+            <div class="institution-actions">
+                <button id="openConsolidated" class="institution-primary" type="button">Analisar carteira consolidada →</button>
+                <button id="consolidatedLater" class="institution-secondary" type="button">Agora não</button>
+            </div>
         </section>
 
         <footer class="institution-actions">
