@@ -287,54 +287,27 @@ class ArgosRequestHandler(
         if self.path == "/api/daily-experience":
             self._daily_experience()
             return
-        # Official flow:
-        # Dashboard -> DailyOrchestrator -> DailyContextService.
-        # Cockpit and facts are compatibility-only projections of Dashboard.
         if self.path == "/api/dashboard":
             try:
                 self._send_json(self._dashboard(), status=200)
             except Exception as exc:
-                self._send_json(
-                    {"error": str(exc)},
-                    status=500
-                )
+                self._send_json({"error": str(exc)}, status=500)
             return
-
         if self.path == "/api/cockpit":
             try:
                 self._send_json(legacy_cockpit_response(self._dashboard(False)))
             except Exception as exc:
-                self._send_json(
-                    {
-                        "ok": False,
-                        "error": str(exc)
-                    },
-                    status=500
-                )
-
+                self._send_json({"ok": False, "error": str(exc)}, status=500)
             return
-
         if self.path == "/api/facts":
             try:
                 self._send_json(legacy_facts_response(self._dashboard(False)))
             except Exception as exc:
-                self._send_json(
-                    {
-                        "ok": False,
-                        "error": str(exc)
-                    },
-                    status=500
-                )
-
+                self._send_json({"ok": False, "error": str(exc)}, status=500)
             return
-
         if self.path.startswith("/api/"):
-            self.send_error(
-                404,
-                "Endpoint não encontrado"
-            )
+            self.send_error(404, "Endpoint não encontrado")
             return
-
         super().do_GET()
 
     def do_POST(self):
@@ -371,15 +344,11 @@ class ArgosRequestHandler(
             return
 
         handlers = {
-            # Compatibility only: delegates to the official import/dashboard flow.
             "/api/analyze": analyze_request,
             "/api/santander/inspect": inspect_santander_request,
         }
         if self.path not in handlers:
-            self.send_error(
-                404,
-                "Endpoint não encontrado"
-            )
+            self.send_error(404, "Endpoint não encontrado")
             return
 
         try:
@@ -387,35 +356,17 @@ class ArgosRequestHandler(
         except ValueError as exc:
             self._send_json({"ok": False, "error": str(exc)}, status=400)
             return
-
-        raw_body = self.rfile.read(
-            content_length
-        )
-
+        raw_body = self.rfile.read(content_length)
         try:
-            payload = json.loads(
-                raw_body.decode("utf-8")
-            )
+            payload = json.loads(raw_body.decode("utf-8"))
         except Exception as exc:
-            self._send_json(
-                {
-                    "ok": False,
-                    "error": (
-                        f"Corpo JSON inválido: {exc}"
-                    )
-                },
-                status=400
-            )
+            self._send_json({"ok": False, "error": f"Corpo JSON inválido: {exc}"}, status=400)
             return
-
         try:
             response = handlers[self.path](payload)
             self._send_json(response, status=200)
         except Exception as exc:
-            self._send_json(
-                {"ok": False, "error": str(exc)},
-                status=400
-            )
+            self._send_json({"ok": False, "error": str(exc)}, status=400)
 
     def do_PUT(self):
         if self.path == "/api/daily-experience":
@@ -435,9 +386,7 @@ class ArgosRequestHandler(
         )
 
         def handle_daily(*args):
-            with daily_consolidation_authorization(
-                consolidation_authorized
-            ):
+            with daily_consolidation_authorization(consolidation_authorized):
                 return DAILY_HTTP_ADAPTER.handle(*args)
 
         try:
@@ -446,26 +395,20 @@ class ArgosRequestHandler(
             content_length = -1
         if content_length < 0:
             response = handle_daily(
-                self.command, dict(self.headers), b"", market_agenda, self._session_decision_profile(),
-                session_positions,
-                market_facts,
+                self.command, dict(self.headers), b"", market_agenda,
+                self._session_decision_profile(), session_positions, market_facts,
             )
         elif content_length > MAX_DAILY_REQUEST_BYTES:
             response = handle_daily(
-                self.command,
-                dict(self.headers),
-                b" " * (MAX_DAILY_REQUEST_BYTES + 1),
-                market_agenda,
-                self._session_decision_profile(),
-                session_positions,
-                market_facts,
+                self.command, dict(self.headers),
+                b" " * (MAX_DAILY_REQUEST_BYTES + 1), market_agenda,
+                self._session_decision_profile(), session_positions, market_facts,
             )
         else:
             body = self.rfile.read(content_length)
             response = handle_daily(
-                self.command, dict(self.headers), body, market_agenda, self._session_decision_profile(),
-                session_positions,
-                market_facts,
+                self.command, dict(self.headers), body, market_agenda,
+                self._session_decision_profile(), session_positions, market_facts,
             )
         self.send_response(response.status_code)
         for name, value in response.headers.items():
@@ -490,15 +433,10 @@ class ArgosRequestHandler(
         if self.path != "/api/portfolios":
             self.send_error(404, "Endpoint não encontrado")
             return
-
         session_id = self._session_id()
         if session_id:
             SESSION_PORTFOLIOS.pop(session_id, None)
-        self._send_json({
-            "ok": True,
-            "dashboard": build_dashboard(()),
-            "positions": [],
-        })
+        self._send_json({"ok": True, "dashboard": build_dashboard(()), "positions": []})
 
     def _session_id(self) -> str | None:
         cookie = self.headers.get("Cookie", "")
@@ -509,7 +447,6 @@ class ArgosRequestHandler(
         return None
 
     def _content_length(self) -> int:
-        """Return a validated request length, treating an empty header as no body."""
         raw_value = self.headers.get("Content-Length")
         value = raw_value.strip() if raw_value is not None else ""
         if not value:
@@ -537,23 +474,15 @@ class ArgosRequestHandler(
     def _dashboard(self, include_positions: bool = True):
         portfolio = self._session_portfolio()
         positions = portfolio["positions"] if portfolio is not None else ()
-        last_import_at = (
-            portfolio["last_import_at"] if portfolio is not None else None
-        )
+        last_import_at = portfolio["last_import_at"] if portfolio is not None else None
         dashboard = build_dashboard(positions, last_import_at=last_import_at)
-
         session = dashboard.setdefault("session", {})
         session["completed_institutions"] = (
-            list(portfolio.get("completed_institutions", ()))
-            if portfolio is not None
-            else []
+            list(portfolio.get("completed_institutions", ())) if portfolio is not None else []
         )
         session["consolidation_authorized"] = (
-            bool(portfolio.get("consolidation_authorized", False))
-            if portfolio is not None
-            else False
+            bool(portfolio.get("consolidation_authorized", False)) if portfolio is not None else False
         )
-
         if include_positions:
             dashboard["positions"] = serialize_portfolio_positions(positions)
         return dashboard
@@ -567,16 +496,13 @@ class ArgosRequestHandler(
             raise ValueError("Envie ao menos um arquivo para importação.")
         body = self.rfile.read(content_length)
         message = BytesParser(policy=email_policy).parsebytes(
-            f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode()
-            + body
+            f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode() + body
         )
         files: list[tuple[str, bytes]] = []
         for part in message.iter_parts():
             file_name = part.get_filename()
             if part.get_content_disposition() != "form-data" or not file_name:
                 continue
-            # The email API's overload does not narrow decode=True, although it
-            # returns bytes for the binary multipart payload accepted here.
             content = cast(bytes, part.get_payload(decode=True))
             files.append((file_name, content))
         return files
@@ -586,95 +512,52 @@ class ArgosRequestHandler(
             content_length = self._content_length()
             if content_length <= 0:
                 raise ValueError("Cole uma carteira antes de continuar.")
-
-            payload = json.loads(
-                self.rfile.read(content_length).decode("utf-8")
-            )
-
+            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("Dados da carteira inválidos.")
-
             text = payload.get("text")
             owner_value = payload.get("owner")
-
             if not isinstance(text, str) or not text.strip():
                 raise ValueError("Cole uma carteira antes de continuar.")
-
             try:
                 owner = PortfolioOwner(owner_value)
             except (TypeError, ValueError) as exc:
                 raise ValueError("Titular da carteira inválido.") from exc
-
-            positions = parse_pasted_portfolio(
-                text,
-                owner=owner,
-            )
-
+            positions = parse_pasted_portfolio(text, owner=owner)
             if owner is PortfolioOwner.JOLIKA:
-                positions = resolve_jolika_positions(
-                    classify_jolika_positions(positions)
-                )
-
-            imported_institutions = {
-                position.institution for position in positions
-            }
-
+                positions = resolve_jolika_positions(classify_jolika_positions(positions))
+            imported_institutions = {position.institution for position in positions}
             session_id = self._session_id() or secrets.token_urlsafe(24)
             imported_at = datetime.now(timezone.utc)
-
             current_session = SESSION_PORTFOLIOS.get(session_id)
-            current_positions = (
-                current_session["positions"]
-                if current_session is not None
-                else ()
-            )
-
+            current_positions = current_session["positions"] if current_session is not None else ()
             preserved_positions = tuple(
-                position
-                for position in current_positions
+                position for position in current_positions
                 if position.institution not in imported_institutions
             )
-
             session_positions = preserved_positions + tuple(positions)
-
             SESSION_PORTFOLIOS[session_id] = {
                 "positions": session_positions,
                 "last_import_at": imported_at,
                 "completed_institutions": (),
                 "consolidation_authorized": False,
             }
-
-            dashboard = build_dashboard(
-                session_positions,
-                last_import_at=imported_at,
-            )
-
+            dashboard = build_dashboard(session_positions, last_import_at=imported_at)
             self._send_json(
                 {
                     "ok": True,
                     "source": "pasted",
                     "dashboard": dashboard,
-                    "positions": serialize_portfolio_positions(
-                        session_positions
-                    ),
+                    "positions": serialize_portfolio_positions(session_positions),
                 },
                 status=200,
                 extra_headers={
-                    "Set-Cookie": (
-                        f"{SESSION_COOKIE}={session_id}; Path=/; "
-                        "HttpOnly; SameSite=Strict"
-                    )
+                    "Set-Cookie": f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
                 },
             )
-
         except Exception as exc:
             self._send_json(
-                {
-                    "ok": False,
-                    "error": str(exc),
-                    "dashboard": build_dashboard(()),
-                    "positions": [],
-                },
+                {"ok": False, "error": str(exc), "dashboard": build_dashboard(()), "positions": []},
                 status=400,
             )
 
@@ -682,29 +565,20 @@ class ArgosRequestHandler(
         paths = []
         with tempfile.TemporaryDirectory() as directory:
             try:
-                for index, (file_name, content) in enumerate(
-                    self._multipart_files()
-                ):
+                for index, (file_name, content) in enumerate(self._multipart_files()):
                     safe_name = Path(file_name).name
                     upload_directory = Path(directory) / str(index)
                     upload_directory.mkdir()
                     path = upload_directory / safe_name
                     path.write_bytes(content)
                     paths.append(path)
-
                 result = import_portfolios(paths)
                 session_id = self._session_id() or secrets.token_urlsafe(24)
                 imported_at = datetime.now(timezone.utc)
-                imported_positions = cast(
-                    tuple[PortfolioPosition, ...], result.pop("positions")
-                )
-                imported_institutions = {
-                    position.institution for position in imported_positions
-                }
+                imported_positions = cast(tuple[PortfolioPosition, ...], result.pop("positions"))
+                imported_institutions = {position.institution for position in imported_positions}
                 current_session = SESSION_PORTFOLIOS.get(session_id)
-                current_positions = (
-                    current_session["positions"] if current_session is not None else ()
-                )
+                current_positions = current_session["positions"] if current_session is not None else ()
                 preserved_positions = tuple(
                     position for position in current_positions
                     if position.institution not in imported_institutions
@@ -716,8 +590,7 @@ class ArgosRequestHandler(
                     "consolidation_authorized": False,
                 }
                 result["dashboard"] = build_dashboard(
-                    SESSION_PORTFOLIOS[session_id]["positions"],
-                    last_import_at=imported_at,
+                    SESSION_PORTFOLIOS[session_id]["positions"], last_import_at=imported_at
                 )
                 result["positions"] = serialize_portfolio_positions(
                     SESSION_PORTFOLIOS[session_id]["positions"]
@@ -726,40 +599,23 @@ class ArgosRequestHandler(
                     {"ok": True, **result},
                     status=200,
                     extra_headers={
-                        "Set-Cookie": (
-                            f"{SESSION_COOKIE}={session_id}; Path=/; "
-                            "HttpOnly; SameSite=Strict"
-                        )
+                        "Set-Cookie": f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
                     },
                 )
             except Exception as exc:
                 session_id = self._session_id()
-                current_session = (
-                    SESSION_PORTFOLIOS.get(session_id)
-                    if session_id
-                    else None
+                current_session = SESSION_PORTFOLIOS.get(session_id) if session_id else None
+                current_positions = current_session["positions"] if current_session is not None else ()
+                last_import_at = current_session.get("last_import_at") if current_session is not None else None
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": str(exc),
+                        "dashboard": build_dashboard(current_positions, last_import_at=last_import_at),
+                        "positions": serialize_portfolio_positions(current_positions),
+                    },
+                    status=400,
                 )
-                current_positions = (
-                    current_session["positions"]
-                    if current_session is not None
-                    else ()
-                )
-                last_import_at = (
-                    current_session.get("last_import_at")
-                    if current_session is not None
-                    else None
-                )
-                self._send_json({
-                    "ok": False,
-                    "error": str(exc),
-                    "dashboard": build_dashboard(
-                        current_positions,
-                        last_import_at=last_import_at,
-                    ),
-                    "positions": serialize_portfolio_positions(
-                        current_positions
-                    ),
-                }, status=400)
 
     def _complete_portfolio_analysis(self) -> None:
         try:
@@ -767,7 +623,6 @@ class ArgosRequestHandler(
             portfolio = SESSION_PORTFOLIOS.get(session_id) if session_id else None
             if portfolio is None:
                 raise ValueError("Nenhuma carteira carregada nesta sessão.")
-
             content_length = self._content_length()
             if content_length <= 0:
                 raise ValueError("Informe a instituição analisada em JSON.")
@@ -777,28 +632,22 @@ class ArgosRequestHandler(
             institution = payload.get("institution")
             if not isinstance(institution, str) or not institution.strip():
                 raise ValueError("Informe a instituição analisada.")
-
             loaded_institutions = {
                 position.institution
                 for position in portfolio["positions"]
                 if position.owner is PortfolioOwner.JOLIKA
             }
             if institution not in loaded_institutions:
-                raise ValueError(
-                    "Instituição não encontrada na carteira carregada."
-                )
-
+                raise ValueError("Instituição não encontrada na carteira carregada.")
             completed_institutions = portfolio["completed_institutions"]
             if institution not in completed_institutions:
                 completed_institutions = completed_institutions + (institution,)
-
             SESSION_PORTFOLIOS[session_id] = {
                 "positions": portfolio["positions"],
                 "last_import_at": portfolio["last_import_at"],
                 "completed_institutions": completed_institutions,
                 "consolidation_authorized": portfolio["consolidation_authorized"],
             }
-
             self._send_json(
                 {
                     "ok": True,
@@ -822,6 +671,9 @@ class ArgosRequestHandler(
                 for position in portfolio["positions"]
                 if position.owner is PortfolioOwner.JOLIKA
             }
+            if not loaded_institutions:
+                raise ValueError("Não há posições da JOLIKA carregadas para consolidar.")
+
             completed_institutions = portfolio["completed_institutions"]
             missing_institutions = loaded_institutions - set(completed_institutions)
             if missing_institutions:
@@ -836,7 +688,6 @@ class ArgosRequestHandler(
                 "completed_institutions": completed_institutions,
                 "consolidation_authorized": True,
             }
-
             self._send_json(
                 {
                     "ok": True,
@@ -857,15 +708,13 @@ class ArgosRequestHandler(
             session_id = self._session_id() or secrets.token_urlsafe(24)
             SESSION_MARKET_AGENDA[session_id] = events
             self._send_json(
-                {"ok": True, "events": serialize_market_agenda(events),
-                 "count": len(events), "diagnostics": []},
-                extra_headers={"Set-Cookie": (
-                    f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
-                )},
+                {"ok": True, "events": serialize_market_agenda(events), "count": len(events), "diagnostics": []},
+                extra_headers={
+                    "Set-Cookie": f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
+                },
             )
         except Exception as exc:
             self._send_json({"ok": False, "error": str(exc)}, status=400)
-
 
     def _save_decision_context(self) -> None:
         try:
@@ -880,9 +729,9 @@ class ArgosRequestHandler(
             SESSION_DECISION_CONTEXT[session_id] = profile
             self._send_json(
                 {"ok": True, "profile": serialize_decision_profile(profile), "diagnostics": []},
-                extra_headers={"Set-Cookie": (
-                    f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
-                )},
+                extra_headers={
+                    "Set-Cookie": f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
+                },
             )
         except Exception as exc:
             self._send_json({"ok": False, "error": str(exc)}, status=400)
@@ -897,9 +746,9 @@ class ArgosRequestHandler(
             SESSION_DECISION_CONTEXT[session_id] = profile
             self._send_json(
                 {"ok": True, "profile": serialize_decision_profile(profile), "diagnostics": []},
-                extra_headers={"Set-Cookie": (
-                    f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
-                )},
+                extra_headers={
+                    "Set-Cookie": f"{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict"
+                },
             )
         except Exception as exc:
             self._send_json({"ok": False, "error": str(exc)}, status=400)
@@ -910,45 +759,19 @@ class ArgosRequestHandler(
         status: int = 200,
         extra_headers: Optional[Dict[str, str]] = None,
     ) -> None:
-        response_body = json.dumps(
-            data,
-            ensure_ascii=False
-        ).encode("utf-8")
-
+        response_body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
-
-        self.send_header(
-            "Content-Type",
-            "application/json; charset=utf-8"
-        )
-
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         for name, value in (extra_headers or {}).items():
             self.send_header(name, value)
-
-        self.send_header(
-            "Content-Length",
-            str(len(response_body))
-        )
-
+        self.send_header("Content-Length", str(len(response_body)))
         self.end_headers()
         self.wfile.write(response_body)
 
 
 if __name__ == "__main__":
     os.chdir(str(FRONTEND_DIR))
-
-    with socketserver.TCPServer(
-        ("localhost", PORT),
-        ArgosRequestHandler
-    ) as httpd:
-        print(
-            f"ARGOS server running at "
-            f"http://localhost:{PORT}"
-        )
-
-        print(
-            "Serving frontend, /api/dashboard, "
-            "/api/cockpit, /api/facts and /api/analyze"
-        )
-
+    with socketserver.TCPServer(("localhost", PORT), ArgosRequestHandler) as httpd:
+        print(f"ARGOS server running at http://localhost:{PORT}")
+        print("Serving frontend, /api/dashboard, /api/cockpit, /api/facts and /api/analyze")
         httpd.serve_forever()
