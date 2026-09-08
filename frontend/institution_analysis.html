@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="ARGOS - Diagnóstico Executivo da Carteira por instituição">
-    <title>ARGOS — Diagnóstico da Carteira</title>
+    <meta name="description" content="ARGOS - Análise patrimonial por instituição e consolidada">
+    <title>ARGOS — Análise Patrimonial</title>
     <link rel="stylesheet" href="design/colors.css">
     <link rel="stylesheet" href="design/typography.css">
     <link rel="stylesheet" href="style.css">
@@ -38,7 +38,7 @@
     <main class="institution-main">
         <header class="institution-header">
             <div>
-                <p class="institution-kicker">LEITURA INDIVIDUAL</p>
+                <p id="analysisModeKicker" class="institution-kicker">LEITURA INDIVIDUAL</p>
                 <h1 id="institutionName">Instituição</h1>
                 <p id="institutionMeta" class="institution-meta"></p>
             </div>
@@ -46,7 +46,7 @@
         </header>
 
         <section class="institution-summary">
-            <p class="institution-kicker">DIAGNÓSTICO EXECUTIVO DA CARTEIRA</p>
+            <p class="institution-kicker">MÉTODO ARGOS DE ANÁLISE PATRIMONIAL</p>
             <p id="executiveSummary" class="institution-summary-text">Preparando o diagnóstico da instituição…</p>
         </section>
 
@@ -57,38 +57,46 @@
             <article><span>Condição da análise</span><strong id="metricSituation">—</strong></article>
         </section>
 
-        <section class="institution-focus" aria-labelledby="attentionTitle">
+        <section class="five-stage-section" aria-labelledby="fiveStageTitle">
             <div class="institution-panel-heading">
                 <div>
-                    <p class="institution-kicker">SAÚDE DA CARTEIRA</p>
-                    <h2 id="attentionTitle">Diagnóstico executivo</h2>
+                    <p class="institution-kicker">5 ETAPAS</p>
+                    <h2 id="fiveStageTitle">Análise patrimonial</h2>
                 </div>
-                <span id="attentionCount"></span>
             </div>
-            <div id="attentionList" class="institution-list institution-list-priority"></div>
+            <p id="fiveStageState" class="institution-empty">Preparando as cinco etapas da análise…</p>
+            <div id="fiveStageReport" class="five-stage-report"></div>
         </section>
 
-        <section class="institution-grid">
-            <article class="institution-panel">
-                <div class="institution-panel-heading"><div><p class="institution-kicker">COMPOSIÇÃO</p><h2>Como o dinheiro está distribuído</h2></div></div>
-                <div id="allocationList" class="institution-allocation"></div>
-            </article>
+        <details class="institution-supporting-details">
+            <summary>Ver detalhes complementares da leitura</summary>
+            <section class="institution-focus" aria-labelledby="attentionTitle">
+                <div class="institution-panel-heading">
+                    <div><p class="institution-kicker">LEITURA COMPLEMENTAR</p><h2 id="attentionTitle">Diagnóstico executivo anterior</h2></div>
+                    <span id="attentionCount"></span>
+                </div>
+                <div id="attentionList" class="institution-list institution-list-priority"></div>
+            </section>
 
-            <article class="institution-panel">
-                <div class="institution-panel-heading"><div><p class="institution-kicker">PONTOS QUE MERECEM ATENÇÃO</p><h2>Riscos materiais</h2></div></div>
-                <div id="riskList" class="institution-list"></div>
-            </article>
-
-            <article class="institution-panel">
-                <div class="institution-panel-heading"><div><p class="institution-kicker">TESES</p><h2>Teses em observação</h2></div></div>
-                <div id="favorableList" class="institution-list"></div>
-            </article>
-
-            <article class="institution-panel">
-                <div class="institution-panel-heading"><div><p class="institution-kicker">PRÓXIMA REVISÃO</p><h2>Fatos e eventos que podem alterar a conclusão</h2></div></div>
-                <div id="assetList" class="institution-assets"></div>
-            </article>
-        </section>
+            <section class="institution-grid">
+                <article class="institution-panel">
+                    <div class="institution-panel-heading"><div><p class="institution-kicker">COMPOSIÇÃO</p><h2>Distribuição por moeda</h2></div></div>
+                    <div id="allocationList" class="institution-allocation"></div>
+                </article>
+                <article class="institution-panel">
+                    <div class="institution-panel-heading"><div><p class="institution-kicker">PONTOS QUE MERECEM ATENÇÃO</p><h2>Riscos materiais</h2></div></div>
+                    <div id="riskList" class="institution-list"></div>
+                </article>
+                <article class="institution-panel">
+                    <div class="institution-panel-heading"><div><p class="institution-kicker">TESES</p><h2>Teses em observação</h2></div></div>
+                    <div id="favorableList" class="institution-list"></div>
+                </article>
+                <article class="institution-panel">
+                    <div class="institution-panel-heading"><div><p class="institution-kicker">PRÓXIMA REVISÃO</p><h2>Fatos que podem alterar a conclusão</h2></div></div>
+                    <div id="assetList" class="institution-assets"></div>
+                </article>
+            </section>
+        </details>
 
         <section id="consolidatedDecision" class="institution-summary" hidden>
             <p class="institution-kicker">ANÁLISE CONSOLIDADA DISPONÍVEL</p>
@@ -108,5 +116,6 @@
 </div>
 <script src="analysis_context.js"></script>
 <script src="institution_analysis.js"></script>
+<script src="institution_five_stage.js"></script>
 </body>
 </html>
