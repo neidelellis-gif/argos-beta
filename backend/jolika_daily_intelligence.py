@@ -8,17 +8,15 @@ from backend.jolika_operational_intelligence import (
     JolikaOperationalIntelligence,
     build_jolika_operational_intelligence,
 )
+from backend.jolika_patrimonial_report import build_jolika_patrimonial_report
 from backend.jolika_portfolio_intelligence import (
     JolikaPortfolioIntelligence,
     build_jolika_portfolio_intelligence,
 )
 from backend.models import PortfolioPosition
-from backend.santander_daily_intelligence import (
-    SantanderDailyIntelligence,
-)
-from backend.ubs_daily_intelligence import (
-    UBSDailyIntelligence,
-)
+from backend.patrimonial_analysis_method import PatrimonialAnalysisReport
+from backend.santander_daily_intelligence import SantanderDailyIntelligence
+from backend.ubs_daily_intelligence import UBSDailyIntelligence
 
 
 @dataclass(frozen=True)
@@ -27,13 +25,13 @@ class JolikaDailyIntelligence:
 
     structural: JolikaPortfolioIntelligence
     operational: JolikaOperationalIntelligence
+    patrimonial_report: PatrimonialAnalysisReport
 
     def to_dict(self) -> dict[str, object]:
         """Return the public consolidated JOLIKA payload."""
 
         structural = self.structural
         operational = self.operational
-
         return {
             "institution": "JOLIKA",
             "owner": structural.owner.value,
@@ -42,10 +40,8 @@ class JolikaDailyIntelligence:
             "structural_level": operational.structural_level,
             "institutional_level": operational.institutional_level,
             "executive_reading": operational.executive_reading,
-            "institutions": {
-                institution: {}
-                for institution in structural.institutions
-            },
+            "institutions": {institution: {} for institution in structural.institutions},
+            "patrimonial_analysis": self.patrimonial_report.to_dict(),
         }
 
 
@@ -59,30 +55,24 @@ class JolikaDailyIntelligenceService:
         ubs: UBSDailyIntelligence | None = None,
         santander: SantanderDailyIntelligence | None = None,
     ) -> JolikaDailyIntelligence | None:
-        """Return JOLIKA consolidation without performing market requests."""
+        """Return JOLIKA consolidation without performing new market requests."""
 
-        institutional = tuple(
-            item
-            for item in (ubs, santander)
-            if item is not None
-        )
-
+        institutional = tuple(item for item in (ubs, santander) if item is not None)
         if not institutional or not positions:
             return None
 
-        structural = build_jolika_portfolio_intelligence(
-            positions
-        )
-
+        structural = build_jolika_portfolio_intelligence(positions)
         operational = build_jolika_operational_intelligence(
             structural,
-            tuple(
-                item.operational
-                for item in institutional
-            ),
+            tuple(item.operational for item in institutional),
         )
-
+        patrimonial_report = build_jolika_patrimonial_report(
+            structural,
+            operational,
+            institutional,
+        )
         return JolikaDailyIntelligence(
             structural=structural,
             operational=operational,
+            patrimonial_report=patrimonial_report,
         )
