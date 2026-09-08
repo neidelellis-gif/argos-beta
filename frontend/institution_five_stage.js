@@ -29,6 +29,12 @@ const InstitutionFiveStage = (() => {
         return payload?.experience?.portfolio_intelligence || {};
     }
 
+    async function loadDashboard() {
+        const response = await fetch("/api/dashboard", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Erro HTTP ${response.status}`);
+        return response.json();
+    }
+
     function selectedReport(intelligence) {
         const params = new URLSearchParams(window.location.search);
         if (params.get("consolidated") === "1") {
@@ -79,7 +85,27 @@ const InstitutionFiveStage = (() => {
         return article;
     }
 
-    function applyConsolidatedPresentation() {
+    function formatCurrency(value, currency) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return "—";
+        const locale = currency === "BRL" ? "pt-BR" : "en-US";
+        const symbol = { BRL: "R$", USD: "US$", EUR: "€" }[currency] || currency;
+        return `${symbol} ${new Intl.NumberFormat(locale, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(number)}`;
+    }
+
+    function setMetric(id, label, value) {
+        const metric = document.getElementById(id);
+        if (!metric) return;
+        metric.textContent = value;
+        const article = metric.closest("article");
+        const labelNode = article?.querySelector("span");
+        if (labelNode) labelNode.textContent = label;
+    }
+
+    function applyConsolidatedPresentation(dashboard) {
         const title = document.getElementById("institutionName");
         const meta = document.getElementById("institutionMeta");
         const kicker = document.getElementById("analysisModeKicker");
@@ -93,9 +119,12 @@ const InstitutionFiveStage = (() => {
         if (title) title.textContent = "JOLIKA consolidada";
         if (meta) meta.textContent = `Jolika · análise consolidada · ${new Intl.DateTimeFormat("pt-BR").format(new Date())}`;
         if (kicker) kicker.textContent = "LEITURA CONSOLIDADA";
-        if (status) status.textContent = "Concluída";
+        if (status) {
+            status.textContent = "Concluída";
+            status.classList.add("done");
+        }
         if (legacySummary) legacySummary.hidden = true;
-        if (legacyMetrics) legacyMetrics.hidden = true;
+        if (legacyMetrics) legacyMetrics.hidden = false;
         if (decision) decision.hidden = true;
         if (footer) footer.hidden = true;
         if (lock) {
@@ -103,12 +132,45 @@ const InstitutionFiveStage = (() => {
             if (label) label.textContent = "Leituras individuais concluídas";
         }
 
-        document.querySelectorAll("#institutionNav .institution-nav-status").forEach((node) => {
-            node.textContent = "Concluída";
+        const consolidated = dashboard?.consolidated || {};
+        const totals = Object.entries(consolidated.totals_by_currency || {});
+        const totalText = totals.length
+            ? totals.map(([currency, value]) => formatCurrency(value, currency)).join(" · ")
+            : "—";
+        const currencies = totals.map(([currency]) => currency);
+
+        setMetric("metricValue", "Patrimônio consolidado", totalText);
+        setMetric(
+            "metricPositions",
+            "Posições consolidadas",
+            String(consolidated.position_count ?? "—")
+        );
+        setMetric(
+            "metricCurrencies",
+            "Moedas encontradas",
+            currencies.join(" · ") || "—"
+        );
+        setMetric(
+            "metricSituation",
+            "Condição da análise",
+            dashboard?.session?.consolidation_authorized === true
+                ? "Consolidação concluída"
+                : "Consolidação não autorizada"
+        );
+
+        const completed = new Set(
+            Array.isArray(dashboard?.session?.completed_institutions)
+                ? dashboard.session.completed_institutions.map(normalize)
+                : []
+        );
+        document.querySelectorAll("#institutionNav button").forEach((button) => {
+            const name = normalize(button.textContent);
+            button.classList.remove("active");
+            button.classList.toggle("done", completed.has(name));
         });
     }
 
-    function renderReport(report) {
+    function renderReport(report, dashboard) {
         const container = document.getElementById("fiveStageReport");
         const state = document.getElementById("fiveStageState");
         if (!container || !state) return;
@@ -124,7 +186,7 @@ const InstitutionFiveStage = (() => {
         report.stages.forEach((stage, index) => container.append(renderStage(stage, index)));
 
         if (report.scope === "consolidated") {
-            applyConsolidatedPresentation();
+            applyConsolidatedPresentation(dashboard);
         }
     }
 
@@ -135,7 +197,11 @@ const InstitutionFiveStage = (() => {
             state.textContent = "Preparando as cinco etapas da análise…";
         }
         try {
-            renderReport(selectedReport(await loadDailyIntelligence()));
+            const [intelligence, dashboard] = await Promise.all([
+                loadDailyIntelligence(),
+                loadDashboard()
+            ]);
+            renderReport(selectedReport(intelligence), dashboard);
         } catch (error) {
             console.error("Five-stage patrimonial analysis failed", error);
             if (state) state.textContent = "Não foi possível carregar o relatório patrimonial agora.";
@@ -177,7 +243,12 @@ const InstitutionFiveStage = (() => {
     bindConsolidatedDecision();
     return Object.freeze({
         load,
-        _test: Object.freeze({ selectedReport, authorizeConsolidation, applyConsolidatedPresentation })
+        _test: Object.freeze({
+            selectedReport,
+            authorizeConsolidation,
+            applyConsolidatedPresentation,
+            formatCurrency
+        })
     });
 })();
 
