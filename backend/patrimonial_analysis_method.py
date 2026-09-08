@@ -1,6 +1,6 @@
 """Shared five-stage patrimonial analysis contract for ARGOS.
 
-The method is intentionally presentation-neutral.  Institution services and the
+The method is intentionally presentation-neutral. Institution services and the
 JOLIKA consolidated service can publish the same sequence while keeping their
 analyzed universes separate.
 """
@@ -122,13 +122,7 @@ def unavailable_stage(key: str, title: str, reason: str) -> PatrimonialAnalysisS
         title=title,
         summary=reason,
         status="limited",
-        items=(
-            PatrimonialAnalysisItem(
-                title="Limitação dos dados",
-                reading=reason,
-                confidence="Alta",
-            ),
-        ),
+        items=(),
     )
 
 
