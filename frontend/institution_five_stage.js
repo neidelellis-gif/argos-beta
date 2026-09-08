@@ -119,18 +119,43 @@ const InstitutionFiveStage = (() => {
         }
     }
 
+    async function authorizeConsolidation() {
+        const response = await fetch("/api/portfolios/consolidate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-store",
+            body: "{}"
+        });
+        const payload = await response.json();
+        if (!response.ok || payload?.ok !== true || payload?.consolidation_authorized !== true) {
+            throw new Error(payload?.error || "Não foi possível autorizar a análise consolidada.");
+        }
+        return payload;
+    }
+
     function bindConsolidatedDecision() {
-        document.addEventListener("click", (event) => {
+        document.addEventListener("click", async (event) => {
             const button = event.target.closest?.("#openConsolidated");
             if (!button) return;
             event.preventDefault();
             event.stopImmediatePropagation();
-            window.location.href = "/institution_analysis.html?owner=jolika&consolidated=1";
+            button.disabled = true;
+            try {
+                await authorizeConsolidation();
+                window.location.href = "/institution_analysis.html?owner=jolika&consolidated=1";
+            } catch (error) {
+                console.error("Jolika consolidation authorization failed", error);
+                button.disabled = false;
+                window.alert(error.message || "Não foi possível abrir a análise consolidada agora.");
+            }
         }, true);
     }
 
     bindConsolidatedDecision();
-    return Object.freeze({ load, _test: Object.freeze({ selectedReport }) });
+    return Object.freeze({
+        load,
+        _test: Object.freeze({ selectedReport, authorizeConsolidation })
+    });
 })();
 
 if (typeof module !== "undefined" && module.exports) {
