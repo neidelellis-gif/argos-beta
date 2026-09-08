@@ -2,6 +2,35 @@
 
 const InstitutionFiveStage = (() => {
     const METHOD = "ARGOS_PATRIMONIAL_5_STAGE_V1";
+    let explicitConsolidationRequest = false;
+    const nativeFetch = typeof window !== "undefined" ? window.fetch.bind(window) : null;
+
+    function isConsolidatedMode() {
+        return typeof window !== "undefined"
+            && new URLSearchParams(window.location.search).get("consolidated") === "1";
+    }
+
+    function installConsolidationGuard() {
+        if (!nativeFetch || typeof window === "undefined") return;
+        window.fetch = async (input, init = {}) => {
+            const url = typeof input === "string" ? input : input?.url || "";
+            const method = String(init?.method || "GET").toUpperCase();
+            if (
+                url === "/api/portfolios/consolidate"
+                && method === "POST"
+                && !explicitConsolidationRequest
+            ) {
+                return new Response(JSON.stringify({
+                    ok: true,
+                    consolidation_authorized: false
+                }), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" }
+                });
+            }
+            return nativeFetch(input, init);
+        };
+    }
 
     function normalize(value) {
         return String(value || "").normalize("NFD")
@@ -14,6 +43,32 @@ const InstitutionFiveStage = (() => {
         if (className) node.className = className;
         if (text !== undefined) node.textContent = text;
         return node;
+    }
+
+    function prepareConsolidatedLoading() {
+        if (!isConsolidatedMode() || typeof document === "undefined") return;
+        const title = document.getElementById("institutionName");
+        const meta = document.getElementById("institutionMeta");
+        const kicker = document.getElementById("analysisModeKicker");
+        const status = document.getElementById("institutionStatus");
+        const legacySummary = document.getElementById("executiveSummary")?.closest(".institution-summary");
+        const legacyMetrics = document.getElementById("metricValue")?.closest(".institution-metrics");
+        const details = document.querySelector(".institution-supporting-details");
+        const decision = document.getElementById("consolidatedDecision");
+        const footer = document.querySelector("main.institution-main > footer.institution-actions");
+
+        if (kicker) kicker.textContent = "LEITURA CONSOLIDADA";
+        if (title) title.textContent = "JOLIKA consolidada";
+        if (meta) meta.textContent = "Carregando análise consolidada…";
+        if (status) {
+            status.textContent = "Carregando";
+            status.classList.remove("done");
+        }
+        if (legacySummary) legacySummary.hidden = true;
+        if (legacyMetrics) legacyMetrics.hidden = true;
+        if (details) details.hidden = true;
+        if (decision) decision.hidden = true;
+        if (footer) footer.hidden = true;
     }
 
     async function loadDailyIntelligence() {
@@ -191,10 +246,13 @@ const InstitutionFiveStage = (() => {
     }
 
     async function load() {
+        prepareConsolidatedLoading();
         const state = document.getElementById("fiveStageState");
         if (state) {
             state.hidden = false;
-            state.textContent = "Preparando as cinco etapas da análise…";
+            state.textContent = isConsolidatedMode()
+                ? "Carregando análise consolidada…"
+                : "Preparando as cinco etapas da análise…";
         }
         try {
             const [intelligence, dashboard] = await Promise.all([
@@ -209,17 +267,22 @@ const InstitutionFiveStage = (() => {
     }
 
     async function authorizeConsolidation() {
-        const response = await fetch("/api/portfolios/consolidate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            cache: "no-store",
-            body: "{}"
-        });
-        const payload = await response.json();
-        if (!response.ok || payload?.ok !== true || payload?.consolidation_authorized !== true) {
-            throw new Error(payload?.error || "Não foi possível autorizar a análise consolidada.");
+        explicitConsolidationRequest = true;
+        try {
+            const response = await fetch("/api/portfolios/consolidate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                cache: "no-store",
+                body: "{}"
+            });
+            const payload = await response.json();
+            if (!response.ok || payload?.ok !== true || payload?.consolidation_authorized !== true) {
+                throw new Error(payload?.error || "Não foi possível autorizar a análise consolidada.");
+            }
+            return payload;
+        } finally {
+            explicitConsolidationRequest = false;
         }
-        return payload;
     }
 
     function bindConsolidatedDecision() {
@@ -240,6 +303,7 @@ const InstitutionFiveStage = (() => {
         }, true);
     }
 
+    installConsolidationGuard();
     bindConsolidatedDecision();
     return Object.freeze({
         load,
@@ -247,7 +311,9 @@ const InstitutionFiveStage = (() => {
             selectedReport,
             authorizeConsolidation,
             applyConsolidatedPresentation,
-            formatCurrency
+            formatCurrency,
+            isConsolidatedMode,
+            prepareConsolidatedLoading
         })
     });
 })();
