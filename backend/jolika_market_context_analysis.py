@@ -12,7 +12,7 @@ from typing import Iterable
 import re
 
 from backend.daily_facts_engine import DailyFactsEngine
-from backend.important_facts import FactCandidate
+from backend.important_facts import FactCandidate, FactCategory
 from backend.models import PortfolioPosition
 from backend.patrimonial_analysis_method import (
     PatrimonialAnalysisItem,
@@ -54,6 +54,7 @@ def analyze_jolika_market_context(
 
     items: list[JolikaMarketContextItem] = []
     seen_topics: set[str] = set()
+    seen_fact_ids: set[str] = set()
     for relation in relevant:
         fact = facts_by_id.get(str(relation["id"]))
         if fact is None:
@@ -63,6 +64,7 @@ def analyze_jolika_market_context(
         if topic in seen_topics:
             continue
         seen_topics.add(topic)
+        seen_fact_ids.add(fact.id)
         items.append(
             JolikaMarketContextItem(
                 fact_id=fact.id,
@@ -73,6 +75,27 @@ def analyze_jolika_market_context(
                 evidence=fact.description,
             )
         )
+
+    # Macro facts are portfolio-level context by nature. They must not be
+    # discarded merely because they do not name an individual security.
+    for fact in fact_items:
+        if fact.id in seen_fact_ids or fact.category is not FactCategory.ECONOMY:
+            continue
+        topic = _topic_key(fact)
+        if topic in seen_topics:
+            continue
+        seen_topics.add(topic)
+        items.append(
+            JolikaMarketContextItem(
+                fact_id=fact.id,
+                title=fact.title,
+                affected_assets=(),
+                intensity=_PRIORITY_INTENSITY.get(fact.importance.value, "Não determinada"),
+                source=fact.source,
+                evidence=fact.description,
+            )
+        )
+
     return tuple(items[:4])
 
 
