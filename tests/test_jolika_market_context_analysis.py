@@ -78,3 +78,26 @@ def test_market_context_stage_exposes_source_evidence_and_intensity() -> None:
         "Fonte: Fonte oficial",
         "Descrição factual do evento.",
     )
+
+
+def test_macro_fact_enters_stage_as_portfolio_level_context_without_asset_match() -> None:
+    macro = FactCandidate(
+        id="macro-1",
+        title="Federal Reserve publishes monetary policy update",
+        description="Official monetary policy information.",
+        source="Federal Reserve",
+        published_at=datetime(2026, 9, 24, 12, tzinfo=timezone.utc),
+        importance=FactImportance.HIGH,
+        category=FactCategory.ECONOMY,
+    )
+
+    stage = build_market_context_stage((_position(),), (macro,))
+
+    assert stage.status == "available"
+    assert len(stage.items) == 1
+    assert stage.items[0].title == "Macro e juros"
+    assert "sem atribuição automática a cada posição" in stage.items[0].reading
+    assert stage.items[0].evidence == (
+        "Fonte: Federal Reserve",
+        "Official monetary policy information.",
+    )
