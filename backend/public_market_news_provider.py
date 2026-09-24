@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
+import json
 import logging
 import re
 from urllib.parse import quote_plus
@@ -18,6 +19,12 @@ from backend.daily.providers import ExternalDailyProvider
 FED_MONETARY_RSS = "https://www.federalreserve.gov/feeds/press_monetary.xml"
 SEC_PRESS_RSS = "https://www.sec.gov/news/pressreleases.rss"
 BLS_LATEST_RSS = "https://www.bls.gov/feed/bls_latest.rss"
+BLS_API_V1 = "https://api.bls.gov/publicAPI/v1/timeseries/data"
+BLS_SERIES = (
+    ("CUUR0000SA0", "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average"),
+    ("LNS14000000", "Civilian unemployment rate"),
+    ("CES0000000001", "Total nonfarm payroll employment"),
+)
 BEA_NEWS_RSS = "https://apps.bea.gov/rss/rss.xml"
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search"
 
@@ -55,10 +62,18 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
 
         sources = [
             (FED_MONETARY_RSS, "Federal Reserve", True),
-            (BLS_LATEST_RSS, "BLS", True),
             (BEA_NEWS_RSS, "BEA", True),
             (SEC_PRESS_RSS, "SEC", False),
         ]
+        try:
+            events.extend(self._fetch_bls_api(reference))
+        except Exception as exc:
+            _LOGGER.warning(
+                "market context source failed",
+                extra={"source": "BLS", "error_type": type(exc).__name__},
+            )
+            errors.append(f"BLS: {type(exc).__name__}")
+
         portfolio_url = self._portfolio_news_url(tuple(positions))
         if portfolio_url:
             sources.append((portfolio_url, "Google News", False))
@@ -108,6 +123,53 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
         request = Request(url, headers=headers)
         with self._opener(request, timeout=self._timeout_seconds) as response:
             return response.read()
+
+    def _fetch_bls_api(self, reference: datetime):
+        events = []
+        for series_id, title in BLS_SERIES:
+            payload = self._read_json(f"{BLS_API_V1}/{series_id}")
+            if payload.get("status") != "REQUEST_SUCCEEDED":
+                continue
+            series = payload.get("Results", {}).get("series", ())
+            if not series or not series[0].get("data"):
+                continue
+            latest = series[0]["data"][0]
+            occurred_at = self._bls_period_datetime(latest.get("year"), latest.get("period"), reference)
+            value = str(latest.get("value", "")).strip()
+            if not value or occurred_at is None:
+                continue
+            period_name = str(latest.get("periodName", "")).strip()
+            summary = f"{title}: {value}" + (f" ({period_name} {latest.get('year')})" if period_name else "")
+            events.append(MarketEvent(
+                identifier=f"bls-{series_id.lower()}-{latest.get('year')}-{latest.get('period')}",
+                title=title,
+                category="Macroeconomia",
+                source="BLS",
+                occurred_at=occurred_at,
+                priority="Moderada",
+                summary=summary,
+                related_assets=(),
+                macro_impact=True,
+            ))
+        return tuple(events)
+
+    def _read_json(self, url: str) -> dict:
+        request = Request(url, headers={"User-Agent": "ARGOS/1.0", "Accept": "application/json"})
+        with self._opener(request, timeout=self._timeout_seconds) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    @staticmethod
+    def _bls_period_datetime(year, period, reference: datetime) -> datetime | None:
+        try:
+            year_value = int(year)
+        except (TypeError, ValueError):
+            return None
+        if isinstance(period, str) and re.fullmatch(r"M(0[1-9]|1[0-2])", period):
+            month = int(period[1:])
+            return datetime(year_value, month, 1, tzinfo=timezone.utc)
+        if period == "A01":
+            return datetime(year_value, 1, 1, tzinfo=timezone.utc)
+        return reference.astimezone(timezone.utc)
 
     def _portfolio_news_url(self, positions) -> str | None:
         ranked = sorted(
