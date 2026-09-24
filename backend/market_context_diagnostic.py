@@ -2,6 +2,8 @@
 
 from datetime import datetime, timedelta, timezone
 
+from backend.jolika_market_context_analysis import build_market_context_stage
+from backend.jolika_market_fact_sources import load_market_context_facts
 from backend.public_market_news_provider import (
     BEA_NEWS_RSS,
     BLS_LATEST_RSS,
@@ -47,6 +49,12 @@ def main() -> None:
             )
 
     result = provider.fetch_facts(reference, ())
+    canonical = load_market_context_facts((), (), provider, now=reference)
+    stage = build_market_context_stage((), canonical)
+    print(f"CANONICOS total={len(canonical)} fontes={sorted({fact.source for fact in canonical})}")
+    print(f"ETAPA4 status={stage.status} itens={len(stage.items)}")
+    for item in stage.items:
+        print(f"  - bloco={item.title} leitura={item.reading}")
     print(
         f"RESULTADO status={result.status} fatos_aceitos={len(result.items)} "
         f"erros={result.error or 'nenhum'} total_fontes_48h={total}"
