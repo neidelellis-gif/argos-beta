@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable
+import re
 
 from backend.daily_facts_engine import DailyFactsEngine
 from backend.important_facts import FactCandidate
@@ -52,11 +53,16 @@ def analyze_jolika_market_context(
     facts_by_id = {fact.id: fact for fact in fact_items}
 
     items: list[JolikaMarketContextItem] = []
+    seen_topics: set[str] = set()
     for relation in relevant:
         fact = facts_by_id.get(str(relation["id"]))
         if fact is None:
             continue
         priority = str(relation["priority"])
+        topic = _topic_key(fact)
+        if topic in seen_topics:
+            continue
+        seen_topics.add(topic)
         items.append(
             JolikaMarketContextItem(
                 fact_id=fact.id,
@@ -67,7 +73,30 @@ def analyze_jolika_market_context(
                 evidence=fact.description,
             )
         )
-    return tuple(items)
+    return tuple(items[:4])
+
+
+def _topic_key(fact: FactCandidate) -> str:
+    text = f"{fact.title} {fact.description}".casefold()
+    text = re.sub(r"[^a-z0-9á-úç]+", " ", text)
+    ignored = {
+        "the", "and", "of", "to", "from", "for", "a", "an", "in",
+        "board", "federal", "reserve", "release", "releases", "issues",
+        "announces", "meeting", "committee",
+    }
+    tokens = [token for token in text.split() if token not in ignored]
+    return " ".join(tokens[:8])
+
+
+def _context_bucket(item: JolikaMarketContextItem) -> str:
+    text = f"{item.title} {item.evidence}".casefold()
+    if any(term in text for term in ("fomc", "federal reserve", "interest rate", "inflation", "cpi", "yield")):
+        return "Macro e juros"
+    if any(term in text for term in ("sec ", "regulation", "regulatory", "rule", "approval")):
+        return "Eventos relevantes"
+    if any(term in text for term in ("bitcoin", "ethereum", "crypto", "ai ", "semiconductor", "chip", "energy", "infrastructure")):
+        return "Temas e teses"
+    return "Mercados"
 
 
 def build_market_context_stage(
@@ -88,27 +117,60 @@ def build_market_context_stage(
             ),
         )
 
-    report_items = tuple(
-        PatrimonialAnalysisItem(
-            title=item.title,
-            reading=(
-                f"Exposições afetadas: {', '.join(item.affected_assets)}. "
-                f"Relevância/intensidade: {item.intensity}. "
-                f"Direção do impacto: {item.impact_direction}."
-            ),
-            evidence=(f"Fonte: {item.source}", item.evidence),
-            confidence="Média",
+    grouped: dict[str, list[JolikaMarketContextItem]] = {
+        "Macro e juros": [],
+        "Mercados": [],
+        "Temas e teses": [],
+        "Eventos relevantes": [],
+    }
+    for item in items:
+        grouped[_context_bucket(item)].append(item)
+
+    report_items: list[PatrimonialAnalysisItem] = []
+    for bucket, bucket_items in grouped.items():
+        if not bucket_items:
+            continue
+        primary = bucket_items[0]
+        exposures = tuple(
+            sorted(
+                {
+                    asset
+                    for candidate in bucket_items
+                    for asset in candidate.affected_assets
+                },
+                key=lambda value: (value.casefold(), value),
+            )
         )
-        for item in items
-    )
+        exposure_text = (
+            f"Exposições diretamente relacionadas: {', '.join(exposures[:5])}."
+            if exposures
+            else "Impacto tratado no nível de ambiente da carteira, sem atribuição automática a cada posição."
+        )
+        report_items.append(
+            PatrimonialAnalysisItem(
+                title=bucket,
+                reading=(
+                    f"{primary.title}. {exposure_text} "
+                    f"Relevância/intensidade: {primary.intensity}. "
+                    f"Direção do impacto: {primary.impact_direction}."
+                ),
+                evidence=tuple(
+                    f"Fonte: {candidate.source} — {candidate.evidence}"
+                    for candidate in bucket_items[:2]
+                ),
+                confidence="Média",
+            )
+        )
+
     return PatrimonialAnalysisStage(
         key="market_context",
         title="Carteira × ambiente de mercado",
         summary=(
-            f"{len(report_items)} fato(s) atual(is) possuem relação material com "
-            "as exposições analisadas. A direção do impacto permanece não "
-            "determinada quando a evidência disponível não sustenta essa conclusão."
+            "Os fatos recentes foram consolidados nas quatro leituras de ambiente do ARGOS. "
+            "Somente relações materiais com a carteira permanecem visíveis; fatos repetidos "
+            "ou antigos são excluídos. A direção do impacto continua não determinada quando "
+            "a evidência disponível não sustenta essa conclusão."
         ),
-        items=report_items,
+        items=tuple(report_items),
         status="available",
     )
