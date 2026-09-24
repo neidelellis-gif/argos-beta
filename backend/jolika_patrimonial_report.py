@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any, Iterable
 
 from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
+from backend.jolika_market_context_analysis import build_market_context_stage
 from backend.patrimonial_analysis_method import (
     PatrimonialAnalysisItem,
     PatrimonialAnalysisReport,
@@ -129,6 +130,9 @@ def build_jolika_patrimonial_report(
     structural: Any,
     operational: Any,
     institutional: Iterable[Any],
+    *,
+    positions: Iterable[Any] = (),
+    facts: Iterable[Any] = (),
 ) -> PatrimonialAnalysisReport:
     """Recalculate and interpret the consolidated universe; never concatenate reports."""
 
@@ -152,11 +156,7 @@ def build_jolika_patrimonial_report(
         structural,
         operational=operational,
     )
-    market_context = unavailable_stage(
-        "market_context",
-        "Carteira × ambiente de mercado",
-        "O contexto editorial de mercado e as newsletters ainda não fazem parte desta análise. Até a conexão dessas fontes, o ARGOS não atribuirá conclusões externas à carteira.",
-    )
+    market_context = build_market_context_stage(positions, facts)
     final_diagnosis = PatrimonialAnalysisStage(
         key="final_diagnosis",
         title="Diagnóstico final",
