@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from backend.institution_patrimonial_report import build_institution_patrimonial_report
+from backend.important_facts import FactCandidate
 from backend.market.market_connector import MarketConnector
 from backend.models import PortfolioOwner, PortfolioPosition
 from backend.patrimonial_analysis_method import PatrimonialAnalysisReport
@@ -84,7 +85,12 @@ class UBSDailyIntelligenceService:
             if position.owner is PortfolioOwner.JOLIKA and position.institution == "UBS"
         )
 
-    def build(self, positions: Iterable[PortfolioPosition]) -> UBSDailyIntelligence | None:
+    def build(
+        self,
+        positions: Iterable[PortfolioPosition],
+        *,
+        facts: Iterable[FactCandidate] = (),
+    ) -> UBSDailyIntelligence | None:
         """Return UBS intelligence, or None when UBS is absent."""
 
         ubs_positions = self._ubs_positions(positions)
@@ -102,6 +108,8 @@ class UBSDailyIntelligenceService:
             structural,
             quantitative,
             operational,
+            positions=ubs_positions,
+            facts=facts,
         )
 
         return UBSDailyIntelligence(
