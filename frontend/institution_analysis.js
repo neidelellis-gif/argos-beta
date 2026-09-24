@@ -8,6 +8,7 @@ const InstitutionAnalysis = (() => {
     let owner = null;
     let institutions = [];
     let currentIndex = 0;
+    let patrimonialReport = null;
 
     function $(id) {
         return document.getElementById(id);
@@ -221,7 +222,19 @@ const InstitutionAnalysis = (() => {
         return `Fato: não há fato externo material confirmado para esta instituição nas últimas ${lookback} horas. Inferência: a conclusão depende mais da carteira importada e do perfil. Confiança: média. Evidência: boletim diário disponível no ARGOS.`;
     }
 
+    function patrimonialMarketContext() {
+        const stages = Array.isArray(patrimonialReport?.stages)
+            ? patrimonialReport.stages
+            : [];
+        return stages.find((stage) => stage?.key === "market_context") || null;
+    }
+
     function hasMacroData() {
+        const marketContext = patrimonialMarketContext();
+        if (marketContext?.status === "available") {
+            const items = Array.isArray(marketContext.items) ? marketContext.items : [];
+            if (items.some((item) => item?.title === "Macro e juros")) return true;
+        }
         const facts = dailyFacts();
         const analyses = dailyAnalyses();
         return facts.some((fact) => fact.context_type === "macro" || normalize(fact.context).includes("macro"))
@@ -754,6 +767,14 @@ const InstitutionAnalysis = (() => {
         currentIndex = requestedIndex >= 0 ? requestedIndex : 0;
         bindActions();
         render();
+
+        window.addEventListener("argos:patrimonial-report", (event) => {
+            const report = event?.detail?.report || null;
+            if (!report || report.scope !== "institution") return;
+            if (normalize(report.universe) !== normalize(selectedInstitution()?.name)) return;
+            patrimonialReport = report;
+            render();
+        });
     }
 
     return Object.freeze({
