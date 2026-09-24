@@ -50,7 +50,8 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
         events = []
         errors = []
         reference = now or datetime.now(timezone.utc)
-        cutoff = reference.astimezone(timezone.utc) - timedelta(hours=48)
+        recent_cutoff = reference.astimezone(timezone.utc) - timedelta(hours=24)
+        macro_cutoff = reference.astimezone(timezone.utc) - timedelta(days=45)
 
         sources = [
             (FED_MONETARY_RSS, "Federal Reserve", True),
@@ -69,7 +70,7 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
                 accepted = tuple(
                     event
                     for event in parsed
-                    if cutoff <= event.occurred_at <= reference.astimezone(timezone.utc)
+                    if (macro_cutoff if macro else recent_cutoff) <= event.occurred_at <= reference.astimezone(timezone.utc)
                 )
                 _LOGGER.info(
                     "market context source",
