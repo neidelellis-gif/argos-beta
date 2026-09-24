@@ -218,3 +218,29 @@ def test_official_macro_feeds_are_queried_without_credentials():
     assert any(item.source == "BEA" and item.macro_impact for item in result.items)
     assert any("bls.gov/feed/bls_latest.rss" in url for url in calls)
     assert any("apps.bea.gov/rss/rss.xml" in url for url in calls)
+
+
+def test_atom_macro_feed_is_parsed_with_namespaces():
+    atom = b"""<?xml version="1.0" encoding="utf-8"?>
+    <feed xmlns="http://www.w3.org/2005/Atom">
+      <entry>
+        <title>Gross Domestic Product update</title>
+        <id>bea-gdp</id>
+        <updated>2026-09-24T15:00:00Z</updated>
+        <summary>Official BEA macroeconomic release.</summary>
+      </entry>
+    </feed>"""
+
+    provider = PublicMarketNewsProvider()
+    events = provider._parse_feed(
+        atom,
+        "BEA",
+        (position("NVDA", "NVIDIA", "100"),),
+        True,
+    )
+
+    assert len(events) == 1
+    assert events[0].source == "BEA"
+    assert events[0].category == "Macroeconomia"
+    assert events[0].macro_impact is True
+    assert events[0].related_assets == ()
