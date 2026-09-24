@@ -142,13 +142,33 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
 
     @staticmethod
     def _related_assets(text: str, positions) -> tuple[str, ...]:
-        normalized = f" {re.sub(r'[^A-Z0-9]+', ' ', text.upper())} "
+        upper_text = text.upper()
+        normalized = f" {re.sub(r\'[^A-Z0-9]+\', \' \', upper_text)} "
         matches = []
         for position in positions:
             identifier = (position.identifier or "").strip().upper()
             name = (position.asset_name or "").strip().upper()
-            identifier_match = identifier and f" {identifier} " in normalized
-            name_match = len(name) >= 4 and name in text.upper()
+
+            identifier_match = False
+            if identifier:
+                # Short tickers are ambiguous in prose and domains (for example
+                # SMH versus smh.com.au). Require explicit market-style syntax.
+                if len(identifier) <= 4:
+                    escaped = re.escape(identifier)
+                    explicit_patterns = (
+                        rf"\\b(?:NYSE|NASDAQ|AMEX|ARCA)\\s*[:\\-]\\s*{escaped}\\b",
+                        rf"\\b(?:TICKER|SYMBOL)\\s*[:\\-]\\s*{escaped}\\b",
+                        rf"\\({escaped}\\)",
+                        rf"\\${escaped}\\b",
+                    )
+                    identifier_match = any(
+                        re.search(pattern, upper_text)
+                        for pattern in explicit_patterns
+                    )
+                else:
+                    identifier_match = f" {identifier} " in normalized
+
+            name_match = len(name) >= 4 and name in upper_text
             if identifier_match or name_match:
                 label = position.identifier or position.asset_name
                 if label and label not in matches:
