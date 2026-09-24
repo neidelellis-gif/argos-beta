@@ -213,6 +213,15 @@ const InstitutionAnalysis = (() => {
     }
 
     function firstRelevantReason(institution) {
+        const marketContext = patrimonialMarketContext();
+        const contextItems = Array.isArray(marketContext?.items)
+            ? marketContext.items
+            : [];
+        if (marketContext?.status === "available" && contextItems.length) {
+            const item = contextItems[0];
+            return `Fato: ${item.reading || "há contexto externo material confirmado na Etapa 4."} Inferência: este contexto integra a análise patrimonial atual. Confiança: ${item.confidence || "média"}. Evidência: Etapa 4 — Carteira × ambiente de mercado.`;
+        }
+
         const { analyses, facts } = relevantDailyItems(institution);
         const analysis = analyses[0];
         if (analysis?.reason) return `Fato: ${analysis.reason} ${sourceLabel(analysis)}`;
@@ -243,6 +252,14 @@ const InstitutionAnalysis = (() => {
     }
 
     function hasAssetData(institution) {
+        const marketContext = patrimonialMarketContext();
+        const contextItems = Array.isArray(marketContext?.items)
+            ? marketContext.items
+            : [];
+        if (marketContext?.status === "available" && contextItems.length) {
+            return true;
+        }
+
         const symbols = Array.isArray(institution?.asset_symbols) ? institution.asset_symbols : [];
         const { facts, analyses } = relevantDailyItems(institution || {});
         return symbols.length > 0 || analyses.length > 0 || facts.some((fact) => (fact.matched_portfolio_assets || []).length > 0);
