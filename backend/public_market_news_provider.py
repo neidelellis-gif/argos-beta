@@ -18,6 +18,7 @@ from backend.daily.providers import ExternalDailyProvider
 FED_MONETARY_RSS = "https://www.federalreserve.gov/feeds/press_monetary.xml"
 SEC_PRESS_RSS = "https://www.sec.gov/news/pressreleases.rss"
 BLS_LATEST_RSS = "https://www.bls.gov/feed/bls_latest.rss"
+BLS_LATEST_RSS_FALLBACK = "https://www.bls.gov/feed/bls_latest.rss?argos=1"
 BEA_NEWS_RSS = "https://apps.bea.gov/rss/rss.xml"
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search"
 
@@ -101,7 +102,11 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
         return ExternalDataResult("empty", ())
 
     def _read(self, url: str) -> bytes:
-        request = Request(url, headers={"User-Agent": "ARGOS/1.0"})
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; ARGOS/1.0; +https://github.com/neidelellis-gif/argos-beta)",
+            "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+        }
+        request = Request(url, headers=headers)
         with self._opener(request, timeout=self._timeout_seconds) as response:
             return response.read()
 
