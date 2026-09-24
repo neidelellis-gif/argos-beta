@@ -483,10 +483,6 @@ const PortfolioExecutive = (() => {
         const institutions = ownerInstitutions();
         renderTotals(institutions);
         renderAllocation(institutions);
-        renderAttention(
-            institutions,
-            dashboard?.consolidated?.intelligence
-        );
         renderInstitutions(institutions);
         renderConsolidationControl(institutions);
         const owner = ArgosAnalysisContext.getActiveOwner();
@@ -509,7 +505,6 @@ const PortfolioExecutive = (() => {
             [
                 "portfolioExecutiveTotals",
                 "portfolioExecutiveAllocation",
-                "portfolioExecutiveAttention",
                 "portfolioExecutiveInstitutions"
             ].forEach((id) => {
                 const container = document.getElementById(id);
