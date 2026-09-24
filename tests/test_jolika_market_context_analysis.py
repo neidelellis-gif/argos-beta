@@ -96,7 +96,8 @@ def test_macro_fact_enters_stage_as_portfolio_level_context_without_asset_match(
     assert stage.status == "available"
     assert len(stage.items) == 1
     assert stage.items[0].title == "Macro e juros"
-    assert "sem atribuição automática a cada posição" in stage.items[0].reading
+    assert "Exposições da carteira para acompanhamento deste contexto: Ações." in stage.items[0].reading
+    assert "direção do impacto não é inferida automaticamente" in stage.items[0].reading
     assert stage.items[0].evidence == (
         "Fonte: Federal Reserve",
         "Official monetary policy information.",
