@@ -128,7 +128,12 @@ def test_old_public_fact_is_excluded_from_current_context():
 
 def test_google_news_quote_and_chart_pages_are_rejected():
     def opener(request, timeout):
-        if "federalreserve" in request.full_url or "sec.gov" in request.full_url:
+        if (
+            "federalreserve" in request.full_url
+            or "bls.gov" in request.full_url
+            or "apps.bea.gov" in request.full_url
+            or "sec.gov" in request.full_url
+        ):
             return Response(b"<rss><channel></channel></rss>")
         return Response(
             rss(
