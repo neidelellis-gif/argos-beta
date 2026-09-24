@@ -112,6 +112,8 @@ def _topic_key(fact: FactCandidate) -> str:
 
 
 def _context_bucket(item: JolikaMarketContextItem) -> str:
+    if item.source in {"Federal Reserve", "BLS", "BEA"}:
+        return "Macro e juros"
     text = f"{item.title} {item.evidence}".casefold()
     if any(term in text for term in ("fomc", "federal reserve", "interest rate", "inflation", "cpi", "yield")):
         return "Macro e juros"
