@@ -115,7 +115,11 @@ def test_old_public_fact_is_excluded_from_current_context():
     def opener(request, timeout):
         if "federalreserve" in request.full_url:
             return Response(old)
-        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:\n            return Response(b\'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]} ]}}\')\n        return Response(b"<rss><channel></channel></rss>")
+        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:
+            return Response(
+                b'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]}]}}'
+            )
+        return Response(b"<rss><channel></channel></rss>")
 
     result = PublicMarketNewsProvider(opener=opener).fetch_facts(
         datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
@@ -134,7 +138,11 @@ def test_google_news_quote_and_chart_pages_are_rejected():
             or "apps.bea.gov" in request.full_url
             or "sec.gov" in request.full_url
         ):
-            if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:\n            return Response(b\'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]} ]}}\')\n        return Response(b"<rss><channel></channel></rss>")
+            if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:
+            return Response(
+                b'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]}]}}'
+            )
+        return Response(b"<rss><channel></channel></rss>")
         return Response(
             rss(
                 "GLD Jan 2029 600.000 call interactive stock chart - Yahoo Finance",
@@ -279,7 +287,11 @@ def test_non_macro_event_older_than_24_hours_is_excluded():
     def opener(request, timeout):
         if "sec.gov" in request.full_url:
             return Response(event)
-        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:\n            return Response(b\'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]} ]}}\')\n        return Response(b"<rss><channel></channel></rss>")
+        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:
+            return Response(
+                b'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]}]}}'
+            )
+        return Response(b"<rss><channel></channel></rss>")
 
     result = PublicMarketNewsProvider(opener=opener).fetch_facts(
         datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
