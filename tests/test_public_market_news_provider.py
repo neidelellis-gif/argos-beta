@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from io import BytesIO
 
@@ -63,7 +63,7 @@ def test_public_provider_requires_no_credentials_and_matches_portfolio_asset():
 
     provider = PublicMarketNewsProvider(opener=opener, timeout_seconds=0.1)
     result = provider.fetch_facts(
-        None,
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
         (position("NVDA", "NVIDIA", "200"), position("AAPL", "Apple", "100")),
     )
 
@@ -73,18 +73,18 @@ def test_public_provider_requires_no_credentials_and_matches_portfolio_asset():
     assert any("news.google.com/rss/search" in url for url in calls)
 
 
-def test_fed_fact_is_related_to_usd_without_portfolio_symbol_match():
+def test_fed_macro_fact_does_not_mark_every_usd_position_as_affected():
     def opener(request, timeout):
         if "federalreserve" in request.full_url:
             return Response(rss("Federal Reserve statement", "Policy update", "fed"))
         return Response(b"<rss><channel></channel></rss>")
 
     result = PublicMarketNewsProvider(opener=opener).fetch_facts(
-        None, (position("AAPL", "Apple", "100"),)
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc), (position("AAPL", "Apple", "100"),)
     )
 
     fed = next(item for item in result.items if item.source == "Federal Reserve")
-    assert fed.related_assets == ("USD",)
+    assert fed.related_assets == ()
     assert fed.macro_impact is True
 
 
@@ -97,8 +97,30 @@ def test_partial_feed_failure_does_not_remove_other_public_sources():
         return Response(b"<rss><channel></channel></rss>")
 
     result = PublicMarketNewsProvider(opener=opener).fetch_facts(
-        None, (position("NVDA", "NVIDIA", "100"),)
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc), (position("NVDA", "NVIDIA", "100"),)
     )
 
     assert result.status == "available"
     assert any(item.source == "SEC" for item in result.items)
+
+
+def test_old_public_fact_is_excluded_from_current_context():
+    old = b"""<?xml version="1.0"?><rss><channel><item>
+      <title>Old Federal Reserve statement</title>
+      <description>Old policy update</description>
+      <guid>old-fed</guid>
+      <pubDate>Mon, 20 Apr 2026 15:00:00 GMT</pubDate>
+    </item></channel></rss>"""
+
+    def opener(request, timeout):
+        if "federalreserve" in request.full_url:
+            return Response(old)
+        return Response(b"<rss><channel></channel></rss>")
+
+    result = PublicMarketNewsProvider(opener=opener).fetch_facts(
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
+        (position("AAPL", "Apple", "100"),),
+    )
+
+    assert result.status == "empty"
+    assert result.items == ()
