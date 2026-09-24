@@ -156,10 +156,10 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
                 if len(identifier) <= 4:
                     escaped = re.escape(identifier)
                     explicit_patterns = (
-                        rf"\\b(?:NYSE|NASDAQ|AMEX|ARCA)\\s*[:\\-]\\s*{escaped}\\b",
-                        rf"\\b(?:TICKER|SYMBOL)\\s*[:\\-]\\s*{escaped}\\b",
-                        rf"\\({escaped}\\)",
-                        rf"\\${escaped}\\b",
+                        rf"\b(?:NYSE|NASDAQ|AMEX|ARCA)\s*[:\-]\s*{escaped}\b",
+                        rf"\b(?:TICKER|SYMBOL)\s*[:\-]\s*{escaped}\b",
+                        rf"\({escaped}\)",
+                        rf"\${escaped}\b",
                     )
                     identifier_match = any(
                         re.search(pattern, upper_text)
