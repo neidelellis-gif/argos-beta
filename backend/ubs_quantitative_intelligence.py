@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import partial
 from typing import Iterable
 
 from backend.market.market_connector import MarketConnector
@@ -443,14 +445,14 @@ def build_ubs_quantitative_intelligence(
         )
     )
 
-    quantitative_positions = tuple(
-        _analyze_position(
-            position,
-            market_connector=market_connector,
-            lookback_days=lookback_days,
-        )
-        for position in ordered_positions
+    analyze = partial(
+        _analyze_position,
+        market_connector=market_connector,
+        lookback_days=lookback_days,
     )
+    max_workers = min(12, max(1, len(ordered_positions)))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        quantitative_positions = tuple(executor.map(analyze, ordered_positions))
 
     ticker_position_count = sum(
         _normalized_identifier(position) is not None
