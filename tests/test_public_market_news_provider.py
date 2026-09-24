@@ -115,7 +115,7 @@ def test_old_public_fact_is_excluded_from_current_context():
     def opener(request, timeout):
         if "federalreserve" in request.full_url:
             return Response(old)
-        return Response(b"<rss><channel></channel></rss>")
+        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:\n            return Response(b\'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]} ]}}\')\n        return Response(b"<rss><channel></channel></rss>")
 
     result = PublicMarketNewsProvider(opener=opener).fetch_facts(
         datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
@@ -134,7 +134,7 @@ def test_google_news_quote_and_chart_pages_are_rejected():
             or "apps.bea.gov" in request.full_url
             or "sec.gov" in request.full_url
         ):
-            return Response(b"<rss><channel></channel></rss>")
+            if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:\n            return Response(b\'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]} ]}}\')\n        return Response(b"<rss><channel></channel></rss>")
         return Response(
             rss(
                 "GLD Jan 2029 600.000 call interactive stock chart - Yahoo Finance",
@@ -202,8 +202,8 @@ def test_official_macro_feeds_are_queried_without_credentials():
 
     def opener(request, timeout):
         calls.append(request.full_url)
-        if "bls.gov" in request.full_url:
-            return Response(rss("Employment Situation update", "Official labor-market release.", "bls"))
+        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:
+            return Response(b'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[{"year":"2026","period":"M08","periodName":"August","value":"310.5","footnotes":[]}]}]}}')
         if "apps.bea.gov" in request.full_url:
             return Response(rss("U.S. economic accounts update", "Official BEA release.", "bea"))
         return Response(b"<rss><channel></channel></rss>")
@@ -216,7 +216,7 @@ def test_official_macro_feeds_are_queried_without_credentials():
     assert result.status == "available"
     assert any(item.source == "BLS" and item.macro_impact for item in result.items)
     assert any(item.source == "BEA" and item.macro_impact for item in result.items)
-    assert any("bls.gov/feed/bls_latest.rss" in url for url in calls)
+    assert any("api.bls.gov/publicAPI/v1/timeseries/data" in url for url in calls)
     assert any("apps.bea.gov/rss/rss.xml" in url for url in calls)
 
 
@@ -279,7 +279,7 @@ def test_non_macro_event_older_than_24_hours_is_excluded():
     def opener(request, timeout):
         if "sec.gov" in request.full_url:
             return Response(event)
-        return Response(b"<rss><channel></channel></rss>")
+        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:\n            return Response(b\'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]} ]}}\')\n        return Response(b"<rss><channel></channel></rss>")
 
     result = PublicMarketNewsProvider(opener=opener).fetch_facts(
         datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
