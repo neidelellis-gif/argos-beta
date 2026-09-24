@@ -406,3 +406,34 @@ test("uses Stage 4 macro evidence in the complementary reading", () => {
         restore();
     }
 });
+
+
+test("uses Stage 4 material fact in next review and asset availability", () => {
+    const restore = installWindow({
+        profile: validProfile(),
+        dashboard: { daily: { important_facts: [], analyses: [], lookback_hours: 48 } }
+    });
+    try {
+        helpers.setPatrimonialReportForTest({
+            scope: "institution",
+            universe: "Santander",
+            stages: [{
+                key: "market_context",
+                status: "available",
+                items: [{
+                    title: "Eventos relevantes",
+                    reading: "Evento material confirmado para AAA.",
+                    confidence: "Média"
+                }]
+            }]
+        });
+        const report = helpers.buildHealthReport(completeInstitution({ asset_symbols: [] }));
+        const visible = JSON.stringify(report);
+        assert.doesNotMatch(visible, /não há fato externo material confirmado/i);
+        assert.doesNotMatch(visible, /Faltam dados atuais dos ativos/i);
+        assert.match(visible, /Evento material confirmado para AAA/);
+    } finally {
+        helpers.setPatrimonialReportForTest(null);
+        restore();
+    }
+});
