@@ -702,11 +702,17 @@ function setupPortfolioFilePicker() {
                     throw new Error(result.error || "Falha na importação.");
                 }
                 progressBar.value = 100;
-                progressText.textContent = "Importação concluída.";
                 const importedPositions = result.positions || [];
                 const importedInstitutionNames = Array.isArray(result.dashboard?.institutions)
                     ? result.dashboard.institutions.map((institution) => institution.name)
                     : inferInstitutionsFromFiles(files);
+                const importedLabel = importedInstitutionNames.length
+                    ? importedInstitutionNames.join(" e ") + " importado"
+                    : "Importado";
+                progressText.textContent = importedLabel;
+                fileName.textContent = importedLabel;
+                fileSummary.replaceChildren();
+                hideTipRanksPreview(previewSection, previewContent);
                 const includesSantanderFile = files.some((file) => identifySantanderExcelSource(file.name));
                 if (includesSantanderFile && !hasSantanderPositions(importedPositions)) {
                     throw new Error("Não foi possível ler o Excel do Santander");
@@ -720,10 +726,6 @@ function setupPortfolioFilePicker() {
                 markPortfolioImportConfirmed();
                 storeCanonicalPortfolioPositions(importedPositions);
                 renderDashboard(result.dashboard);
-                const santanderCount = countSantanderPositions(importedPositions);
-                if (santanderCount) {
-                    progressText.textContent = `Importação concluída. ${formatCount(santanderCount, "posição Santander carregada")}.`;
-                }
             } catch (error) {
                 setInstitutionImportError(
                     inferInstitutionsFromFiles(files),
