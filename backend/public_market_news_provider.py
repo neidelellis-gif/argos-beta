@@ -18,6 +18,18 @@ FED_MONETARY_RSS = "https://www.federalreserve.gov/feeds/press_monetary.xml"
 SEC_PRESS_RSS = "https://www.sec.gov/news/pressreleases.rss"
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search"
 
+_LOW_VALUE_MARKET_PATTERNS = (
+    "interactive stock chart",
+    "stock price, news, quote and history",
+    "stock price news quote and history",
+    "option chain",
+    "options chain",
+    "historical data",
+    "historical prices",
+    "price chart",
+    "quote overview",
+)
+
 
 class PublicMarketNewsProvider(ExternalDailyProvider):
     """Read public feeds without requiring any customer credentials."""
@@ -102,6 +114,8 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
             if not title or published is None:
                 continue
             text = f"{title} {description}"
+            if source == "Google News" and self._is_low_value_market_page(text):
+                continue
             related = self._related_assets(text, positions)
             category = self._category(source, text)
             # Macro facts remain portfolio-level context. Do not turn USD into
@@ -120,6 +134,11 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
                 macro_impact=macro,
             ))
         return tuple(events)
+
+    @staticmethod
+    def _is_low_value_market_page(text: str) -> bool:
+        normalized = " ".join(text.casefold().split())
+        return any(pattern in normalized for pattern in _LOW_VALUE_MARKET_PATTERNS)
 
     @staticmethod
     def _related_assets(text: str, positions) -> tuple[str, ...]:
