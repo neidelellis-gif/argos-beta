@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from backend.daily.models import ExternalDataResult, MarketEvent
 from backend.important_facts import FactCandidate, FactCategory, FactImportance
 from backend.jolika_market_fact_sources import load_market_context_facts
+from backend.jolika_market_context_analysis import build_market_context_stage
 
 
 NOW = datetime(2026, 9, 24, 15, 0, tzinfo=timezone.utc)
@@ -53,3 +54,31 @@ def test_unavailable_professional_source_keeps_official_facts_only():
     provider = Provider(ExternalDataResult("unavailable", (), error="sem conexão"))
     result = load_market_context_facts((official_fact(),), (), provider, NOW)
     assert [item.id for item in result] == ["official-1"]
+
+
+def test_official_macro_provider_fact_reaches_stage4_end_to_end():
+    event = MarketEvent(
+        "bea-gdp",
+        "Gross Domestic Product update",
+        "Macroeconomia",
+        "BEA",
+        NOW,
+        "Moderada",
+        "Official BEA macroeconomic release.",
+        (),
+        True,
+    )
+    provider = Provider(ExternalDataResult("available", (event,)))
+    facts = load_market_context_facts((), (), provider, NOW)
+    stage = build_market_context_stage(
+        (
+            __import__("tests.test_jolika_market_context_analysis", fromlist=["_position"])._position(),
+        ),
+        facts,
+    )
+
+    assert len(facts) == 1
+    assert facts[0].category is FactCategory.ECONOMY
+    assert stage.status == "available"
+    assert stage.items[0].title == "Macro e juros"
+    assert "BEA" in stage.items[0].evidence[0]
