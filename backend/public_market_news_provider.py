@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
 import re
@@ -32,6 +32,8 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
     def fetch_facts(self, now, positions):
         events = []
         errors = []
+        reference = now or datetime.now(timezone.utc)
+        cutoff = reference.astimezone(timezone.utc) - timedelta(hours=48)
 
         sources = [
             (FED_MONETARY_RSS, "Federal Reserve", True),
@@ -44,7 +46,11 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
         for url, source, macro in sources:
             try:
                 xml_bytes = self._read(url)
-                events.extend(self._parse_feed(xml_bytes, source, tuple(positions), macro))
+                events.extend(
+                    event
+                    for event in self._parse_feed(xml_bytes, source, tuple(positions), macro)
+                    if cutoff <= event.occurred_at <= reference.astimezone(timezone.utc)
+                )
             except Exception as exc:
                 errors.append(f"{source}: {type(exc).__name__}")
 
@@ -98,8 +104,10 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
             text = f"{title} {description}"
             related = self._related_assets(text, positions)
             category = self._category(source, text)
+            # Macro facts remain portfolio-level context. Do not turn USD into
+            # a claim that every USD-denominated position is directly affected.
             if source == "Federal Reserve" and not related:
-                related = ("USD",)
+                related = ()
             events.append(MarketEvent(
                 identifier=self._identifier(source, item.findtext("guid"), title, published),
                 title=title,
