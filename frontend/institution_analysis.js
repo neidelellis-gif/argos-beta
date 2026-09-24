@@ -792,7 +792,8 @@ const InstitutionAnalysis = (() => {
             isProfileValid,
             buildHealthReport,
             usesBackendConsolidation,
-            setDashboardForTest(value) { dashboard = value; }
+            setDashboardForTest(value) { dashboard = value; },
+            setPatrimonialReportForTest(value) { patrimonialReport = value; }
         })
     });
 })();
