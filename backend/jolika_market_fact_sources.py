@@ -1,12 +1,15 @@
 """Merge professional market news into the canonical ARGOS fact stream."""
 
 from datetime import datetime, timezone
+import logging
 from typing import Iterable
 
 from backend.daily.models import MarketEvent
 from backend.daily.providers import ExternalDailyProvider
 from backend.important_facts import FactCandidate, FactCategory, FactImportance
 from backend.models import PortfolioPosition
+
+_LOGGER = logging.getLogger("argos.market_context")
 
 
 _PRIORITY = {
@@ -53,9 +56,21 @@ def load_market_context_facts(
     reference = now or datetime.now(timezone.utc)
     try:
         result = provider.fetch_facts(reference, tuple(positions))
-    except Exception:
+    except Exception as exc:
+        _LOGGER.warning(
+            "market context provider raised",
+            extra={"error_type": type(exc).__name__},
+        )
         return official
     if result.status != "available":
+        _LOGGER.info(
+            "market context provider result",
+            extra={
+                "status": result.status,
+                "item_count": len(result.items),
+                "error": result.error,
+            },
+        )
         return official
 
     merged = list(official)
@@ -69,4 +84,13 @@ def load_market_context_facts(
             continue
         seen.add(key)
         merged.append(fact)
+    _LOGGER.info(
+        "market context canonical facts",
+        extra={
+            "official_count": len(official),
+            "provider_count": len(result.items),
+            "merged_count": len(merged),
+            "sources": sorted({item.source for item in merged}),
+        },
+    )
     return tuple(merged)
