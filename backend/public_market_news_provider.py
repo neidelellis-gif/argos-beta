@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
+import logging
 import re
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
@@ -19,6 +20,8 @@ SEC_PRESS_RSS = "https://www.sec.gov/news/pressreleases.rss"
 BLS_LATEST_RSS = "https://www.bls.gov/feed/bls_latest.rss"
 BEA_NEWS_RSS = "https://apps.bea.gov/rss/rss.xml"
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search"
+
+_LOGGER = logging.getLogger("argos.market_context")
 
 _LOW_VALUE_MARKET_PATTERNS = (
     "interactive stock chart",
@@ -62,12 +65,26 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
         for url, source, macro in sources:
             try:
                 xml_bytes = self._read(url)
-                events.extend(
+                parsed = self._parse_feed(xml_bytes, source, tuple(positions), macro)
+                accepted = tuple(
                     event
-                    for event in self._parse_feed(xml_bytes, source, tuple(positions), macro)
+                    for event in parsed
                     if cutoff <= event.occurred_at <= reference.astimezone(timezone.utc)
                 )
+                _LOGGER.info(
+                    "market context source",
+                    extra={
+                        "source": source,
+                        "parsed_count": len(parsed),
+                        "accepted_count": len(accepted),
+                    },
+                )
+                events.extend(accepted)
             except Exception as exc:
+                _LOGGER.warning(
+                    "market context source failed",
+                    extra={"source": source, "error_type": type(exc).__name__},
+                )
                 errors.append(f"{source}: {type(exc).__name__}")
 
         if events:
@@ -111,10 +128,24 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
     def _parse_feed(self, payload: bytes, source: str, positions, macro: bool):
         root = ET.fromstring(payload)
         events = []
-        for item in root.findall(".//item"):
-            title = self._text(item.findtext("title"))
-            description = self._text(item.findtext("description"))
-            published = self._published(item.findtext("pubDate"))
+        entries = [
+            element
+            for element in root.iter()
+            if self._local_name(element.tag) in {"item", "entry"}
+        ]
+        for item in entries:
+            title = self._text(self._child_text(item, "title"))
+            description = self._text(
+                self._child_text(item, "description")
+                or self._child_text(item, "summary")
+                or self._child_text(item, "content")
+            )
+            published = self._published(
+                self._child_text(item, "pubDate")
+                or self._child_text(item, "published")
+                or self._child_text(item, "updated")
+                or self._child_text(item, "date")
+            )
             if not title or published is None:
                 continue
             text = f"{title} {description}"
@@ -122,12 +153,15 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
                 continue
             related = self._related_assets(text, positions)
             category = self._category(source, text)
-            # Macro facts remain portfolio-level context. Do not turn USD into
-            # a claim that every USD-denominated position is directly affected.
-            if source == "Federal Reserve" and not related:
+            if source in {"Federal Reserve", "BLS", "BEA"} and not related:
                 related = ()
+            guid = (
+                self._child_text(item, "guid")
+                or self._child_text(item, "id")
+                or self._child_text(item, "link")
+            )
             events.append(MarketEvent(
-                identifier=self._identifier(source, item.findtext("guid"), title, published),
+                identifier=self._identifier(source, guid, title, published),
                 title=title,
                 category=category,
                 source=source,
@@ -138,6 +172,22 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
                 macro_impact=macro,
             ))
         return tuple(events)
+
+    @staticmethod
+    def _local_name(tag: str) -> str:
+        return tag.rsplit("}", 1)[-1]
+
+    @classmethod
+    def _child_text(cls, parent, local_name: str) -> str | None:
+        for child in list(parent):
+            if cls._local_name(child.tag) != local_name:
+                continue
+            if child.text and child.text.strip():
+                return child.text.strip()
+            href = child.attrib.get("href")
+            if href:
+                return href.strip()
+        return None
 
     @staticmethod
     def _is_low_value_market_page(text: str) -> bool:
