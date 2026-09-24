@@ -632,6 +632,12 @@ function setupPortfolioFilePicker() {
                 markPortfolioImportConfirmed();
                 storeCanonicalPortfolioPositions(importedPositions);
                 renderDashboard(result.dashboard);
+
+                if (typeof PortfolioExecutive !== "undefined") {
+                    await PortfolioExecutive.load();
+                }
+
+                await loadDailyExperience();
             } catch (error) {
                 setInstitutionImportError(
                     inferInstitutionsFromFiles(files),
