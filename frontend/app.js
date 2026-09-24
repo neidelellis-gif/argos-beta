@@ -576,110 +576,16 @@ function setupPortfolioFilePicker() {
     const progressText = document.getElementById("importProgressText");
     const clearButton = document.getElementById("clearPortfolios");
 
-    fileInput.addEventListener("change", async () => {
+    fileInput.addEventListener("change", () => {
         const selectedFiles = Array.from(fileInput.files || []);
         fileName.textContent = selectedFiles.length
-            ? selectedFiles.map((file) => file.name).join(", ")
+            ? "Arquivo selecionado"
             : "Nenhum arquivo selecionado";
         if (importButton) {
             importButton.disabled = selectedFiles.length === 0;
         }
         fileSummary.replaceChildren();
         hideTipRanksPreview(previewSection, previewContent);
-
-        if (!selectedFiles.length) {
-            return;
-        }
-
-        const santanderFiles = selectedFiles.filter(
-            (file) => identifySantanderExcelSource(file.name)
-        );
-
-        if (santanderFiles.length) {
-            renderIdentifiedFileSource(
-                fileSummary,
-                "Exportação de posições Santander"
-            );
-            try {
-                let positionCount = 0;
-                for (const file of santanderFiles) {
-                    const response = await fetch("/api/santander/inspect", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            file: {
-                                name: file.name,
-                                content: await readFileAsBase64(file)
-                            }
-                        })
-                    });
-                    const result = await response.json();
-                    if (!response.ok || !result.ok || !result.position_count) {
-                        throw new Error(result.error || "Arquivo Santander inválido.");
-                    }
-                    positionCount += result.position_count;
-                }
-                renderSantanderPositionCount(fileSummary, positionCount);
-            } catch (error) {
-                setInstitutionImportError(["Santander"], "A carteira ainda não foi importada corretamente.", "import_failed");
-                renderSantanderExcelError(fileSummary);
-            }
-            return;
-        }
-
-        const selectedFile = selectedFiles[0];
-
-        if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
-            setInstitutionImportError(
-                [inferInstitutionFromFile(selectedFile.name)].filter(Boolean),
-                "Arquivo não reconhecido para importação da carteira.",
-                "unrecognized_file"
-            );
-            renderPortfolioFileError(fileSummary);
-            return;
-        }
-
-        try {
-            const { headers, dataRows } = getCsvDataRows(
-                parseCsv(await selectedFile.text())
-            );
-
-            const source = identifyFileSource({ headers, dataRows });
-
-            if (source === "Exportação de carteira TipRanks") {
-                importedPortfolioPositions = transformTipRanksPortfolio({
-                    headers,
-                    dataRows
-                });
-                renderTipRanksPreview(
-                    previewSection,
-                    previewContent,
-                    importedPortfolioPositions
-                );
-            }
-
-            const institutionName = inferInstitutionFromFile(selectedFile.name, source);
-            if (!source) {
-                setInstitutionImportError(
-                    [institutionName].filter(Boolean),
-                    "Arquivo não reconhecido para importação da carteira.",
-                    "unrecognized_file"
-                );
-            }
-            renderPortfolioFileSummary(
-                fileSummary,
-                dataRows.length,
-                headers,
-                source
-            );
-        } catch (error) {
-            setInstitutionImportError(
-                [inferInstitutionFromFile(selectedFile.name)].filter(Boolean),
-                "A carteira ainda não foi importada corretamente.",
-                "import_failed"
-            );
-            renderPortfolioFileError(fileSummary);
-        }
     });
 
     if (importButton) {
@@ -710,7 +616,7 @@ function setupPortfolioFilePicker() {
                     ? importedInstitutionNames.join(" e ") + " importado"
                     : "Importado";
                 progressText.textContent = importedLabel;
-                fileName.textContent = importedLabel;
+                fileName.textContent = "";
                 fileSummary.replaceChildren();
                 hideTipRanksPreview(previewSection, previewContent);
                 const includesSantanderFile = files.some((file) => identifySantanderExcelSource(file.name));
