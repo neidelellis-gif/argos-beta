@@ -245,6 +245,12 @@ const InstitutionFiveStage = (() => {
         state.hidden = true;
         report.stages.forEach((stage, index) => container.append(renderStage(stage, index)));
 
+        if (typeof window !== "undefined" && typeof window.CustomEvent === "function") {
+            window.dispatchEvent(new CustomEvent("argos:patrimonial-report", {
+                detail: { report }
+            }));
+        }
+
         if (report.scope === "consolidated") {
             applyConsolidatedPresentation(dashboard);
         }
