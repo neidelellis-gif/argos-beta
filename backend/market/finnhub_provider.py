@@ -19,7 +19,20 @@ class FinnhubMarketProvider(MarketProvider):
     name = "Finnhub"
     base_url = "https://finnhub.io/api/v1"
 
-    def __init__(self, api_key=None, opener=None) -> None:
+    def __init__(
+        self,
+        api_key=None,
+        opener=None,
+        *,
+        request_timeout_seconds: float = 10.0,
+    ) -> None:
+        if (
+            isinstance(request_timeout_seconds, bool)
+            or not isinstance(request_timeout_seconds, (int, float))
+            or request_timeout_seconds <= 0
+        ):
+            raise ValueError("request_timeout_seconds must be positive")
+        self._request_timeout_seconds = float(request_timeout_seconds)
         self.api_key = (
             api_key
             if api_key is not None
@@ -34,7 +47,7 @@ class FinnhubMarketProvider(MarketProvider):
         params["token"] = self.api_key
         url = f"{self.base_url}/{path}?{urlencode(params)}"
 
-        with self._opener(url, timeout=10) as response:
+        with self._opener(url, timeout=self._request_timeout_seconds) as response:
             return json.loads(response.read().decode("utf-8"))
 
     def get_quote(self, ticker: str) -> Quote:
