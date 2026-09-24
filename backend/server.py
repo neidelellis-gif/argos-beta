@@ -77,8 +77,11 @@ SESSION_DECISION_CONTEXT: dict[str, DecisionProfile] = {}
 
 PORTFOLIO_MARKET_CONNECTOR = MarketConnector(
     providers=[
-        FinnhubMarketProvider(),
-        TwelveDataMarketProvider(),
+        FinnhubMarketProvider(request_timeout_seconds=1.5),
+        TwelveDataMarketProvider(
+            rate_limit_retries=0,
+            request_timeout_seconds=1.5,
+        ),
     ],
     cache_ttl_seconds=300,
     history_cache_ttl_seconds=86400,
