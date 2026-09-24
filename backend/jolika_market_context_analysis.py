@@ -169,6 +169,45 @@ def _macro_exposure_text(positions: Iterable[PortfolioPosition]) -> str:
     )
 
 
+def _portfolio_exposure_classes(positions: Iterable[PortfolioPosition]) -> tuple[str, ...]:
+    labels: list[str] = []
+    for position in positions:
+        raw = " ".join(
+            value for value in (position.asset_class, position.asset_subclass, position.asset_name)
+            if value
+        ).casefold()
+        if any(term in raw for term in ("fixed income", "renda fixa", "bond", "treasury", "credit")):
+            label = "Renda fixa"
+        elif any(term in raw for term in ("gold", "ouro", "commodity")):
+            label = "Ouro/Commodities"
+        elif any(term in raw for term in ("bitcoin", "ethereum", "crypto", "cripto")):
+            label = "Cripto"
+        elif any(term in raw for term in ("cash", "caixa", "money market")):
+            label = "Caixa"
+        elif "etf" in raw:
+            label = "ETFs"
+        elif any(term in raw for term in ("fund", "fundo", "strategy", "estratégia")):
+            label = "Fundos/Estratégias"
+        elif any(term in raw for term in ("equity", "stock", "ação", "ações")):
+            label = "Ações"
+        else:
+            continue
+        if label not in labels:
+            labels.append(label)
+    return tuple(labels)
+
+
+def _macro_exposure_text(positions: Iterable[PortfolioPosition]) -> str:
+    classes = _portfolio_exposure_classes(positions)
+    if not classes:
+        return "Impacto tratado no nível de ambiente da carteira, sem atribuição automática a cada posição."
+    return (
+        "Exposições da carteira para acompanhamento deste contexto: "
+        + ", ".join(classes)
+        + ". A relação é de monitoramento; a direção do impacto não é inferida automaticamente."
+    )
+
+
 def build_market_context_stage(
     positions: Iterable[PortfolioPosition],
     facts: Iterable[FactCandidate],
