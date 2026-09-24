@@ -241,7 +241,8 @@ class DailyApiFacade:
                     try:
                         ubs_intelligence = (
                             self._ubs_intelligence_service.build(
-                                ubs_positions
+                                ubs_positions,
+                                facts=request.fact_candidates,
                             )
                         )
 
@@ -269,7 +270,8 @@ class DailyApiFacade:
                     try:
                         santander_intelligence = (
                             self._santander_intelligence_service.build(
-                                santander_positions
+                                santander_positions,
+                                facts=request.fact_candidates,
                             )
                         )
 
@@ -302,6 +304,7 @@ class DailyApiFacade:
                                 ),
                                 ubs=ubs_intelligence,
                                 santander=santander_intelligence,
+                                facts=request.fact_candidates,
                             )
                         )
 
