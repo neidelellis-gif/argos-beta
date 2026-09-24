@@ -6,7 +6,6 @@ from backend.jolika_market_context_analysis import build_market_context_stage
 from backend.jolika_market_fact_sources import load_market_context_facts
 from backend.public_market_news_provider import (
     BEA_NEWS_RSS,
-    BLS_LATEST_RSS,
     FED_MONETARY_RSS,
     SEC_PRESS_RSS,
     PublicMarketNewsProvider,
@@ -20,10 +19,17 @@ def main() -> None:
     macro_cutoff = reference - timedelta(days=45)
     sources = (
         (FED_MONETARY_RSS, "Federal Reserve", True),
-        (BLS_LATEST_RSS, "BLS", True),
         (BEA_NEWS_RSS, "BEA", True),
         (SEC_PRESS_RSS, "SEC", False),
     )
+
+    try:
+        bls_items = provider._fetch_bls_api(reference)
+        print(f"BLS API: acesso=OK series={len(bls_items)}")
+        for item in bls_items:
+            print(f"  - {item.occurred_at.isoformat()} | {item.title} | {item.summary}")
+    except Exception as exc:
+        print(f"BLS API: acesso=FALHOU erro={type(exc).__name__}: {exc}")
 
     total = 0
     for url, source, macro in sources:
