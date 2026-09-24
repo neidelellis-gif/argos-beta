@@ -28,6 +28,7 @@ class TwelveDataMarketProvider(MarketProvider):
         sleep_fn=None,
         rate_limit_retries: int = 3,
         rate_limit_base_wait_seconds: float = 10.0,
+        request_timeout_seconds: float = 20.0,
     ) -> None:
         self.api_key = (
             api_key
@@ -36,6 +37,14 @@ class TwelveDataMarketProvider(MarketProvider):
         )
         self._opener = opener or urlopen
         self._sleep = sleep_fn or time.sleep
+
+        if (
+            isinstance(request_timeout_seconds, bool)
+            or not isinstance(request_timeout_seconds, (int, float))
+            or request_timeout_seconds <= 0
+        ):
+            raise ValueError("request_timeout_seconds must be positive")
+        self._request_timeout_seconds = float(request_timeout_seconds)
 
         if (
             isinstance(rate_limit_retries, bool)
@@ -101,7 +110,7 @@ class TwelveDataMarketProvider(MarketProvider):
         params["apikey"] = self.api_key
         url = f"{self.base_url}/{path}?{urlencode(params)}"
 
-        with self._opener(url, timeout=20) as response:
+        with self._opener(url, timeout=self._request_timeout_seconds) as response:
             return json.loads(
                 response.read().decode("utf-8")
             )
