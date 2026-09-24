@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from backend.institution_patrimonial_report import build_institution_patrimonial_report
+from backend.important_facts import FactCandidate
 from backend.market.market_connector import MarketConnector
 from backend.models import PortfolioOwner, PortfolioPosition
 from backend.patrimonial_analysis_method import PatrimonialAnalysisReport
@@ -79,7 +80,12 @@ class SantanderDailyIntelligenceService:
             if position.owner is PortfolioOwner.JOLIKA and position.institution == "Santander"
         )
 
-    def build(self, positions: Iterable[PortfolioPosition]) -> SantanderDailyIntelligence | None:
+    def build(
+        self,
+        positions: Iterable[PortfolioPosition],
+        *,
+        facts: Iterable[FactCandidate] = (),
+    ) -> SantanderDailyIntelligence | None:
         """Return Santander intelligence, or None when Santander is absent."""
 
         santander_positions = self._santander_positions(positions)
@@ -97,6 +103,8 @@ class SantanderDailyIntelligenceService:
             structural,
             quantitative,
             operational,
+            positions=santander_positions,
+            facts=facts,
         )
 
         return SantanderDailyIntelligence(
