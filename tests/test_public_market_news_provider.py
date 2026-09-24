@@ -244,3 +244,47 @@ def test_atom_macro_feed_is_parsed_with_namespaces():
     assert events[0].category == "Macroeconomia"
     assert events[0].macro_impact is True
     assert events[0].related_assets == ()
+
+
+def test_macro_context_keeps_latest_relevant_release_beyond_24_hours():
+    macro = b"""<?xml version="1.0"?><rss><channel><item>
+      <title>Federal Reserve monetary policy update</title>
+      <description>Official policy information</description>
+      <guid>fed-current</guid>
+      <pubDate>Thu, 10 Sep 2026 15:00:00 GMT</pubDate>
+    </item></channel></rss>"""
+
+    def opener(request, timeout):
+        if "federalreserve" in request.full_url:
+            return Response(macro)
+        return Response(b"<rss><channel></channel></rss>")
+
+    result = PublicMarketNewsProvider(opener=opener).fetch_facts(
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
+        (position("AAPL", "Apple", "100"),),
+    )
+
+    assert result.status == "available"
+    assert any(item.source == "Federal Reserve" for item in result.items)
+
+
+def test_non_macro_event_older_than_24_hours_is_excluded():
+    event = b"""<?xml version="1.0"?><rss><channel><item>
+      <title>SEC market update</title>
+      <description>Official regulatory information</description>
+      <guid>sec-old</guid>
+      <pubDate>Tue, 22 Sep 2026 15:00:00 GMT</pubDate>
+    </item></channel></rss>"""
+
+    def opener(request, timeout):
+        if "sec.gov" in request.full_url:
+            return Response(event)
+        return Response(b"<rss><channel></channel></rss>")
+
+    result = PublicMarketNewsProvider(opener=opener).fetch_facts(
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
+        (position("AAPL", "Apple", "100"),),
+    )
+
+    assert result.status == "empty"
+    assert result.items == ()
