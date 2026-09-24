@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
+from backend.jolika_market_context_analysis import build_market_context_stage
 from backend.patrimonial_analysis_method import (
     PatrimonialAnalysisItem,
     PatrimonialAnalysisReport,
@@ -170,6 +171,9 @@ def build_institution_patrimonial_report(
     structural: Any,
     quantitative: Any,
     operational: Any,
+    *,
+    positions: Iterable[Any] = (),
+    facts: Iterable[Any] = (),
 ) -> PatrimonialAnalysisReport:
     """Apply the official five-stage method to UBS or Santander in isolation."""
 
@@ -222,11 +226,7 @@ def build_institution_patrimonial_report(
         operational=operational,
     )
 
-    market_context = unavailable_stage(
-        "market_context",
-        "Carteira × ambiente de mercado",
-        "O contexto editorial de mercado e as newsletters ainda não fazem parte desta análise. Até a conexão dessas fontes, o ARGOS não atribuirá conclusões externas à carteira.",
-    )
+    market_context = build_market_context_stage(positions, facts)
 
     final_diagnosis = PatrimonialAnalysisStage(
         key="final_diagnosis",
