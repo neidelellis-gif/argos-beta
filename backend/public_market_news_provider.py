@@ -16,6 +16,8 @@ from backend.daily.providers import ExternalDailyProvider
 
 FED_MONETARY_RSS = "https://www.federalreserve.gov/feeds/press_monetary.xml"
 SEC_PRESS_RSS = "https://www.sec.gov/news/pressreleases.rss"
+BLS_LATEST_RSS = "https://www.bls.gov/feed/bls_latest.rss"
+BEA_NEWS_RSS = "https://apps.bea.gov/rss/rss.xml"
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search"
 
 _LOW_VALUE_MARKET_PATTERNS = (
@@ -49,6 +51,8 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
 
         sources = [
             (FED_MONETARY_RSS, "Federal Reserve", True),
+            (BLS_LATEST_RSS, "BLS", True),
+            (BEA_NEWS_RSS, "BEA", True),
             (SEC_PRESS_RSS, "SEC", False),
         ]
         portfolio_url = self._portfolio_news_url(tuple(positions))
@@ -178,7 +182,7 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
     @staticmethod
     def _category(source: str, text: str) -> str:
         upper = text.upper()
-        if source == "Federal Reserve":
+        if source in {"Federal Reserve", "BLS", "BEA"}:
             return "Macroeconomia"
         if source == "SEC":
             return "Regulação"
