@@ -248,11 +248,14 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
             return None
         try:
             parsed = parsedate_to_datetime(value)
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
-            return parsed.astimezone(timezone.utc)
         except (TypeError, ValueError, OverflowError):
-            return None
+            try:
+                parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+            except (TypeError, ValueError, OverflowError):
+                return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
 
     @staticmethod
     def _text(value: str | None) -> str:
