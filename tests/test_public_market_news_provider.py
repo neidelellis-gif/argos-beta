@@ -288,3 +288,23 @@ def test_non_macro_event_older_than_24_hours_is_excluded():
 
     assert result.status == "empty"
     assert result.items == ()
+
+
+def test_bls_public_api_without_credentials_supplies_macro_series():
+    payload = b'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[{"year":"2026","period":"M08","periodName":"August","value":"310.5","footnotes":[]}]}]}}'
+
+    def opener(request, timeout):
+        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:
+            return Response(payload)
+        return Response(b"<rss><channel></channel></rss>")
+
+    result = PublicMarketNewsProvider(opener=opener).fetch_facts(
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
+        (position("AAPL", "Apple", "100"),),
+    )
+
+    assert result.status == "available"
+    bls = [item for item in result.items if item.source == "BLS"]
+    assert bls
+    assert all(item.macro_impact for item in bls)
+    assert any("Consumer Price Index" in item.title for item in bls)
