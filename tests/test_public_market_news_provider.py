@@ -124,3 +124,45 @@ def test_old_public_fact_is_excluded_from_current_context():
 
     assert result.status == "empty"
     assert result.items == ()
+
+
+def test_google_news_quote_and_chart_pages_are_rejected():
+    def opener(request, timeout):
+        if "federalreserve" in request.full_url or "sec.gov" in request.full_url:
+            return Response(b"<rss><channel></channel></rss>")
+        return Response(
+            rss(
+                "GLD Jan 2029 600.000 call interactive stock chart - Yahoo Finance",
+                "GLD stock price, news, quote and history",
+                "gld-quote",
+            )
+        )
+
+    result = PublicMarketNewsProvider(opener=opener).fetch_facts(
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
+        (position("GLD", "SPDR Gold Shares", "100"),),
+    )
+
+    assert result.status == "empty"
+    assert result.items == ()
+
+
+def test_google_news_material_event_is_preserved():
+    def opener(request, timeout):
+        if "federalreserve" in request.full_url or "sec.gov" in request.full_url:
+            return Response(b"<rss><channel></channel></rss>")
+        return Response(
+            rss(
+                "NVIDIA announces new AI infrastructure partnership",
+                "The company announced an infrastructure agreement.",
+                "nvda-event",
+            )
+        )
+
+    result = PublicMarketNewsProvider(opener=opener).fetch_facts(
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
+        (position("NVDA", "NVIDIA", "100"),),
+    )
+
+    assert result.status == "available"
+    assert result.items[0].related_assets == ("NVDA",)
