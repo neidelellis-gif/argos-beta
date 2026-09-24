@@ -40,7 +40,7 @@ from backend.market_agenda_serializer import serialize_market_agenda
 from backend.decision_context import DecisionProfile, import_decision_profile, validate_decision_profile
 from backend.decision_context_serializer import serialize_decision_profile
 from backend.market_connectors import BcbMarketConnector, ConnectorManager, LocalMarketConnector
-from backend.daily.providers import FinnhubDailyProvider
+from backend.public_market_news_provider import PublicMarketNewsProvider
 from backend.jolika_market_fact_sources import load_market_context_facts
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -110,7 +110,7 @@ MARKET_CONNECTOR_MANAGER = ConnectorManager()
 MARKET_CONNECTOR_MANAGER.register("BCB", BcbMarketConnector(), active=True)
 MARKET_CONNECTOR_MANAGER.register("LOCAL", LocalMarketConnector())
 MARKET_CONNECTOR_MANAGER.configure_fallback("BCB", "LOCAL")
-PROFESSIONAL_MARKET_FACT_PROVIDER = FinnhubDailyProvider()
+PROFESSIONAL_MARKET_FACT_PROVIDER = PublicMarketNewsProvider(timeout_seconds=1.5)
 
 
 def _decode_file_payload(file_payload: Dict[str, str]) -> bytes:
