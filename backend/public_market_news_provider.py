@@ -143,7 +143,7 @@ class PublicMarketNewsProvider(ExternalDailyProvider):
     @staticmethod
     def _related_assets(text: str, positions) -> tuple[str, ...]:
         upper_text = text.upper()
-        normalized = f" {re.sub(r\'[^A-Z0-9]+\', \' \', upper_text)} "
+        normalized = f" {re.sub(r'[^A-Z0-9]+', ' ', upper_text)} "
         matches = []
         for position in positions:
             identifier = (position.identifier or "").strip().upper()
