@@ -380,3 +380,29 @@ test("uses backend consolidation only for JOLIKA", () => {
     assert.equal(helpers.usesBackendConsolidation("nei_pf"), false);
     assert.equal(helpers.usesBackendConsolidation(""), false);
 });
+
+
+test("uses Stage 4 macro evidence in the complementary reading", () => {
+    const restore = installWindow({
+        profile: validProfile(),
+        dashboard: { daily: { important_facts: [], analyses: [], lookback_hours: 24 } }
+    });
+    try {
+        helpers.setPatrimonialReportForTest({
+            scope: "institution",
+            universe: "Santander",
+            stages: [{
+                key: "market_context",
+                status: "available",
+                items: [{ title: "Macro e juros", reading: "Fato macro atual." }]
+            }]
+        });
+        const report = helpers.buildHealthReport(completeInstitution());
+        const visible = JSON.stringify(report);
+        assert.doesNotMatch(visible, /falta cenário macroeconômico atual/i);
+        assert.doesNotMatch(visible, /cenário macroeconômico atual ainda não está disponível/i);
+    } finally {
+        helpers.setPatrimonialReportForTest(null);
+        restore();
+    }
+});
