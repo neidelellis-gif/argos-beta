@@ -155,8 +155,9 @@ def build_market_context_stage(
                     f"Direção do impacto: {primary.impact_direction}."
                 ),
                 evidence=tuple(
-                    f"Fonte: {candidate.source} — {candidate.evidence}"
+                    value
                     for candidate in bucket_items[:2]
+                    for value in (f"Fonte: {candidate.source}", candidate.evidence)
                 ),
                 confidence="Média",
             )
