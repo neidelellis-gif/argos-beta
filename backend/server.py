@@ -40,6 +40,8 @@ from backend.market_agenda_serializer import serialize_market_agenda
 from backend.decision_context import DecisionProfile, import_decision_profile, validate_decision_profile
 from backend.decision_context_serializer import serialize_decision_profile
 from backend.market_connectors import BcbMarketConnector, ConnectorManager, LocalMarketConnector
+from backend.daily.providers import FinnhubDailyProvider
+from backend.jolika_market_fact_sources import load_market_context_facts
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -108,6 +110,7 @@ MARKET_CONNECTOR_MANAGER = ConnectorManager()
 MARKET_CONNECTOR_MANAGER.register("BCB", BcbMarketConnector(), active=True)
 MARKET_CONNECTOR_MANAGER.register("LOCAL", LocalMarketConnector())
 MARKET_CONNECTOR_MANAGER.configure_fallback("BCB", "LOCAL")
+PROFESSIONAL_MARKET_FACT_PROVIDER = FinnhubDailyProvider()
 
 
 def _decode_file_payload(file_payload: Dict[str, str]) -> bytes:
@@ -378,9 +381,14 @@ class ArgosRequestHandler(
         self.send_error(501, "Unsupported method")
 
     def _daily_experience(self) -> None:
-        market_facts = MARKET_CONNECTOR_MANAGER.load_facts()
+        official_market_facts = MARKET_CONNECTOR_MANAGER.load_facts()
         market_agenda = self._session_agenda()
         session_positions = self._session_positions()
+        market_facts = load_market_context_facts(
+            official_market_facts,
+            session_positions,
+            PROFESSIONAL_MARKET_FACT_PROVIDER,
+        )
         session_portfolio = self._session_portfolio()
         consolidation_authorized = (
             session_portfolio.get("consolidation_authorized", False)
