@@ -182,7 +182,7 @@ def test_short_ticker_does_not_match_news_domain_or_publisher():
 
 def test_short_ticker_requires_explicit_market_syntax():
     item = position("SMH", "VanEck Semiconductor ETF", "100")
-    payload = _rss(
+    payload = rss(
         "Semiconductor ETF (SMH) rises after chip-sector update",
         "Market event directly references the ETF ticker.",
     )
