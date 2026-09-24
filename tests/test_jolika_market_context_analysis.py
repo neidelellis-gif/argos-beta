@@ -13,11 +13,19 @@ def _position(identifier: str = "NVDA") -> PortfolioPosition:
     return PortfolioPosition(
         owner=PortfolioOwner.JOLIKA,
         institution="UBS",
-        source_file="ubs.csv",
-        identifier=identifier,
+        account=None,
+        asset_class="Equity",
+        asset_subclass=None,
         asset_name="NVIDIA",
-        currency="USD",
+        identifier=identifier,
+        identifier_type="TICKER",
+        quantity=None,
+        unit_price=None,
         market_value=Decimal("100"),
+        currency="USD",
+        portfolio_weight=None,
+        reference_date=None,
+        source_file="ubs.csv",
     )
 
 
