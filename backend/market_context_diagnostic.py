@@ -16,7 +16,8 @@ from backend.public_market_news_provider import (
 def main() -> None:
     provider = PublicMarketNewsProvider(timeout_seconds=3.0)
     reference = datetime.now(timezone.utc)
-    cutoff = reference - timedelta(hours=48)
+    recent_cutoff = reference - timedelta(hours=24)
+    macro_cutoff = reference - timedelta(days=45)
     sources = (
         (FED_MONETARY_RSS, "Federal Reserve", True),
         (BLS_LATEST_RSS, "BLS", True),
@@ -29,6 +30,7 @@ def main() -> None:
         try:
             payload = provider._read(url)
             parsed = provider._parse_feed(payload, source, (), macro)
+            cutoff = macro_cutoff if macro else recent_cutoff
             accepted = tuple(
                 item for item in parsed
                 if cutoff <= item.occurred_at <= reference
@@ -36,7 +38,7 @@ def main() -> None:
             total += len(accepted)
             print(
                 f"{source}: acesso=OK lidos={len(parsed)} "
-                f"aceitos_48h={len(accepted)}"
+                f"aceitos_{'45d_macro' if macro else '24h_eventos'}={len(accepted)}"
             )
             for item in accepted[:5]:
                 print(
@@ -57,7 +59,7 @@ def main() -> None:
         print(f"  - bloco={item.title} leitura={item.reading}")
     print(
         f"RESULTADO status={result.status} fatos_aceitos={len(result.items)} "
-        f"erros={result.error or 'nenhum'} total_fontes_48h={total}"
+        f"erros={result.error or 'nenhum'} total_fontes_aceitas={total}"
     )
 
 
