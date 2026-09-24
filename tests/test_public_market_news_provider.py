@@ -132,17 +132,16 @@ def test_old_public_fact_is_excluded_from_current_context():
 
 def test_google_news_quote_and_chart_pages_are_rejected():
     def opener(request, timeout):
-        if (
-            "federalreserve" in request.full_url
-            or "bls.gov" in request.full_url
-            or "apps.bea.gov" in request.full_url
-            or "sec.gov" in request.full_url
-        ):
-            if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:
+        if "api.bls.gov/publicAPI/v1/timeseries/data" in request.full_url:
             return Response(
                 b'{"status":"REQUEST_SUCCEEDED","Results":{"series":[{"seriesID":"CUUR0000SA0","data":[]}]}}'
             )
-        return Response(b"<rss><channel></channel></rss>")
+        if (
+            "federalreserve" in request.full_url
+            or "apps.bea.gov" in request.full_url
+            or "sec.gov" in request.full_url
+        ):
+            return Response(b"<rss><channel></channel></rss>")
         return Response(
             rss(
                 "GLD Jan 2029 600.000 call interactive stock chart - Yahoo Finance",
