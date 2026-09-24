@@ -190,3 +190,26 @@ def test_short_ticker_requires_explicit_market_syntax():
     events = provider._parse_feed(payload, "Google News", (item,), False)
     assert events
     assert events[0].related_assets == ("SMH",)
+
+
+def test_official_macro_feeds_are_queried_without_credentials():
+    calls = []
+
+    def opener(request, timeout):
+        calls.append(request.full_url)
+        if "bls.gov" in request.full_url:
+            return Response(rss("Employment Situation update", "Official labor-market release.", "bls"))
+        if "apps.bea.gov" in request.full_url:
+            return Response(rss("U.S. economic accounts update", "Official BEA release.", "bea"))
+        return Response(b"<rss><channel></channel></rss>")
+
+    result = PublicMarketNewsProvider(opener=opener).fetch_facts(
+        datetime(2026, 9, 24, 16, 0, tzinfo=timezone.utc),
+        (position("NVDA", "NVIDIA", "100"),),
+    )
+
+    assert result.status == "available"
+    assert any(item.source == "BLS" and item.macro_impact for item in result.items)
+    assert any(item.source == "BEA" and item.macro_impact for item in result.items)
+    assert any("bls.gov/feed/bls_latest.rss" in url for url in calls)
+    assert any("apps.bea.gov/rss/rss.xml" in url for url in calls)
