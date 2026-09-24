@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Iterable
+
+from backend.important_facts import FactCandidate
 
 from backend.jolika_operational_intelligence import (
     JolikaOperationalIntelligence,
@@ -54,6 +57,7 @@ class JolikaDailyIntelligenceService:
         *,
         ubs: UBSDailyIntelligence | None = None,
         santander: SantanderDailyIntelligence | None = None,
+        facts: Iterable[FactCandidate] = (),
     ) -> JolikaDailyIntelligence | None:
         """Return JOLIKA consolidation without performing new market requests."""
 
@@ -70,6 +74,8 @@ class JolikaDailyIntelligenceService:
             structural,
             operational,
             institutional,
+            positions=positions,
+            facts=facts,
         )
         return JolikaDailyIntelligence(
             structural=structural,
