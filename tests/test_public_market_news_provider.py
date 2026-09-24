@@ -166,3 +166,27 @@ def test_google_news_material_event_is_preserved():
 
     assert result.status == "available"
     assert result.items[0].related_assets == ("NVDA",)
+
+
+def test_short_ticker_does_not_match_news_domain_or_publisher():
+    position = _position("SMH")
+    payload = _rss(
+        "Nine CEO to oversee sprawling TV division after top executive's exit - SMH.com.au",
+        "SMH is expanding Manatee County presence yoursun.com.",
+    )
+    provider = PublicMarketNewsProvider()
+    events = provider._parse_feed(payload, "Google News", (position,), False)
+    assert events
+    assert events[0].related_assets == ()
+
+
+def test_short_ticker_requires_explicit_market_syntax():
+    position = _position("SMH")
+    payload = _rss(
+        "Semiconductor ETF (SMH) rises after chip-sector update",
+        "Market event directly references the ETF ticker.",
+    )
+    provider = PublicMarketNewsProvider()
+    events = provider._parse_feed(payload, "Google News", (position,), False)
+    assert events
+    assert events[0].related_assets == ("SMH",)
