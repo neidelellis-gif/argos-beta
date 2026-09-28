@@ -126,15 +126,15 @@ test("blocks diagnosis when investor profile review is over one year old or expi
     } finally { restore(); }
 });
 
-test("uses evidence-based diagnosis wording after complete import and valid profile", () => {
+test("uses simple conversational wording after complete import and valid profile", () => {
     const restore = installWindow({ profile: validProfile(), dashboard: fullDashboard });
     try {
         const summary = helpers.buildSummary(completeInstitution());
-        assert.match(summary, /Leitura:/);
-        assert.match(summary, /não há nenhum ponto estrutural dominante/i);
-        assert.match(summary, /Inferência:/);
-        assert.match(summary, /Evidência:/);
-        assert.doesNotMatch(summary, /motor/i);
+        assert.match(summary, /Sua carteira tem 3 investimentos em BRL/i);
+        assert.match(summary, /está bem distribuída/i);
+        assert.match(summary, /abaixo mostramos o que merece acompanhamento/i);
+        assert.doesNotMatch(summary, /Leitura:|Fato:|Inferência:|Confiança:|Evidência:/i);
+        assert.doesNotMatch(summary, /estrutural|quantitativ|motor/i);
         assert.doesNotMatch(summary, /comprar|vender/i);
     } finally { restore(); }
 });
@@ -394,7 +394,7 @@ test("uses Stage 4 macro evidence in the complementary reading", () => {
             stages: [{
                 key: "market_context",
                 status: "available",
-                items: [{ title: "Macro e juros", reading: "Fato macro atual." }]
+                items: [{ title: "Juros e economia", reading: "Fato macro atual." }]
             }]
         });
         const report = helpers.buildHealthReport(completeInstitution());
