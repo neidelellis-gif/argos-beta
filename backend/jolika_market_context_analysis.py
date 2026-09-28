@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import cast
 
 from backend.daily_facts_engine import DailyFactsEngine
 from backend.important_facts import FactCandidate, FactCategory
@@ -69,7 +70,10 @@ def analyze_jolika_market_context(
             JolikaMarketContextItem(
                 fact_id=fact.id,
                 title=fact.title,
-                affected_assets=tuple(str(value) for value in relation["affected_assets"]),
+                affected_assets=tuple(
+                    str(value)
+                    for value in cast(Iterable[object], relation["affected_assets"])
+                ),
                 intensity=_PRIORITY_INTENSITY.get(priority, "Não determinada"),
                 source=fact.source,
                 evidence=fact.description,
