@@ -138,3 +138,24 @@ def test_macro_context_names_observed_fixed_income_exposure_without_inferring_di
     assert "Renda fixa" in stage.items[0].reading
     assert "relação é de monitoramento" in stage.items[0].reading
     assert "Direção do impacto: Não determinada" in stage.items[0].reading
+
+
+def test_google_news_rate_headline_stays_market_discovery_not_macro_context() -> None:
+    discovery = FactCandidate(
+        id="google-rate",
+        title="Fed rate hike odds hit 70%: Gold, Treasury yields signal",
+        description="Discovery headline about GLD.",
+        source="Google News",
+        published_at=datetime(2026, 9, 24, 12, tzinfo=timezone.utc),
+        importance=FactImportance.MEDIUM,
+        category=FactCategory.MARKETS,
+        related_assets=("GLD",),
+    )
+    gld = _position("GLD")
+
+    stage = build_market_context_stage((gld,), (discovery,))
+
+    assert stage.status == "available"
+    assert len(stage.items) == 1
+    assert stage.items[0].title == "Mercados"
+    assert "GLD" in stage.items[0].reading
