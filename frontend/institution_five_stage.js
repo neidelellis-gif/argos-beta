@@ -110,7 +110,10 @@ const InstitutionFiveStage = (() => {
     function evidenceText(item) {
         const evidence = Array.isArray(item?.evidence) ? item.evidence.filter(Boolean) : [];
         if (!evidence.length) return "";
-        return `Evidência: ${evidence.join(" · ")}.`;
+        if (evidence.length === 1 && /^Fontes consultadas:/i.test(evidence[0])) {
+            return evidence[0];
+        }
+        return `Base usada: ${evidence.join(" · ")}.`;
     }
 
     function renderStage(stage, index) {
