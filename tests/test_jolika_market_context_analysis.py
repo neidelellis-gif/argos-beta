@@ -159,3 +159,84 @@ def test_google_news_rate_headline_stays_market_discovery_not_macro_context() ->
     assert len(stage.items) == 1
     assert stage.items[0].title == "Mercados"
     assert "GLD" in stage.items[0].reading
+
+
+def test_macro_selection_prioritizes_federal_reserve_over_input_order() -> None:
+    bls = FactCandidate(
+        id="bls-cpi",
+        title="Consumer Price Index for All Urban Consumers",
+        description="Consumer Price Index: 334.980.",
+        source="BLS",
+        published_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        importance=FactImportance.MEDIUM,
+        category=FactCategory.ECONOMY,
+    )
+    fed = FactCandidate(
+        id="fed-fomc",
+        title="Federal Reserve issues FOMC statement",
+        description="Official monetary policy statement.",
+        source="Federal Reserve",
+        published_at=datetime(2026, 9, 16, tzinfo=timezone.utc),
+        importance=FactImportance.HIGH,
+        category=FactCategory.ECONOMY,
+    )
+
+    items = analyze_jolika_market_context((_position(),), (bls, fed))
+
+    assert items[0].source == "Federal Reserve"
+
+
+def test_cpi_macro_context_does_not_claim_every_portfolio_class_is_relevant() -> None:
+    cpi = FactCandidate(
+        id="bls-cpi-classes",
+        title="Consumer Price Index for All Urban Consumers",
+        description="Consumer Price Index: 334.980.",
+        source="BLS",
+        published_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        importance=FactImportance.MEDIUM,
+        category=FactCategory.ECONOMY,
+    )
+    positions = (
+        _position(),
+        PortfolioPosition(
+            owner=PortfolioOwner.JOLIKA,
+            institution="UBS",
+            account=None,
+            asset_class="Fixed Income",
+            asset_subclass=None,
+            asset_name="US Treasury Note",
+            identifier="UST10Y",
+            identifier_type="TICKER",
+            quantity=None,
+            unit_price=None,
+            market_value=Decimal("100"),
+            currency="USD",
+            portfolio_weight=None,
+            reference_date=None,
+            source_file="ubs.csv",
+        ),
+        PortfolioPosition(
+            owner=PortfolioOwner.JOLIKA,
+            institution="UBS",
+            account=None,
+            asset_class="Crypto",
+            asset_subclass=None,
+            asset_name="Bitcoin",
+            identifier="BTC",
+            identifier_type="TICKER",
+            quantity=None,
+            unit_price=None,
+            market_value=Decimal("100"),
+            currency="USD",
+            portfolio_weight=None,
+            reference_date=None,
+            source_file="ubs.csv",
+        ),
+    )
+
+    stage = build_market_context_stage(positions, (cpi,))
+
+    assert "Renda fixa" in stage.items[0].reading
+    assert "Ações" in stage.items[0].reading
+    assert "Cripto" not in stage.items[0].reading
+    assert "Direção do impacto: Não determinada" in stage.items[0].reading
