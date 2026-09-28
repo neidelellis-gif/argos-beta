@@ -80,5 +80,5 @@ def test_official_macro_provider_fact_reaches_stage4_end_to_end():
     assert len(facts) == 1
     assert facts[0].category is FactCategory.ECONOMY
     assert stage.status == "available"
-    assert stage.items[0].title == "Macro e juros"
+    assert stage.items[0].title == "Juros e economia"
     assert "BEA" in stage.items[0].evidence[0]
