@@ -35,9 +35,9 @@ def _max_concentration(structural: Any) -> str:
     )
     currency = getattr(strongest, "currency", "moeda não identificada")
     return (
-        f"maior posição em {currency}: {_pct(getattr(strongest, 'top_1_weight', None))}; "
-        f"Top 3: {_pct(getattr(strongest, 'top_3_weight', None))}; "
-        f"Top 5: {_pct(getattr(strongest, 'top_5_weight', None))}"
+        f"a maior posição representa {_pct(getattr(strongest, 'top_1_weight', None))} da carteira em {currency}; "
+        f"as 3 maiores, {_pct(getattr(strongest, 'top_3_weight', None))}; "
+        f"e as 5 maiores, {_pct(getattr(strongest, 'top_5_weight', None))}"
     )
 
 
@@ -86,70 +86,75 @@ def build_master_assumptions_stage(
 
     items = (
         PatrimonialAnalysisItem(
-            title=assumptions["patrimonial_objective"].title,
+            title="Seu objetivo",
             reading=(
-                "Aderência parcial. A fotografia atual permite verificar diversificação e concentração, "
-                f"mas não confirma sozinha crescimento real do patrimônio. Evidência estrutural atual: {concentration}."
+                "A carteira está distribuída entre diferentes tipos de investimento e nenhuma posição domina o conjunto. "
+                f"Hoje, {concentration}. Isso é um bom ponto de partida para proteger e fazer o patrimônio crescer, "
+                "mas precisamos acompanhar a evolução ao longo do tempo para saber se esse objetivo está sendo alcançado."
             ),
-            evidence=_source_evidence() + ("carteira importada", "métricas estruturais do ARGOS"),
+            evidence=_source_evidence() + ("carteira atual",),
             confidence="Parcial",
         ),
         PatrimonialAnalysisItem(
-            title=assumptions["expected_return"].title,
+            title="O retorno que buscamos",
             reading=(
-                "Aderência ainda não mensurável pela fotografia atual. A meta-base de 12% a.a. em USD "
-                "é referência, não piso nem teto; sua avaliação exige série de desempenho da carteira e "
-                "comparação conjunta com risco, teses e ambiente de mercado."
+                "A referência da JOLIKA continua sendo buscar cerca de 12% ao ano em USD. "
+                "Uma fotografia de hoje não mostra se estamos chegando lá; precisamos acompanhar o desempenho ao longo do tempo "
+                "e o risco assumido para alcançar esse resultado."
             ),
-            evidence=_source_evidence() + ("premissa oficial de retorno",),
+            evidence=_source_evidence() + ("meta de retorno da JOLIKA",),
             confidence="Alta sobre a limitação",
         ),
         PatrimonialAnalysisItem(
-            title=assumptions["acceptable_risk"].title,
+            title="Quanto risco faz sentido",
             reading=(
-                "Aderência parcial. O ARGOS consegue observar concentração e cobertura histórica de risco, "
-                f"mas a proporcionalidade entre risco e retorno esperado depende da qualidade das teses. "
-                f"Cobertura quantitativa disponível: {analyzed} posição(ões) analisada(s) e {unavailable} sem cobertura suficiente."
+                (
+                    "A JOLIKA aceita oscilações maiores quando existe uma boa razão para isso. "
+                    f"Hoje temos histórico suficiente para analisar {analyzed} posição(ões); "
+                    f"{unavailable} ainda precisam de mais dados. "
+                    "Por isso, ainda não dá para dizer se todo o risco da carteira está sendo bem compensado."
+                )
                 if quantitative is not None
                 else (
-                    "Aderência parcial. O ARGOS consegue observar concentração estrutural, mas a proporcionalidade "
-                    "entre risco e retorno esperado depende de dados quantitativos e da qualidade das teses."
+                    "A JOLIKA aceita oscilações maiores quando existe uma boa razão para isso. "
+                    "Hoje conseguimos ver como o dinheiro está distribuído, mas ainda faltam dados do comportamento "
+                    "dos investimentos ao longo do tempo para avaliar esse ponto com segurança."
                 )
             ),
-            evidence=_source_evidence() + ("métricas estruturais do ARGOS",),
+            evidence=_source_evidence() + ("histórico disponível dos investimentos",),
             confidence="Parcial",
         ),
         PatrimonialAnalysisItem(
-            title=assumptions["allocation_diversification"].title,
+            title="Como o dinheiro está distribuído",
             reading=(
-                f"Aderência observável parcialmente. Foram identificadas {class_count} classe(s) econômica(s); {concentration}. "
-                "A premissa não define um limite mecânico de concentração, porque diversificação não deve diluir as melhores oportunidades."
+                f"O dinheiro está dividido entre {class_count} tipos principais de investimento; {concentration}. "
+                "A ideia é evitar depender demais de poucos investimentos sem espalhar o patrimônio só por espalhar."
             ),
-            evidence=_source_evidence() + ("classificação econômica", "concentração calculada pelo ARGOS"),
+            evidence=_source_evidence() + ("carteira atual",),
             confidence="Média",
         ),
         PatrimonialAnalysisItem(
-            title=assumptions["decision_rules"].title,
+            title="Como vamos tomar decisões",
             reading=(
-                "Aderência não mensurável apenas pela posição atual. Para avaliar esta premissa, o ARGOS precisa "
-                "relacionar histórico das decisões, evolução das teses, risco-retorno e impacto de cada decisão sobre a carteira."
+                "Não queremos mudar a carteira só porque um investimento subiu ou caiu. "
+                "As decisões devem considerar se a ideia por trás do investimento continua fazendo sentido, "
+                "o risco envolvido e o efeito sobre o conjunto da carteira. "
+                "Ainda precisamos construir mais histórico das decisões para avaliar esse ponto melhor."
             ),
-            evidence=_source_evidence() + ("carteira atual não contém histórico de decisão",),
+            evidence=_source_evidence() + ("histórico de decisões ainda incompleto",),
             confidence="Alta sobre a limitação",
         ),
     )
 
     summary = (
-        "As cinco Premissas Mestres da JOLIKA estão formalizadas e passam a integrar a análise. "
-        "A aderência é classificada somente onde há evidência; metas de retorno, qualidade das teses e processo decisório "
-        "não são presumidos a partir de uma fotografia da carteira."
+        "Queremos responder a uma pergunta simples: esta carteira continua fazendo sentido para o que a JOLIKA quer alcançar? "
+        "Hoje já dá para enxergar bem como o dinheiro está distribuído. Para avaliar retorno e a qualidade das decisões, "
+        "ainda precisamos de mais histórico."
     )
-    if overall_level:
-        summary += f" Leitura operacional atual do universo analisado: {overall_level}."
 
     return PatrimonialAnalysisStage(
         key="master_assumptions",
-        title="Aderência às Premissas Mestres da JOLIKA",
+        title="Sua carteira e seus objetivos",
         summary=summary,
         items=items,
         status="available",
