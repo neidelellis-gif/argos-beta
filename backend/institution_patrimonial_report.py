@@ -133,9 +133,29 @@ _ATTENTION_REASON_TEXT = {
 
 
 def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
-    grouped: dict[str, list[str]] = {}
+    priority = {
+        "deep_drawdown": 4,
+        "relevant_drawdown": 4,
+        "high_cvar": 3,
+        "elevated_cvar": 3,
+        "high_var": 2,
+        "elevated_var": 2,
+        "high_volatility": 1,
+        "elevated_volatility": 1,
+    }
+    readable = {
+        "deep_drawdown": "queda recente relevante",
+        "relevant_drawdown": "queda recente relevante",
+        "high_cvar": "quedas recentes mais fortes que o normal",
+        "elevated_cvar": "quedas recentes mais fortes que o normal",
+        "high_var": "dias recentes de queda acima do normal",
+        "elevated_var": "dias recentes de queda acima do normal",
+        "high_volatility": "oscilações recentes elevadas",
+        "elevated_volatility": "oscilações recentes elevadas",
+    }
+    grouped: dict[str, tuple[int, int, str]] = {}
 
-    for attention in tuple(getattr(operational, "attention_items", ()) or ()):
+    for index, attention in enumerate(tuple(getattr(operational, "attention_items", ()) or ())):
         if getattr(attention, "source", None) != "QUANTITATIVE":
             continue
 
@@ -149,74 +169,72 @@ def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
         else:
             asset = label or identifier
 
-        reason = _ATTENTION_REASON_TEXT.get(
-            getattr(attention, "reason", ""),
-            "um comportamento de mercado que merece atenção",
-        )
-        grouped.setdefault(asset, [])
-        if reason not in grouped[asset]:
-            grouped[asset].append(reason)
+        reason_key = getattr(attention, "reason", "")
+        score = priority.get(reason_key, 0)
+        reason = readable.get(reason_key, "comportamento recente que merece acompanhamento")
+        current = grouped.get(asset)
+        if current is None or score > current[0]:
+            grouped[asset] = (score, index, reason)
 
-    lines: list[str] = []
-    for asset, reasons in grouped.items():
-        if len(reasons) == 1:
-            reason_text = reasons[0]
-        else:
-            reason_text = ", ".join(reasons[:-1]) + " e " + reasons[-1]
-        lines.append(f"{asset}: {reason_text}.")
-    return tuple(lines)
-
+    ranked = sorted(
+        grouped.items(),
+        key=lambda item: (-item[1][0], item[1][1]),
+    )
+    return tuple(
+        f"{asset}: {values[2]}."
+        for asset, values in ranked[:3]
+    )
 
 def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[PatrimonialAnalysisItem, ...]:
     strengths: list[str] = []
-    attention: list[str] = []
+    attention: list[str] = list(_asset_attention_lines(operational))
 
-    coverage = structural.coverage
-    if coverage.total_positions and coverage.positions_with_economic_class == coverage.total_positions:
-        strengths.append("Todos os investimentos estão identificados e classificados.")
+    concentrations = tuple(getattr(structural, "concentration_by_currency", ()) or ())
+    if concentrations:
+        strongest = max(
+            concentrations,
+            key=lambda item: float(getattr(item, "top_1_weight", 0) or 0),
+        )
+        top_weight = float(getattr(strongest, "top_1_weight", 0) or 0)
+        if top_weight < 0.15:
+            strengths.append(
+                f"Nenhuma posição domina a carteira; a maior representa {top_weight * 100:.1f}% em {getattr(strongest, 'currency', 'moeda identificada')}."
+            )
 
     if operational.structural_level == "Baixa":
         strengths.append("A estrutura da carteira não mostra um problema dominante neste momento.")
-    elif operational.structural_level == "Alta":
-        attention.append("Há concentração ou cobertura de dados que merece avaliação.")
-
-    asset_attention = _asset_attention_lines(operational)
+    elif operational.structural_level == "Alta" and len(attention) < 3:
+        attention.append("A concentração ou a cobertura dos dados também merece avaliação.")
 
     if operational.quantitative_level == "Baixa":
         strengths.append("Os movimentos recentes não mostram um ponto de atenção dominante.")
-    elif asset_attention:
-        attention.extend(asset_attention)
 
-    if structural.warnings:
+    if structural.warnings and len(attention) < 3:
         attention.append("Há dados da carteira que precisam ser conferidos antes de qualquer providência.")
 
-    has_attention = bool(attention)
-
-    def item(title: str, values: list[str], fallback: str) -> PatrimonialAnalysisItem:
-        return PatrimonialAnalysisItem(
-            title=title,
-            reading=" ".join(values) if values else fallback,
-            evidence=("carteira atual", "histórico de mercado disponível"),
-            confidence="Média",
-        )
+    strengths = strengths[:3]
+    attention = attention[:3]
+    primary_problem = attention[0].rstrip(".") if attention else ""
 
     return (
-        item(
-            "O que está bem",
-            strengths,
-            "Nenhum ponto positivo adicional foi confirmado com evidência suficiente.",
+        PatrimonialAnalysisItem(
+            title="O que está bem",
+            reading=" • ".join(strengths) if strengths else "Sem destaque positivo adicional.",
+            evidence=("carteira atual", "histórico de mercado disponível"),
+            confidence="Média",
         ),
-        item(
-            "O que merece atenção",
-            attention,
-            "Nenhum problema relevante foi confirmado com os dados atuais.",
+        PatrimonialAnalysisItem(
+            title="O que merece atenção",
+            reading=" • ".join(attention) if attention else "Nenhum problema relevante foi confirmado com os dados atuais.",
+            evidence=("carteira atual", "histórico de mercado disponível"),
+            confidence="Média",
         ),
         PatrimonialAnalysisItem(
             title="Encaminhamento",
             reading=(
-                "Há pontos que merecem avaliação. Sugerimos conversar com seu gerente de banco ou Banker "
-                "para avaliar as providências adequadas."
-                if has_attention
+                f"O principal ponto de atenção é {primary_problem}. "
+                "Sugerimos conversar com seu gerente de banco ou Banker para avaliar as providências adequadas."
+                if primary_problem
                 else "Nada relevante exige providência neste momento."
             ),
             evidence=("carteira atual", "histórico de mercado disponível"),

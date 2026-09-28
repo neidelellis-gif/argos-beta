@@ -132,7 +132,8 @@ test("uses simple conversational wording after complete import and valid profile
         const summary = helpers.buildSummary(completeInstitution());
         assert.match(summary, /Sua carteira tem 3 investimentos em BRL/i);
         assert.match(summary, /está bem distribuída/i);
-        assert.match(summary, /abaixo mostramos o que merece acompanhamento/i);
+        assert.ok(summary.split(/\s+/).length <= 30);
+        assert.doesNotMatch(summary, /abaixo mostramos|metodologia|5 etapas/i);
         assert.doesNotMatch(summary, /Leitura:|Fato:|Inferência:|Confiança:|Evidência:/i);
         assert.doesNotMatch(summary, /estrutural|quantitativ|motor/i);
         assert.doesNotMatch(summary, /comprar|vender/i);

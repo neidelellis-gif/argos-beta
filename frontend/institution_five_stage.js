@@ -116,36 +116,76 @@ const InstitutionFiveStage = (() => {
         return `Base usada: ${evidence.join(" · ")}.`;
     }
 
-    function renderStage(stage, index) {
-        const article = element("article", `five-stage-card five-stage-${stage.status || "available"}`);
-        const header = element("div", "five-stage-header");
-        const number = element("span", "five-stage-number", String(index + 1).padStart(2, "0"));
-        const heading = element("div");
-        heading.append(
-            element("p", "institution-kicker", `ETAPA ${index + 1}`),
-            element("h2", "", stage.title || "Etapa")
-        );
-        const status = element(
-            "span",
-            "five-stage-status",
-            stage.status === "limited" ? "Base limitada" : "Analisada"
-        );
-        header.append(number, heading, status);
-        article.append(header, element("p", "five-stage-summary", stage.summary || ""));
+    function splitReading(value, limit = 3) {
+        return String(value || "")
+            .split(" • ")
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .slice(0, limit);
+    }
 
-        const items = element("div", "five-stage-items");
-        (Array.isArray(stage.items) ? stage.items : []).forEach((item) => {
-            const row = element("div", "five-stage-item");
-            row.append(
-                element("strong", "", item.title || "Leitura"),
-                element("p", "", item.reading || "")
-            );
-            const evidence = evidenceText(item);
-            if (evidence) row.append(element("small", "", evidence));
-            items.append(row);
-        });
-        article.append(items);
+    function stageByKey(report, key) {
+        return (Array.isArray(report?.stages) ? report.stages : [])
+            .find((stage) => stage?.key === key) || null;
+    }
+
+    function itemByTitle(stage, title) {
+        return (Array.isArray(stage?.items) ? stage.items : [])
+            .find((item) => normalize(item?.title) === normalize(title)) || null;
+    }
+
+    function executiveModel(report) {
+        const finalStage = stageByKey(report, "final_diagnosis");
+        const marketStage = stageByKey(report, "market_context");
+        const strengths = splitReading(itemByTitle(finalStage, "O que está bem")?.reading, 3);
+        const attention = splitReading(itemByTitle(finalStage, "O que merece atenção")?.reading, 3);
+        const forwarding = itemByTitle(finalStage, "Encaminhamento")?.reading || "Nada relevante exige providência neste momento.";
+        const market = marketStage?.status === "available"
+            ? (Array.isArray(marketStage.items) ? marketStage.items : [])
+                .slice(0, 2)
+                .map((item) => ({
+                    title: item.title || "Mercado",
+                    reading: item.reading || ""
+                }))
+                .filter((item) => item.reading)
+            : [];
+        return { strengths, attention, market, forwarding };
+    }
+
+    function compactCard(title, values, className = "") {
+        const article = element("article", `executive-card ${className}`.trim());
+        article.append(element("h3", "", title));
+        if (!values.length) {
+            article.append(element("p", "executive-card-empty", "Sem destaque adicional."));
+            return article;
+        }
+        const list = element("ul", "executive-card-list");
+        values.forEach((value) => list.append(element("li", "", value)));
+        article.append(list);
         return article;
+    }
+
+    function renderExecutiveReport(report, container) {
+        const model = executiveModel(report);
+        container.append(
+            compactCard("O que está bem", model.strengths, "executive-card-positive"),
+            compactCard("O que merece atenção", model.attention, "executive-card-attention")
+        );
+
+        if (model.market.length) {
+            container.append(compactCard(
+                "O que está acontecendo",
+                model.market.map((item) => `${item.title}: ${item.reading}`),
+                "executive-card-market"
+            ));
+        }
+
+        const forwarding = element("article", "executive-card executive-card-wide executive-card-forwarding");
+        forwarding.append(
+            element("h3", "", "Encaminhamento"),
+            element("p", "", model.forwarding)
+        );
+        container.append(forwarding);
     }
 
     function formatCurrency(value, currency) {
@@ -240,13 +280,13 @@ const InstitutionFiveStage = (() => {
         container.replaceChildren();
 
         if (!report || report.method !== METHOD || !Array.isArray(report.stages) || report.stages.length !== 5) {
-            state.textContent = "O relatório de cinco etapas ainda não está disponível para esta análise.";
+            state.textContent = "A leitura executiva ainda não está disponível para esta análise.";
             state.hidden = false;
             return;
         }
 
         state.hidden = true;
-        report.stages.forEach((stage, index) => container.append(renderStage(stage, index)));
+        renderExecutiveReport(report, container);
 
         if (typeof window !== "undefined" && typeof window.CustomEvent === "function") {
             window.dispatchEvent(new CustomEvent("argos:patrimonial-report", {
@@ -267,7 +307,7 @@ const InstitutionFiveStage = (() => {
             state.hidden = false;
             state.textContent = consolidatedMode
                 ? "Carregando análise consolidada…"
-                : "Preparando as cinco etapas da análise…";
+                : "Preparando a leitura da carteira…";
         }
         try {
             const [intelligence, dashboard] = await Promise.all([
@@ -278,7 +318,7 @@ const InstitutionFiveStage = (() => {
             if (consolidatedMode) revealConsolidatedView();
         } catch (error) {
             console.error("Five-stage patrimonial analysis failed", error);
-            if (state) state.textContent = "Não foi possível carregar o relatório patrimonial agora.";
+            if (state) state.textContent = "Não foi possível carregar a leitura da carteira agora.";
             if (consolidatedMode) revealConsolidatedView();
         }
     }
@@ -329,6 +369,8 @@ const InstitutionFiveStage = (() => {
             authorizeConsolidation,
             applyConsolidatedPresentation,
             formatCurrency,
+            splitReading,
+            executiveModel,
             isConsolidatedMode,
             prepareConsolidatedLoading,
             revealConsolidatedView

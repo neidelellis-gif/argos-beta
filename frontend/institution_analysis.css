@@ -26,22 +26,22 @@ body {
 .institution-consolidation-lock { display:grid; gap:6px; margin-top:30px; padding-top:20px; border-top:1px solid rgba(236,235,231,.06); }
 .institution-consolidation-lock strong { color:rgba(236,235,231,.38); font-size:.74rem; font-weight:500; line-height:1.45; }
 .institution-back { margin-top:auto; color:rgba(236,235,231,.5); text-decoration:none; font-size:.82rem; }
-.institution-main { width:min(1060px,calc(100% - 96px)); margin:0 auto; padding:58px 0 76px; }
+.institution-main { width:min(1060px,calc(100% - 96px)); margin:0 auto; padding:44px 0 58px; }
 .institution-header { display:flex; align-items:flex-start; justify-content:space-between; gap:32px; padding-bottom:25px; border-bottom:1px solid rgba(236,235,231,.085); }
 .institution-kicker { margin:0 0 9px; color:#c5a35f; font-size:.67rem; font-weight:700; letter-spacing:.17em; }
 .institution-header h1 { margin:0; font-size:clamp(2.2rem,4.4vw,3.65rem); line-height:1; letter-spacing:-.045em; }
 .institution-meta { margin:12px 0 0; color:rgba(236,235,231,.5); font-size:.84rem; }
 .institution-status { padding:7px 11px; border:1px solid rgba(197,163,95,.3); color:#d8bb79; font-size:.69rem; letter-spacing:.06em; text-transform:uppercase; }
 .institution-status.done { border-color:rgba(102,185,139,.35); color:#8fc8a8; }
-.institution-summary { max-width:890px; padding:42px 0 35px; }
-.institution-summary-text { margin:0; font-size:clamp(1.35rem,2.2vw,1.88rem); line-height:1.46; letter-spacing:-.025em; }
+.institution-summary { max-width:890px; padding:28px 0 24px; }
+.institution-summary-text { margin:0; font-size:clamp(1.16rem,1.8vw,1.55rem); line-height:1.42; letter-spacing:-.02em; }
 .institution-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); padding:5px 0; border-top:1px solid rgba(236,235,231,.08); border-bottom:1px solid rgba(236,235,231,.08); }
-.institution-metrics article { min-height:98px; display:grid; align-content:center; gap:9px; padding:18px 22px; border-right:1px solid rgba(236,235,231,.07); }
+.institution-metrics article { min-height:78px; display:grid; align-content:center; gap:7px; padding:14px 20px; border-right:1px solid rgba(236,235,231,.07); }
 .institution-metrics article:last-child { border-right:0; }
 .institution-metrics span { color:rgba(236,235,231,.46); font-size:.72rem; line-height:1.35; }
 .institution-metrics strong { font-size:1.12rem; font-weight:570; }
 
-.five-stage-section { margin-top:52px; }
+.five-stage-section { margin-top:34px; }
 .five-stage-section > .institution-panel-heading { padding-bottom:18px; border-bottom:1px solid rgba(236,235,231,.085); }
 .five-stage-report { display:grid; }
 .five-stage-card { padding:34px 0 38px; border-bottom:1px solid rgba(236,235,231,.085); }
@@ -104,3 +104,67 @@ body {
 }
 body { height:auto; min-height:100vh; overflow-x:hidden; overflow-y:auto; }
 .institution-shell { min-height:100vh; height:auto; }
+
+
+/* Executive portfolio reading: methodology stays in the engine, not in the primary client view. */
+.executive-section > .institution-panel-heading { padding-bottom:14px; }
+.executive-report-grid {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:0 38px;
+}
+.executive-card {
+    padding:20px 0 22px;
+    border-top:1px solid rgba(236,235,231,.075);
+}
+.executive-card h3 {
+    margin:0 0 11px;
+    font-size:1rem;
+    font-weight:620;
+}
+.executive-card-list {
+    margin:0;
+    padding:0;
+    list-style:none;
+    display:grid;
+    gap:9px;
+}
+.executive-card-list li {
+    position:relative;
+    padding-left:15px;
+    color:rgba(236,235,231,.72);
+    font-size:.9rem;
+    line-height:1.48;
+}
+.executive-card-list li::before {
+    content:"";
+    position:absolute;
+    left:0;
+    top:.64em;
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:#c5a35f;
+}
+.executive-card p,
+.executive-card-empty {
+    margin:0;
+    color:rgba(236,235,231,.72);
+    font-size:.9rem;
+    line-height:1.5;
+}
+.executive-card-wide {
+    grid-column:1 / -1;
+    padding-top:18px;
+    border-bottom:1px solid rgba(236,235,231,.075);
+}
+.executive-card-forwarding p {
+    max-width:850px;
+    font-size:.95rem;
+}
+.institution-supporting-details { margin-top:28px; }
+
+@media (max-width:900px) {
+    .executive-report-grid { grid-template-columns:1fr; }
+    .executive-card-wide { grid-column:auto; }
+}

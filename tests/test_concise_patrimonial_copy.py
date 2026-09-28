@@ -146,14 +146,15 @@ class ConcisePatrimonialCopyTests(unittest.TestCase):
     def test_stage_five_retains_named_assets_and_deduplicates_same_reason(self):
         lines = _asset_attention_lines(operational())
         self.assertEqual(len(lines), 2)
-        self.assertEqual(lines[0], "Empresa Um (ALFA): oscilações elevadas.")
-        self.assertIn("Empresa Dois (BETA)", lines[1])
+        self.assertEqual(lines[0], "Empresa Dois (BETA): queda recente relevante.")
+        self.assertIn("Empresa Um (ALFA)", lines[1])
         stage = self.report().stages[4]
         visible = " ".join(i.reading for i in stage.items)
         self.assertIn("Empresa Um (ALFA)", visible)
         self.assertIn("Empresa Dois (BETA)", visible)
         self.assertEqual(tuple(i.title for i in stage.items), ("O que está bem", "O que merece atenção", "Encaminhamento"))
         self.assertIn("Sugerimos conversar com seu gerente de banco ou Banker", visible)
+        self.assertLessEqual(len(lines), 3)
         self.assertNotIn("Pontos de evolução", visible)
         self.assertNotIn("Destaques", visible)
         self.assertNotIn("recomend", visible.casefold())

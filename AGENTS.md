@@ -61,6 +61,8 @@ Nunca misturar NEI com JOLIKA.
 12. Não adicionar complexidade sem melhorar decisão ou economizar tempo.
 13. Nunca dizer ao usuário o que comprar, vender, aumentar, reduzir ou ajustar em uma posição.
 14. Na apresentação dos relatórios, priorizar: o que está bem, o que merece atenção e o encaminhamento.
+15. O relatório principal para o cliente deve caber, em condições normais, em no máximo duas telas de desktop.
+16. Metodologia, bases, métricas técnicas e explicações de processo não aparecem na leitura principal; ficam em detalhes opcionais.
 
 ## Arquitetura
 
