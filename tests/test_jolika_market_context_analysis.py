@@ -74,7 +74,7 @@ def test_market_context_stage_keeps_source_without_exposing_methodology_jargon()
     assert len(stage.items) == 1
     assert "Relevância/intensidade" not in stage.items[0].reading
     assert "Direção do impacto" not in stage.items[0].reading
-    assert "Por enquanto" in stage.items[0].reading
+    assert "ainda não está confirmado" in stage.items[0].reading
     assert stage.items[0].evidence == ("Fontes consultadas: Fonte oficial.",)
 
 
@@ -94,8 +94,9 @@ def test_macro_fact_enters_stage_as_portfolio_level_context_without_asset_match(
     assert stage.status == "available"
     assert len(stage.items) == 1
     assert stage.items[0].title == "Juros e economia"
-    assert "se conecta a ações" in stage.items[0].reading
-    assert "favorável ou desfavorável" in stage.items[0].reading
+    assert "pode repercutir principalmente em ações" in stage.items[0].reading
+    assert "favorável" not in stage.items[0].reading.casefold()
+    assert "desfavorável" not in stage.items[0].reading.casefold()
     assert stage.items[0].evidence == ("Fontes consultadas: Federal Reserve.",)
 
 
@@ -130,9 +131,10 @@ def test_macro_context_names_observed_fixed_income_exposure_without_inferring_di
     stage = build_market_context_stage((fixed_income,), (macro,))
 
     assert stage.status == "available"
-    assert "se conecta a renda fixa" in stage.items[0].reading
+    assert "pode repercutir principalmente em renda fixa" in stage.items[0].reading
     assert "conclusão precipitada" not in stage.items[0].reading
-    assert "favorável ou desfavorável" in stage.items[0].reading
+    assert "favorável" not in stage.items[0].reading.casefold()
+    assert "desfavorável" not in stage.items[0].reading.casefold()
 
 
 def test_google_news_rate_headline_stays_market_discovery_not_macro_context() -> None:
@@ -234,7 +236,8 @@ def test_cpi_macro_context_does_not_claim_every_portfolio_class_is_relevant() ->
     assert "renda fixa" in stage.items[0].reading
     assert "ações" in stage.items[0].reading
     assert "cripto" not in stage.items[0].reading
-    assert "favorável ou desfavorável" in stage.items[0].reading
+    assert "favorável" not in stage.items[0].reading.casefold()
+    assert "desfavorável" not in stage.items[0].reading.casefold()
 
 
 def test_stage4_uses_portuguese_executive_summary_for_fed_projection() -> None:
@@ -297,7 +300,7 @@ def test_stage4_uses_portuguese_market_summary_for_google_news() -> None:
     stage = build_market_context_stage((_position("GLD"),), (discovery,))
 
     assert stage.items[0].reading.startswith(
-        "Encontramos uma notícia de mercado diretamente relacionada a GLD."
+        "GLD teve uma notícia específica de mercado."
     )
     assert "A former finance chief" not in stage.items[0].reading
 

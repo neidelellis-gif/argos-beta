@@ -117,8 +117,7 @@ class ConcisePatrimonialCopyTests(unittest.TestCase):
     def test_market_reading_keeps_asset_names_and_uncertainty(self):
         text = _conversation_reading(market_item(("ALFA", "BETA")), ())
         self.assertIn("ALFA, BETA", text)
-        self.assertIn("Por enquanto", text)
-        self.assertIn("não confirmado", text)
+        self.assertIn("ainda não está confirmado", text)
         self.assertLessEqual(len(text.split()), 30)
 
     def test_macro_reading_keeps_real_exposure_without_inventing_direction(self):
@@ -126,9 +125,10 @@ class ConcisePatrimonialCopyTests(unittest.TestCase):
                       asset_name="US Treasury Note", identifier="UST10Y")
         item = market_item(assets=(), source="Federal Reserve")
         text = _conversation_reading(item, (position,))
-        self.assertIn("se conecta a renda fixa", text)
-        self.assertIn("favorável ou desfavorável não confirmado", text)
+        self.assertIn("pode repercutir principalmente em renda fixa", text)
         self.assertNotIn("ações", text)
+        self.assertNotIn("favorável", text.casefold())
+        self.assertNotIn("desfavorável", text.casefold())
         self.assertLessEqual(len(text.split()), 40)
 
     def test_market_source_attribution_is_preserved(self):
