@@ -237,23 +237,13 @@ def _executive_summary(item: JolikaMarketContextItem) -> str:
 def _evidence_lines(items: Iterable[JolikaMarketContextItem]) -> tuple[str, ...]:
     selected = tuple(items)[:2]
     sources: list[str] = []
-    details: list[str] = []
-    seen_details: set[str] = set()
-
     for item in selected:
         if item.source not in sources:
             sources.append(item.source)
-        detail = item.evidence.strip()
-        normalized = detail.casefold()
-        if detail and normalized not in seen_details:
-            seen_details.add(normalized)
-            details.append(detail)
 
-    lines: list[str] = []
-    if sources:
-        lines.append("Fonte: " + ", ".join(sources))
-    lines.extend(details)
-    return tuple(lines)
+    if not sources:
+        return ()
+    return ("Fontes consultadas: " + ", ".join(sources) + ".",)
 
 
 def _macro_exposure_text(
@@ -267,12 +257,40 @@ def _macro_exposure_text(
     else:
         classes = ()
     if not classes:
-        return "Impacto tratado no nível de ambiente da carteira, sem atribuição automática a cada posição."
+        return "Esse é um dado de ambiente que vale acompanhar junto com a carteira, sem tirar uma conclusão precipitada."
     return (
-        "Exposições da carteira para acompanhamento deste contexto: "
-        + ", ".join(classes)
-        + ". A relação é de monitoramento; a direção do impacto não é inferida automaticamente."
+        "Isso merece atenção porque se conecta a "
+        + ", ".join(label.casefold() for label in classes)
+        + "."
     )
+
+
+def _conversation_reading(
+    item: JolikaMarketContextItem,
+    positions: Iterable[PortfolioPosition],
+) -> str:
+    summary = _executive_summary(item)
+    if item.affected_assets:
+        assets = ", ".join(item.affected_assets[:5])
+        return (
+            f"{summary} Como isso toca diretamente {assets}, vale manter no radar. "
+            "Por enquanto, ainda não há informação suficiente para dizer se isso melhora ou piora a posição."
+        )
+
+    context = _macro_exposure_text(positions, item)
+    return (
+        f"{summary} {context} "
+        "Por enquanto, ainda não há base suficiente para dizer se o efeito é favorável ou desfavorável para a carteira."
+    )
+
+
+def _friendly_bucket_title(bucket: str) -> str:
+    return {
+        "Macro e juros": "Juros e economia",
+        "Mercados": "O que mexeu com suas posições",
+        "Temas e teses": "Temas que merecem atenção",
+        "Eventos relevantes": "Fatos importantes",
+    }.get(bucket, bucket)
 
 
 def build_market_context_stage(
@@ -318,19 +336,10 @@ def build_market_context_stage(
                 key=lambda value: (value.casefold(), value),
             )
         )
-        exposure_text = (
-            f"Exposições diretamente relacionadas: {', '.join(exposures[:5])}."
-            if exposures
-            else _macro_exposure_text(position_items, primary)
-        )
         report_items.append(
             PatrimonialAnalysisItem(
-                title=bucket,
-                reading=(
-                    f"{_executive_summary(primary)} {exposure_text} "
-                    f"Relevância/intensidade: {primary.intensity}. "
-                    f"Direção do impacto: {primary.impact_direction}."
-                ),
+                title=_friendly_bucket_title(bucket),
+                reading=_conversation_reading(primary, position_items),
                 evidence=_evidence_lines(bucket_items),
                 confidence="Média",
             )
@@ -340,10 +349,9 @@ def build_market_context_stage(
         key="market_context",
         title="Carteira × ambiente de mercado",
         summary=(
-            "Os fatos recentes foram consolidados nas quatro leituras de ambiente do ARGOS. "
-            "Somente relações materiais com a carteira permanecem visíveis; fatos repetidos "
-            "ou antigos são excluídos. A direção do impacto continua não determinada quando "
-            "a evidência disponível não sustenta essa conclusão."
+            "Hoje, estes são os pontos do mercado que realmente conversam com a sua carteira. "
+            "Quando ainda não dá para saber se uma notícia ajuda ou atrapalha uma posição, "
+            "o ARGOS prefere deixar isso em aberto e continuar acompanhando."
         ),
         items=tuple(report_items),
         status="available",
