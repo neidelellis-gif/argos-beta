@@ -76,11 +76,16 @@ def analyze_jolika_market_context(
             )
         )
 
-    # Macro facts are portfolio-level context by nature. They must not be
-    # discarded merely because they do not name an individual security.
-    for fact in fact_items:
-        if fact.id in seen_fact_ids or fact.category is not FactCategory.ECONOMY:
-            continue
+    # Macro facts are portfolio-level context by nature. Rank official macro
+    # evidence first so the limited Stage 4 slots are not consumed by input order.
+    macro_facts = sorted(
+        (
+            fact for fact in fact_items
+            if fact.id not in seen_fact_ids and fact.category is FactCategory.ECONOMY
+        ),
+        key=_macro_rank_key,
+    )
+    for fact in macro_facts:
         topic = _topic_key(fact)
         if topic in seen_topics:
             continue
@@ -97,6 +102,14 @@ def analyze_jolika_market_context(
         )
 
     return tuple(items[:4])
+
+
+def _macro_rank_key(fact: FactCandidate) -> tuple[object, ...]:
+    source_rank = {"Federal Reserve": 0, "BLS": 1, "BEA": 2}.get(fact.source, 3)
+    importance_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(
+        fact.importance.value, 4
+    )
+    return (source_rank, importance_rank, -fact.published_at.timestamp(), fact.title.casefold())
 
 
 def _topic_key(fact: FactCandidate) -> str:
@@ -160,8 +173,37 @@ def _portfolio_exposure_classes(positions: Iterable[PortfolioPosition]) -> tuple
     return tuple(labels)
 
 
-def _macro_exposure_text(positions: Iterable[PortfolioPosition]) -> str:
+def _macro_relevant_classes(item: JolikaMarketContextItem) -> tuple[str, ...]:
+    text = f"{item.title} {item.evidence}".casefold()
+    if item.source == "Federal Reserve" or any(
+        term in text for term in ("fomc", "monetary policy", "interest rate", "discount rate")
+    ):
+        return ("Renda fixa", "Caixa", "Ações", "ETFs", "Fundos/Estratégias", "Ouro/Commodities")
+    if item.source == "BLS" and any(
+        term in text for term in ("consumer price", "cpi", "inflation")
+    ):
+        return ("Renda fixa", "Caixa", "Ações", "ETFs", "Ouro/Commodities")
+    if item.source == "BLS" and any(
+        term in text for term in ("unemployment", "nonfarm payroll", "employment")
+    ):
+        return ("Renda fixa", "Ações", "ETFs", "Fundos/Estratégias")
+    if item.source == "BEA" and any(
+        term in text for term in ("gross domestic product", "gdp", "personal income", "personal consumption")
+    ):
+        return ("Renda fixa", "Ações", "ETFs", "Fundos/Estratégias")
+    return ()
+
+
+def _macro_exposure_text(
+    positions: Iterable[PortfolioPosition],
+    item: JolikaMarketContextItem,
+) -> str:
     classes = _portfolio_exposure_classes(positions)
+    relevant = _macro_relevant_classes(item)
+    if relevant:
+        classes = tuple(label for label in classes if label in relevant)
+    else:
+        classes = ()
     if not classes:
         return "Impacto tratado no nível de ambiente da carteira, sem atribuição automática a cada posição."
     return (
@@ -217,7 +259,7 @@ def build_market_context_stage(
         exposure_text = (
             f"Exposições diretamente relacionadas: {', '.join(exposures[:5])}."
             if exposures
-            else _macro_exposure_text(position_items)
+            else _macro_exposure_text(position_items, primary)
         )
         report_items.append(
             PatrimonialAnalysisItem(
