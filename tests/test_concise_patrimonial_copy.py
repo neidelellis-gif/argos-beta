@@ -152,7 +152,11 @@ class ConcisePatrimonialCopyTests(unittest.TestCase):
         visible = " ".join(i.reading for i in stage.items)
         self.assertIn("Empresa Um (ALFA)", visible)
         self.assertIn("Empresa Dois (BETA)", visible)
-        self.assertIn("evidência suficiente para justificar uma mudança", visible)
+        self.assertEqual(tuple(i.title for i in stage.items), ("O que está bem", "O que merece atenção", "Encaminhamento"))
+        self.assertIn("Sugerimos conversar com seu gerente de banco ou Banker", visible)
+        self.assertNotIn("Pontos de evolução", visible)
+        self.assertNotIn("Destaques", visible)
+        self.assertNotIn("recomend", visible.casefold())
 
 
 if __name__ == "__main__":

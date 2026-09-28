@@ -49,9 +49,9 @@ Nunca misturar NEI com JOLIKA.
 
 1. Simplificar para melhorar a decisão.
 2. Menos informação, mais decisão.
-3. Toda recomendação deve ter evidências.
+3. Toda conclusão deve ter evidências.
 4. Toda evidência deve ser rastreável até a fonte.
-5. O ARGOS recomenda; o gestor decide.
+5. O ARGOS diagnostica, explica e sinaliza. Quando houver um problema que possa exigir providência, orienta o usuário a conversar com seu gerente de banco ou Banker.
 6. A tela principal deve ser simples, leve e rápida.
 7. O resumo executivo deve ter no máximo 10 linhas.
 8. Valores financeiros ficam ocultos por padrão.
@@ -59,6 +59,8 @@ Nunca misturar NEI com JOLIKA.
 10. A análise externa considera por padrão as últimas 48 horas.
 11. Eventos estruturais permanecem visíveis enquanto forem relevantes.
 12. Não adicionar complexidade sem melhorar decisão ou economizar tempo.
+13. Nunca dizer ao usuário o que comprar, vender, aumentar, reduzir ou ajustar em uma posição.
+14. Na apresentação dos relatórios, priorizar: o que está bem, o que merece atenção e o encaminhamento.
 
 ## Arquitetura
 

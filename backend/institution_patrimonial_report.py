@@ -44,7 +44,7 @@ def _composition_items(structural: Any) -> tuple[PatrimonialAnalysisItem, ...]:
         )
         items.append(
             PatrimonialAnalysisItem(
-                title=f"Classes de ativos — {currency}",
+                title=f"Onde o patrimônio está — {currency}",
                 reading=reading,
                 evidence=("classificação econômica da carteira importada",),
                 confidence="Alta",
@@ -54,7 +54,7 @@ def _composition_items(structural: Any) -> tuple[PatrimonialAnalysisItem, ...]:
     for concentration in structural.concentration_by_currency:
         items.append(
             PatrimonialAnalysisItem(
-                title=f"Concentração — {concentration.currency}",
+                title=f"Quanto depende das maiores posições — {concentration.currency}",
                 reading=(
                     f"Maior posição {_pct(concentration.top_1_weight)} · "
                     f"Top 3 {_pct(concentration.top_3_weight)} · "
@@ -169,37 +169,28 @@ def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
 
 def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[PatrimonialAnalysisItem, ...]:
     strengths: list[str] = []
-    highlights: list[str] = []
-    evolution: list[str] = []
+    attention: list[str] = []
 
     coverage = structural.coverage
     if coverage.total_positions and coverage.positions_with_economic_class == coverage.total_positions:
-        strengths.append("100% das posições possuem classificação econômica.")
+        strengths.append("Todos os investimentos estão identificados e classificados.")
 
     if operational.structural_level == "Baixa":
-        strengths.append("Não há alerta estrutural dominante nas métricas atuais.")
+        strengths.append("A estrutura da carteira não mostra um problema dominante neste momento.")
     elif operational.structural_level == "Alta":
-        evolution.append("A estrutura da carteira exige aprofundamento por concentração ou qualidade de cobertura.")
+        attention.append("Há concentração ou cobertura de dados que merece avaliação.")
 
     asset_attention = _asset_attention_lines(operational)
 
     if operational.quantitative_level == "Baixa":
-        strengths.append("Os movimentos recentes dos investimentos não mostram um ponto de atenção dominante.")
+        strengths.append("Os movimentos recentes não mostram um ponto de atenção dominante.")
     elif asset_attention:
-        evolution.extend(asset_attention)
-        evolution.append(
-            "Vamos acompanhar esses investimentos mais de perto para entender se esse comportamento continua, "
-            "se estabiliza ou perde importância dentro da carteira. Qualquer sugestão de ajuste só deve aparecer "
-            "quando houver evidência suficiente para justificar uma mudança."
-        )
-
-    if quantitative.analyzed_position_count:
-        highlights.append(
-            "Usamos o histórico disponível como apoio para entender melhor o comportamento dos investimentos, sem deixar os demais de fora da análise."
-        )
+        attention.extend(asset_attention)
 
     if structural.warnings:
-        evolution.append("Há alertas de qualidade de dados que devem permanecer visíveis na análise.")
+        attention.append("Há dados da carteira que precisam ser conferidos antes de qualquer providência.")
+
+    has_attention = bool(attention)
 
     def item(title: str, values: list[str], fallback: str) -> PatrimonialAnalysisItem:
         return PatrimonialAnalysisItem(
@@ -210,11 +201,28 @@ def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[
         )
 
     return (
-        item("Pontos fortes", strengths, "Nenhum ponto forte adicional foi confirmado com evidência suficiente."),
-        item("Destaques", highlights, "Nenhum destaque adicional foi confirmado com evidência suficiente."),
-        item("Pontos de evolução", evolution, "Nenhum ponto de evolução material foi confirmado com os dados atuais."),
+        item(
+            "O que está bem",
+            strengths,
+            "Nenhum ponto positivo adicional foi confirmado com evidência suficiente.",
+        ),
+        item(
+            "O que merece atenção",
+            attention,
+            "Nenhum problema relevante foi confirmado com os dados atuais.",
+        ),
+        PatrimonialAnalysisItem(
+            title="Encaminhamento",
+            reading=(
+                "Há pontos que merecem avaliação. Sugerimos conversar com seu gerente de banco ou Banker "
+                "para avaliar as providências adequadas."
+                if has_attention
+                else "Nada relevante exige providência neste momento."
+            ),
+            evidence=("carteira atual", "histórico de mercado disponível"),
+            confidence="Média",
+        ),
     )
-
 
 def build_institution_patrimonial_report(
     structural: Any,
@@ -241,7 +249,7 @@ def build_institution_patrimonial_report(
         summary=operational.executive_reading,
         items=(
             PatrimonialAnalysisItem(
-                title="O que estamos olhando",
+                title="Leitura de hoje",
                 reading=coverage_note,
                 evidence=(
                     "carteira atual",
@@ -276,7 +284,7 @@ def build_institution_patrimonial_report(
         key="final_diagnosis",
         title="Diagnóstico final",
         summary=(
-            "Juntando tudo, estes são os pontos que estão bem e os que vamos acompanhar mais de perto."
+            "O que está bem, o que merece atenção e o encaminhamento quando houver um problema confirmado."
         ),
         items=_final_items(structural, quantitative, operational),
     )

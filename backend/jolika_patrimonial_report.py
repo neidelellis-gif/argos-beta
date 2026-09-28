@@ -37,7 +37,7 @@ def _composition_items(structural: Any) -> tuple[PatrimonialAnalysisItem, ...]:
             for asset_class, amount in sorted(allocation, key=lambda pair: pair[1], reverse=True)
         )
         items.append(PatrimonialAnalysisItem(
-            title=f"Classes de ativos — {currency}",
+            title=f"Onde o patrimônio está — {currency}",
             reading=reading,
             evidence=("consolidação econômica das instituições carregadas",),
             confidence="Alta",
@@ -45,7 +45,7 @@ def _composition_items(structural: Any) -> tuple[PatrimonialAnalysisItem, ...]:
 
     for concentration in structural.concentration_by_currency:
         items.append(PatrimonialAnalysisItem(
-            title=f"Concentração consolidada — {concentration.currency}",
+            title=f"Quanto depende das maiores posições — {concentration.currency}",
             reading=(
                 f"Maior exposição {_pct(concentration.top_1_weight)} · "
                 f"Top 3 {_pct(concentration.top_3_weight)} · "
@@ -83,48 +83,58 @@ def _institution_items(institutional: Iterable[Any]) -> tuple[PatrimonialAnalysi
 
 def _final_items(structural: Any, operational: Any) -> tuple[PatrimonialAnalysisItem, ...]:
     strengths: list[str] = []
-    highlights: list[str] = []
-    evolution: list[str] = []
+    attention: list[str] = []
 
     coverage = structural.coverage
     if coverage.consolidated_asset_count and coverage.assets_with_economic_class == coverage.consolidated_asset_count:
-        strengths.append("Todos os ativos consolidados possuem classificação econômica.")
+        strengths.append("Todos os investimentos consolidados estão identificados e classificados.")
     if operational.structural_level == "Baixa":
-        strengths.append("A estrutura consolidada não apresenta alerta dominante nas métricas atuais.")
+        strengths.append("A estrutura consolidada não mostra um problema dominante neste momento.")
     if not any(item.across_institutions for item in structural.duplicate_exposures):
         strengths.append("Não há exposição repetida material identificada entre UBS e Santander.")
 
-    highlights.append(
-        f"{structural.consolidated_asset_count} ativos consolidados em {len(structural.institutions)} instituição(ões)."
-    )
-    if operational.analyzed_quantitative_positions:
-        highlights.append(
-            f"{operational.analyzed_quantitative_positions} posições institucionais possuem leitura quantitativa histórica."
+    if operational.overall_level == "Alta":
+        attention.append("A carteira consolidada tem pontos de atenção prioritários que precisam ser avaliados.")
+    elif operational.overall_level == "Média":
+        attention.append("A carteira consolidada tem pontos que merecem acompanhamento.")
+    if operational.unavailable_quantitative_positions:
+        attention.append(
+            "Parte das posições ainda não tem histórico suficiente; isso limita algumas conclusões."
         )
 
-    if operational.overall_level == "Alta":
-        evolution.append("A leitura consolidada contém fatores de atenção prioritária que exigem aprofundamento.")
-    elif operational.overall_level == "Média":
-        evolution.append("A leitura consolidada contém pontos que merecem acompanhamento.")
-    if operational.unavailable_quantitative_positions:
-        evolution.append(
-            f"{operational.unavailable_quantitative_positions} posições institucionais ainda não possuem cobertura quantitativa suficiente."
-        )
+    has_attention = bool(attention)
 
     def make(title: str, values: list[str], fallback: str) -> PatrimonialAnalysisItem:
         return PatrimonialAnalysisItem(
             title=title,
             reading=" ".join(values) if values else fallback,
-            evidence=("inteligência consolidada do ARGOS",),
+            evidence=("carteira consolidada",),
             confidence="Média",
         )
 
     return (
-        make("Pontos fortes", strengths, "Nenhum ponto forte adicional foi confirmado com evidência suficiente."),
-        make("Destaques", highlights, "Nenhum destaque adicional foi confirmado com evidência suficiente."),
-        make("Pontos de evolução", evolution, "Nenhum ponto de evolução material foi confirmado com os dados atuais."),
+        make(
+            "O que está bem",
+            strengths,
+            "Nenhum ponto positivo adicional foi confirmado com evidência suficiente.",
+        ),
+        make(
+            "O que merece atenção",
+            attention,
+            "Nenhum problema relevante foi confirmado com os dados atuais.",
+        ),
+        PatrimonialAnalysisItem(
+            title="Encaminhamento",
+            reading=(
+                "Há pontos que merecem avaliação. Sugerimos conversar com seu gerente de banco ou Banker "
+                "para avaliar as providências adequadas."
+                if has_attention
+                else "Nada relevante exige providência neste momento."
+            ),
+            evidence=("carteira consolidada",),
+            confidence="Média",
+        ),
     )
-
 
 def build_jolika_patrimonial_report(
     structural: Any,
@@ -160,7 +170,7 @@ def build_jolika_patrimonial_report(
     final_diagnosis = PatrimonialAnalysisStage(
         key="final_diagnosis",
         title="Diagnóstico final",
-        summary="Síntese da carteira econômica consolidada, separada dos diagnósticos individuais.",
+        summary="O que está bem, o que merece atenção e o encaminhamento quando houver um problema confirmado.",
         items=_final_items(structural, operational),
     )
     return build_patrimonial_analysis_report(
