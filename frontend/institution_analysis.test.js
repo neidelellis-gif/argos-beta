@@ -193,13 +193,23 @@ test("prohibits buy and sell recommendation language in visible diagnosis", () =
     } finally { restore(); }
 });
 
-test("all executive conclusions include traceable evidence and fact-inference separation", () => {
+test("keeps traceability in detailed items while allowing a conversational opening", () => {
     const restore = installWindow({ profile: validProfile(), dashboard: fullDashboard });
     try {
         const report = helpers.buildHealthReport(completeInstitution());
-        const items = [...report.attention, ...report.risks, ...report.theses, ...report.changes];
-        assert.ok(items.length > 0);
-        items.forEach((item) => {
+        assert.doesNotMatch(
+            report.summary,
+            /Fato:|Inferência:|Confiança:|Evidência:/i
+        );
+
+        const detailedItems = [
+            ...report.attention.slice(1),
+            ...report.risks,
+            ...report.theses,
+            ...report.changes
+        ];
+        assert.ok(detailedItems.length > 0);
+        detailedItems.forEach((item) => {
             assert.match(item.description, /Fato:/);
             assert.match(item.description, /Inferência:/);
             assert.match(item.description, /Evidência:|Fonte:/);
@@ -253,7 +263,7 @@ test("uses strategic profile to identify liquidity and currency mismatch", () =>
         assert.match(risks, /efeito cambial merece ser acompanhado/);
         assert.match(
             helpers.buildSummary(institution),
-            /análise mais aprofundada/
+            /merece atenção mais próxima/
         );
     } finally { restore(); }
 });
