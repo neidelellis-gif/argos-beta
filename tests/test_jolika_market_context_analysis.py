@@ -61,7 +61,7 @@ def test_market_context_stage_is_limited_when_no_fact_relates_to_portfolio() -> 
     assert stage.key == "market_context"
     assert stage.status == "limited"
     assert stage.items == ()
-    assert "não atribuirá direção de impacto" in stage.summary
+    assert "vamos continuar acompanhando sem forçar uma conclusão" in stage.summary
 
 
 def test_market_context_stage_keeps_source_without_exposing_methodology_jargon() -> None:
