@@ -242,7 +242,7 @@ const InstitutionAnalysis = (() => {
         const marketContext = patrimonialMarketContext();
         if (marketContext?.status === "available") {
             const items = Array.isArray(marketContext.items) ? marketContext.items : [];
-            if (items.some((item) => item?.title === "Macro e juros")) return true;
+            if (items.some((item) => ["Macro e juros", "Juros e economia"].includes(item?.title))) return true;
         }
         const facts = dailyFacts();
         const analyses = dailyAnalyses();
@@ -458,15 +458,23 @@ const InstitutionAnalysis = (() => {
         const reading = intelligence.portfolio_reading
             || "A carteira foi importada, mas ainda não há uma leitura estrutural completa.";
 
+        const currencyText = currencies.length
+            ? ` em ${currencies.join(" e ")}`
+            : "";
+
+        const portfolioSummary =
+            structuralLevel === "Alta"
+                ? "Há um ponto na distribuição da carteira que merece atenção mais próxima."
+                : structuralLevel === "Média"
+                    ? "No geral, a carteira está razoavelmente distribuída, mas há alguns pontos que vale olhar com mais cuidado."
+                    : "A carteira está bem distribuída e nenhuma posição concentra uma parte excessiva do patrimônio.";
+
         const health = {
-            title: "Como está a carteira",
+            title: "Como está sua carteira",
             description:
-                `Leitura: ${reading} ` +
-                `Fato: ${positions} investimentos importados` +
-                `${currencies.length ? ` em ${currencies.join(" e ")}` : ""}. ` +
-                `Inferência: ${actionLevel} ` +
-                `Confiança: ${macroAvailable && assetAvailable ? "média" : "baixa"}. ` +
-                "Evidência: carteira importada e métricas estruturais calculadas pelo ARGOS."
+                `Sua carteira tem ${positions} investimentos${currencyText}. ` +
+                `${portfolioSummary} ` +
+                "Isso não significa que todos os investimentos estejam sem risco; abaixo mostramos o que merece acompanhamento."
         };
 
         const profileItem = {
@@ -500,7 +508,7 @@ const InstitutionAnalysis = (() => {
             }];
         const theses = assetAvailable && (analyses.length || facts.length) ? [...analyses, ...facts].slice(0, 3).map((item) => ({ title: item.title || "Tese em observação", description: `Fato: ${item.summary || item.reason || item.context || "evento acompanhado"}. Inferência: tese em observação, sem ordem de execução. Confiança: ${item.confidence || "média"}. ${sourceLabel(item)}` })) : [{ title: assetAvailable ? "Teses sem mudança material" : "Teses sem evidência suficiente", description: `${assetAvailable ? "Fato: não surgiu tese fortalecida ou enfraquecida material." : "Fato: não há dados atuais suficientes dos ativos."} Inferência: manter em observação. Confiança: ${assetAvailable ? "média" : "baixa"}. Evidência: análise individual dos ativos em segundo plano.` }];
         const projection = buildProjection(institution, profile, { macroAvailable, assetAvailable });
-        return { situation, summary: `${health.description} ${actionLevel}`, attention: [health, profileItem, projection, { title: "Preciso agir agora?", description: `Fato: ${actionLevel} Inferência: sugestões, se houver, devem ser neutras e vinculadas à coerência com o perfil; não há ordem de execução nem indicação de instrumento. Confiança: média. Evidência: diagnóstico executivo atual.` }, { title: "O que está faltando?", description: `${!macroAvailable ? "Fato: falta cenário macroeconômico atual. " : ""}${!assetAvailable ? "Fato: Faltam dados atuais dos ativos. " : ""}${macroAvailable && assetAvailable ? "Fato: não há lacuna crítica evidente. Inferência: a próxima melhoria é refinar realidade de vida, liquidez e representatividade patrimonial do cliente." : "Inferência: sem essas bases, a conclusão permanece limitada."} Confiança: média. Evidência: Perfil Estratégico, carteira importada e validação de dados.` }], risks, theses, changes: [{ title: "Próxima revisão", description: `${firstRelevantReason(institution)} Próxima revisão: mudanças macro, fatos relevantes, alteração de perfil, liquidez ou concentração podem alterar a conclusão.` }], projection: [projection], action: [{ title: "Preciso agir agora?", description: actionLevel }], nextReview: [{ title: "Próxima revisão", description: "Reavaliar quando houver novos fatos das últimas 24 horas, mudança de cenário macro, alteração de perfil, vencimento anual do perfil ou inconsistência de importação." }] };
+        return { situation, summary: health.description, attention: [health, profileItem, projection, { title: "Preciso agir agora?", description: `Fato: ${actionLevel} Inferência: sugestões, se houver, devem ser neutras e vinculadas à coerência com o perfil; não há ordem de execução nem indicação de instrumento. Confiança: média. Evidência: diagnóstico executivo atual.` }, { title: "O que está faltando?", description: `${!macroAvailable ? "Fato: falta cenário macroeconômico atual. " : ""}${!assetAvailable ? "Fato: Faltam dados atuais dos ativos. " : ""}${macroAvailable && assetAvailable ? "Fato: não há lacuna crítica evidente. Inferência: a próxima melhoria é refinar realidade de vida, liquidez e representatividade patrimonial do cliente." : "Inferência: sem essas bases, a conclusão permanece limitada."} Confiança: média. Evidência: Perfil Estratégico, carteira importada e validação de dados.` }], risks, theses, changes: [{ title: "Próxima revisão", description: `${firstRelevantReason(institution)} Próxima revisão: mudanças macro, fatos relevantes, alteração de perfil, liquidez ou concentração podem alterar a conclusão.` }], projection: [projection], action: [{ title: "Preciso agir agora?", description: actionLevel }], nextReview: [{ title: "Próxima revisão", description: "Reavaliar quando houver novos fatos das últimas 24 horas, mudança de cenário macro, alteração de perfil, vencimento anual do perfil ou inconsistência de importação." }] };
     }
 
     function buildSummary(institution) {
