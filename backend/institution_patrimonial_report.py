@@ -142,11 +142,7 @@ def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[
 
     if quantitative.analyzed_position_count:
         highlights.append(
-            f"{quantitative.analyzed_position_count} posições possuem leitura quantitativa com histórico de mercado."
-        )
-    if quantitative.unavailable_position_count:
-        evolution.append(
-            f"{quantitative.unavailable_position_count} posições ainda não possuem cobertura quantitativa suficiente."
+            "Os indicadores históricos disponíveis foram usados como apoio, sem excluir as demais posições da leitura da carteira."
         )
 
     if structural.warnings:
@@ -182,11 +178,9 @@ def build_institution_patrimonial_report(
     unavailable_count = quantitative.unavailable_position_count
     total_quantitative = analyzed_count + unavailable_count
     coverage_note = (
-        f"A leitura estrutural usa toda a carteira importada. A leitura de risco histórico cobre "
-        f"{analyzed_count} de {total_quantitative} posições; {unavailable_count} ainda não possuem "
-        "histórico suficiente para essa camada quantitativa."
-        if total_quantitative
-        else "A leitura estrutural usa toda a carteira importada; não há cobertura histórica suficiente para a camada quantitativa."
+        f"A análise considera as {structural.position_count} posições da carteira. "
+        "Para cada investimento, usamos os dados que estão disponíveis e damos mais peso ao que conseguimos confirmar. "
+        "Quando um indicador depende de um histórico mais longo, ele é usado apenas como apoio e não exclui a posição da análise."
     )
 
     diagnosis = PatrimonialAnalysisStage(
@@ -195,7 +189,7 @@ def build_institution_patrimonial_report(
         summary=operational.executive_reading,
         items=(
             PatrimonialAnalysisItem(
-                title="Abrangência da análise",
+                title="O que estamos olhando",
                 reading=coverage_note,
                 evidence=(
                     "carteira importada",
