@@ -5,7 +5,8 @@ import unittest
 from unittest.mock import patch
 
 from backend.institution_patrimonial_report import (
-    _asset_attention_lines, _quantitative_items, build_institution_patrimonial_report,
+    _asset_attention_lines, _display_asset_label, _quantitative_items,
+    build_institution_patrimonial_report,
 )
 from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
 from backend.jolika_market_context_analysis import (
@@ -142,6 +143,21 @@ class ConcisePatrimonialCopyTests(unittest.TestCase):
         self.assertEqual(stage.items, ())
         self.assertIn("vamos continuar acompanhando sem forçar uma conclusão", stage.summary)
         self.assertLessEqual(len(stage.summary.split()), 20)
+
+    def test_santander_long_names_are_shortened_without_exposing_isin(self):
+        self.assertEqual(
+            _display_asset_label("CONSTELLATION ENERGY CORPORATION", "US21037T1097"),
+            "Constellation Energy",
+        )
+        self.assertEqual(
+            _display_asset_label("GE VERNOVA INC", "US36828A1016"),
+            "GE Vernova",
+        )
+        self.assertEqual(
+            _display_asset_label("ISHARES BITCOIN TRUST ETF", "US46438F1012"),
+            "iShares Bitcoin Trust",
+        )
+        self.assertEqual(_display_asset_label("Empresa Dois", "BETA"), "Empresa Dois (BETA)")
 
     def test_stage_five_retains_named_assets_and_deduplicates_same_reason(self):
         lines = _asset_attention_lines(operational())

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import re
 from typing import Any, Iterable
 
 from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
@@ -132,6 +133,51 @@ _ATTENTION_REASON_TEXT = {
 }
 
 
+def _display_asset_label(label: str, identifier: str) -> str:
+    display = (label or identifier or "").strip()
+    if not display:
+        return ""
+
+    if label:
+        cleaned = label.strip()
+        suffixes = re.compile(
+            r"\s+(CORPORATION|CORP\.?|INC\.?|INCORPORATED|PLC|LTD\.?|LIMITED|COMPANY|CO\.?|ETF)$",
+            re.IGNORECASE,
+        )
+        while True:
+            shortened = suffixes.sub("", cleaned).strip()
+            if shortened == cleaned:
+                break
+            cleaned = shortened
+
+        if cleaned.isupper():
+            if " " not in cleaned and len(cleaned) <= 6:
+                display = cleaned
+            else:
+                words = []
+                for word in cleaned.split():
+                    upper = word.upper()
+                    if upper in {"GE", "IBM", "AMD", "ARM", "AI", "UBS", "SPDR"}:
+                        words.append(upper)
+                    elif upper == "ISHARES":
+                        words.append("iShares")
+                    else:
+                        words.append(word.capitalize())
+                display = " ".join(words)
+        else:
+            display = cleaned
+
+    ticker = (identifier or "").strip().upper()
+    looks_like_ticker = bool(
+        ticker
+        and len(ticker) <= 6
+        and re.fullmatch(r"[A-Z0-9.\-]+", ticker)
+    )
+    if looks_like_ticker and ticker.casefold() not in display.casefold():
+        return f"{display} ({ticker})"
+    return display
+
+
 def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
     priority = {
         "deep_drawdown": 4,
@@ -151,13 +197,9 @@ def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
 
         label = (getattr(attention, "asset_label", None) or "").strip()
         identifier = (getattr(attention, "identifier", None) or "").strip()
-        if not label and not identifier:
+        asset = _display_asset_label(label, identifier)
+        if not asset:
             continue
-
-        if label and identifier and identifier.casefold() not in label.casefold():
-            asset = f"{label} ({identifier})"
-        else:
-            asset = label or identifier
 
         reason = getattr(attention, "reason", "")
         entry = grouped.setdefault(asset, {"score": 0, "index": index, "reasons": set()})
@@ -175,14 +217,9 @@ def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
                 "merece acompanhamento para verificar se o movimento persiste"
             )
         if has_drawdown:
-            return (
-                "queda recente relevante; merece acompanhamento para verificar se o movimento persiste"
-            )
+            return "queda recente relevante; merece acompanhamento para verificar se o movimento persiste"
         if has_tail and has_volatility:
-            return (
-                "quedas recentes acima do normal e oscilações elevadas; "
-                "merece acompanhamento mais próximo"
-            )
+            return "quedas recentes acima do normal e oscilações elevadas; merece acompanhamento mais próximo"
         if has_tail:
             return "quedas recentes acima do normal; merece acompanhamento mais próximo"
         if has_volatility:

@@ -579,13 +579,22 @@ const InstitutionAnalysis = (() => {
         $("ownerLabel").textContent = `Patrimônio de ${owner.name}`;
         $("institutionName").textContent = institution.name;
         $("institutionMeta").textContent = `${owner.name} · análise individual · ${new Intl.DateTimeFormat("pt-BR").format(new Date())}`;
-        $("executiveSummary").textContent = buildSummary(institution);
+        const reportMatchesInstitution = Boolean(
+            patrimonialReport
+            && patrimonialReport.scope === "institution"
+            && normalize(patrimonialReport.universe) === normalize(institution.name)
+        );
+        if (!reportMatchesInstitution) {
+            $("executiveSummary").textContent = buildSummary(institution);
+        }
         const incomplete = isImportIncomplete(institution);
         $("metricValue").textContent = incomplete ? "Não disponível" : institutionValue(institution);
         $("metricPositions").textContent = incomplete ? "—" : String(institution.position_count || 0);
-        $("metricCurrencies").textContent = incomplete ? "—" : (institution.currencies || []).join(" · ") || "—";
         const healthReport = buildHealthReport(institution);
-        $("metricSituation").textContent = healthReport.situation;
+        if (!reportMatchesInstitution) {
+            $("metricCurrencies").textContent = "—";
+            $("metricSituation").textContent = incomplete ? "Dados insuficientes" : "Carregando…";
+        }
         $("attentionCount").textContent = `${healthReport.attention.length} respostas`;
 
         const status = $("institutionStatus");

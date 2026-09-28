@@ -193,15 +193,17 @@ body { height:auto; min-height:100vh; overflow-x:hidden; overflow-y:auto; }
 }
 .executive-attention-row {
     display:grid;
-    grid-template-columns:78px minmax(0,1fr);
-    gap:13px;
+    grid-template-columns:minmax(132px, .42fr) minmax(0,1fr);
+    gap:16px;
     padding:11px 0;
     border-top:1px solid rgba(236,235,231,.055);
 }
 .executive-asset {
     color:#e3c67f;
-    font-size:.88rem;
+    font-size:.86rem;
+    line-height:1.35;
     letter-spacing:.015em;
+    overflow-wrap:anywhere;
 }
 .executive-market-row {
     padding:10px 0;
