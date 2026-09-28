@@ -75,7 +75,7 @@ def test_stage_three_becomes_available_without_inventing_missing_return_or_decis
     assert "12% ao ano em USD" in return_item.reading
     assert "precisamos acompanhar o desempenho ao longo do tempo" in return_item.reading
     assert "não queremos mudar a carteira só porque um investimento subiu ou caiu" in decision_item.reading.casefold()
-    assert all("Premissas Mestres JOLIKA v1.0" in item.evidence for item in stage.items)
+    assert all("Regras da JOLIKA v1.0" in item.evidence[0] for item in stage.items)
 
 
 def test_consolidated_stage_can_use_structural_evidence_without_fake_quantitative_coverage() -> None:
