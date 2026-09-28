@@ -343,6 +343,7 @@ const InstitutionFiveStage = (() => {
     }
 
     function bindConsolidatedDecision() {
+        if (typeof document === "undefined") return;
         document.addEventListener("click", async (event) => {
             const button = event.target.closest?.("#openConsolidated");
             if (!button) return;
