@@ -350,8 +350,8 @@ def build_market_context_stage(
         title="Carteira × ambiente de mercado",
         summary=(
             "Hoje, estes são os pontos do mercado que realmente conversam com a sua carteira. "
-            "Quando ainda não dá para saber se uma notícia ajuda ou atrapalha uma posição, "
-            "o ARGOS prefere deixar isso em aberto e continuar acompanhando."
+            "Quando ainda não der para saber se uma notícia ajuda ou atrapalha uma posição, "
+            "vamos deixar essa conclusão em aberto e continuar acompanhando."
         ),
         items=tuple(report_items),
         status="available",
