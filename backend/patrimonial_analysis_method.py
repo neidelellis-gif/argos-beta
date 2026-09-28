@@ -82,7 +82,7 @@ PATRIMONIAL_ANALYSIS_STAGE_KEYS = (
 PATRIMONIAL_ANALYSIS_STAGE_TITLES = (
     "Diagnóstico da carteira",
     "Análise da composição",
-    "Aderência às Premissas Mestres da JOLIKA",
+    "Sua carteira e seus objetivos",
     "Carteira × ambiente de mercado",
     "Diagnóstico final",
 )
