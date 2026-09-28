@@ -107,15 +107,14 @@ def build_master_assumptions_stage(
             reading=(
                 (
                     "A JOLIKA aceita oscilações maiores quando existe uma boa razão para isso. "
-                    f"Hoje temos histórico suficiente para analisar {analyzed} posição(ões); "
-                    f"{unavailable} ainda precisam de mais dados. "
-                    "Por isso, ainda não dá para dizer se todo o risco da carteira está sendo bem compensado."
+                    "Além de olhar como o dinheiro está distribuído, usamos o histórico de mercado quando ele é confiável. "
+                    "Quando esse histórico ainda é curto, não forçamos uma conclusão: o investimento continua fazendo parte da análise pelo papel que ocupa na carteira."
                 )
                 if quantitative is not None
                 else (
                     "A JOLIKA aceita oscilações maiores quando existe uma boa razão para isso. "
-                    "Hoje conseguimos ver como o dinheiro está distribuído, mas ainda faltam dados do comportamento "
-                    "dos investimentos ao longo do tempo para avaliar esse ponto com segurança."
+                    "Hoje conseguimos avaliar bem como o dinheiro está distribuído. "
+                    "À medida que o histórico de mercado aumenta, vamos acrescentando essa informação sem deixar nenhum investimento fora da leitura da carteira."
                 )
             ),
             evidence=_source_evidence() + ("histórico disponível dos investimentos",),
