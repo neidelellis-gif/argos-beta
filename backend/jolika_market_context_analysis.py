@@ -194,6 +194,68 @@ def _macro_relevant_classes(item: JolikaMarketContextItem) -> tuple[str, ...]:
     return ()
 
 
+def _executive_summary(item: JolikaMarketContextItem) -> str:
+    text = f"{item.title} {item.evidence}".casefold()
+
+    if item.source == "Federal Reserve":
+        if "economic projection" in text or "economic projections" in text:
+            return "O Federal Reserve divulgou novas projeções econômicas após a reunião do FOMC."
+        if "fomc statement" in text or "monetary policy" in text:
+            return "O Federal Reserve divulgou uma atualização oficial de política monetária do FOMC."
+        return "O Federal Reserve divulgou uma atualização oficial relevante para o ambiente macroeconômico."
+
+    if item.source == "BLS":
+        if "consumer price" in text or "cpi" in text or "inflation" in text:
+            return "O BLS divulgou o dado mais recente de inflação ao consumidor dos Estados Unidos."
+        if "unemployment" in text:
+            return "O BLS divulgou a taxa de desemprego mais recente dos Estados Unidos."
+        if "nonfarm payroll" in text or "employment" in text:
+            return "O BLS divulgou os dados mais recentes de emprego dos Estados Unidos."
+        return "O BLS divulgou uma atualização oficial do mercado de trabalho e preços dos Estados Unidos."
+
+    if item.source == "BEA":
+        if "gross domestic product" in text or "gdp" in text:
+            return "O BEA divulgou a atualização mais recente do PIB dos Estados Unidos."
+        if "personal income" in text or "personal consumption" in text:
+            return "O BEA divulgou a atualização mais recente de renda e consumo nos Estados Unidos."
+        if "international trade" in text:
+            return "O BEA divulgou uma atualização oficial sobre o comércio internacional dos Estados Unidos."
+        return "O BEA divulgou uma atualização oficial relevante para o ambiente econômico dos Estados Unidos."
+
+    if item.source == "Google News":
+        if item.affected_assets:
+            return (
+                "Foi identificada uma notícia de mercado diretamente relacionada a "
+                + ", ".join(item.affected_assets[:3])
+                + "."
+            )
+        return "Foi identificada uma notícia de mercado potencialmente relevante para a carteira."
+
+    return item.title.rstrip(".") + "."
+
+
+def _evidence_lines(items: Iterable[JolikaMarketContextItem]) -> tuple[str, ...]:
+    selected = tuple(items)[:2]
+    sources: list[str] = []
+    details: list[str] = []
+    seen_details: set[str] = set()
+
+    for item in selected:
+        if item.source not in sources:
+            sources.append(item.source)
+        detail = item.evidence.strip()
+        normalized = detail.casefold()
+        if detail and normalized not in seen_details:
+            seen_details.add(normalized)
+            details.append(detail)
+
+    lines: list[str] = []
+    if sources:
+        lines.append("Fonte: " + ", ".join(sources))
+    lines.extend(details)
+    return tuple(lines)
+
+
 def _macro_exposure_text(
     positions: Iterable[PortfolioPosition],
     item: JolikaMarketContextItem,
@@ -265,15 +327,11 @@ def build_market_context_stage(
             PatrimonialAnalysisItem(
                 title=bucket,
                 reading=(
-                    f"{primary.title}. {exposure_text} "
+                    f"{_executive_summary(primary)} {exposure_text} "
                     f"Relevância/intensidade: {primary.intensity}. "
                     f"Direção do impacto: {primary.impact_direction}."
                 ),
-                evidence=tuple(
-                    value
-                    for candidate in bucket_items[:2]
-                    for value in (f"Fonte: {candidate.source}", candidate.evidence)
-                ),
+                evidence=_evidence_lines(bucket_items),
                 confidence="Média",
             )
         )
