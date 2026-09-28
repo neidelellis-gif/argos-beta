@@ -199,10 +199,10 @@ def _executive_summary(item: JolikaMarketContextItem) -> str:
 
     if item.source == "Federal Reserve":
         if "economic projection" in text or "economic projections" in text:
-            return "O Federal Reserve divulgou novas projeções econômicas após a reunião do FOMC."
+            return "O Federal Reserve divulgou novas projeções para a economia dos Estados Unidos."
         if "fomc statement" in text or "monetary policy" in text:
-            return "O Federal Reserve divulgou uma atualização oficial de política monetária do FOMC."
-        return "O Federal Reserve divulgou uma atualização oficial relevante para o ambiente macroeconômico."
+            return "O Federal Reserve divulgou uma nova atualização sobre juros e economia."
+        return "O Federal Reserve divulgou uma atualização importante para o cenário econômico."
 
     if item.source == "BLS":
         if "consumer price" in text or "cpi" in text or "inflation" in text:
@@ -225,11 +225,11 @@ def _executive_summary(item: JolikaMarketContextItem) -> str:
     if item.source == "Google News":
         if item.affected_assets:
             return (
-                "Foi identificada uma notícia de mercado diretamente relacionada a "
+                "Encontramos uma notícia de mercado diretamente relacionada a "
                 + ", ".join(item.affected_assets[:3])
                 + "."
             )
-        return "Foi identificada uma notícia de mercado potencialmente relevante para a carteira."
+        return "Encontramos uma notícia de mercado que pode ser relevante para a sua carteira."
 
     return item.title.rstrip(".") + "."
 
@@ -306,9 +306,8 @@ def build_market_context_stage(
             "market_context",
             "Carteira × ambiente de mercado",
             (
-                "Não há fatos atuais e suficientemente relacionados às exposições "
-                "analisadas para sustentar uma leitura de ambiente de mercado. "
-                "O ARGOS não atribuirá direção de impacto sem evidência."
+                "Não encontramos fatos recentes que mudem de forma clara a leitura da sua carteira. "
+                "Por enquanto, vamos continuar acompanhando sem forçar uma conclusão."
             ),
         )
 

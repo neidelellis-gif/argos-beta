@@ -252,7 +252,7 @@ def test_stage4_uses_portuguese_executive_summary_for_fed_projection() -> None:
 
     assert stage.status == "available"
     assert stage.items[0].reading.startswith(
-        "O Federal Reserve divulgou novas projeções econômicas após a reunião do FOMC."
+        "O Federal Reserve divulgou novas projeções para a economia dos Estados Unidos."
     )
     assert "release economic projections" not in stage.items[0].reading
 
@@ -297,7 +297,7 @@ def test_stage4_uses_portuguese_market_summary_for_google_news() -> None:
     stage = build_market_context_stage((_position("GLD"),), (discovery,))
 
     assert stage.items[0].reading.startswith(
-        "Foi identificada uma notícia de mercado diretamente relacionada a GLD."
+        "Encontramos uma notícia de mercado diretamente relacionada a GLD."
     )
     assert "A former finance chief" not in stage.items[0].reading
 
@@ -318,4 +318,4 @@ def test_stage4_summary_speaks_to_the_reader_instead_of_explaining_methodology()
     assert "sua carteira" in stage.summary
     assert "quatro leituras" not in stage.summary
     assert "relações materiais" not in stage.summary
-    assert "o ARGOS prefere deixar isso em aberto" in stage.summary
+    assert "vamos deixar essa conclusão em aberto e continuar acompanhando" in stage.summary

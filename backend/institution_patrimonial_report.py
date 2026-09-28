@@ -92,14 +92,13 @@ def _quantitative_items(quantitative: Any) -> tuple[PatrimonialAnalysisItem, ...
     if volatilities:
         items.append(
             PatrimonialAnalysisItem(
-                title="Volatilidade histórica",
+                title="Quanto os investimentos oscilaram",
                 reading=(
-                    f"Maior volatilidade anualizada entre os ativos analisados: "
-                    f"{max(volatilities) * 100:.1f}%."
+                    "Entre os investimentos com histórico suficiente, a maior oscilação observada, "
+                    f"ajustada para um ano, foi de {max(volatilities) * 100:.1f}%."
                 ),
                 evidence=(
                     f"histórico de mercado de até {quantitative.lookback_days} dias",
-                    f"{quantitative.analyzed_position_count} posições analisadas",
                 ),
                 confidence="Média",
             )
@@ -107,10 +106,10 @@ def _quantitative_items(quantitative: Any) -> tuple[PatrimonialAnalysisItem, ...
     if drawdowns:
         items.append(
             PatrimonialAnalysisItem(
-                title="Drawdown histórico",
+                title="Maior queda no período",
                 reading=(
-                    f"Maior drawdown entre os ativos analisados: "
-                    f"{max(drawdowns) * 100:.1f}%."
+                    "Entre os investimentos com histórico suficiente, a maior queda do ponto mais alto "
+                    f"até o mais baixo foi de {max(drawdowns) * 100:.1f}%."
                 ),
                 evidence=(
                     f"histórico de mercado de até {quantitative.lookback_days} dias",
@@ -192,9 +191,8 @@ def build_institution_patrimonial_report(
                 title="O que estamos olhando",
                 reading=coverage_note,
                 evidence=(
-                    "carteira importada",
-                    "métricas estruturais",
-                    "cobertura quantitativa disponível",
+                    "carteira atual",
+                    "histórico de mercado disponível",
                 ),
                 confidence="Alta" if unavailable_count == 0 and total_quantitative else "Parcial",
             ),

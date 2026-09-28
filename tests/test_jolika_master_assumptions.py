@@ -87,7 +87,7 @@ def test_consolidated_stage_can_use_structural_evidence_without_fake_quantitativ
     assert stage.status == "available"
     risk_item = stage.items[2]
     allocation_item = stage.items[3]
-    assert "faltam dados do comportamento dos investimentos" in risk_item.reading
+    assert "sem deixar nenhum investimento fora da leitura da carteira" in risk_item.reading
     assert "2 tipos principais de investimento" in allocation_item.reading
     assert "a maior posição representa 5.4% da carteira em USD" in allocation_item.reading
 
@@ -106,3 +106,19 @@ def test_stage_three_avoids_finance_jargon_in_visible_copy() -> None:
     assert "aderência" not in visible.casefold()
     assert "premissas mestres" not in visible.casefold()
     assert "classe(s) econômica(s)" not in visible.casefold()
+
+
+def test_stage_three_does_not_expose_partial_position_counts_as_analysis_coverage() -> None:
+    stage = build_master_assumptions_stage(
+        _structural(),
+        quantitative=SimpleNamespace(
+            analyzed_position_count=10,
+            unavailable_position_count=22,
+        ),
+        operational=SimpleNamespace(overall_level="Baixa"),
+    )
+
+    visible = " ".join(item.reading for item in stage.items)
+    assert "10 posição" not in visible
+    assert "22" not in visible
+    assert "continua fazendo parte da análise" in visible
