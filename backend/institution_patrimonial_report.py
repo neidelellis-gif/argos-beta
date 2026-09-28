@@ -120,6 +120,53 @@ def _quantitative_items(quantitative: Any) -> tuple[PatrimonialAnalysisItem, ...
     return tuple(items)
 
 
+_ATTENTION_REASON_TEXT = {
+    "high_volatility": "oscilações elevadas",
+    "elevated_volatility": "oscilações elevadas",
+    "deep_drawdown": "uma queda relevante no período",
+    "relevant_drawdown": "uma queda relevante no período",
+    "high_var": "dias de queda mais fortes no histórico recente",
+    "elevated_var": "dias de queda mais fortes no histórico recente",
+    "high_cvar": "quedas mais intensas nos piores dias do histórico recente",
+    "elevated_cvar": "quedas mais intensas nos piores dias do histórico recente",
+}
+
+
+def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
+    grouped: dict[str, list[str]] = {}
+
+    for attention in tuple(getattr(operational, "attention_items", ()) or ()):
+        if getattr(attention, "source", None) != "QUANTITATIVE":
+            continue
+
+        label = (getattr(attention, "asset_label", None) or "").strip()
+        identifier = (getattr(attention, "identifier", None) or "").strip()
+        if not label and not identifier:
+            continue
+
+        if label and identifier and identifier.casefold() not in label.casefold():
+            asset = f"{label} ({identifier})"
+        else:
+            asset = label or identifier
+
+        reason = _ATTENTION_REASON_TEXT.get(
+            getattr(attention, "reason", ""),
+            "um comportamento de mercado que merece atenção",
+        )
+        grouped.setdefault(asset, [])
+        if reason not in grouped[asset]:
+            grouped[asset].append(reason)
+
+    lines: list[str] = []
+    for asset, reasons in grouped.items():
+        if len(reasons) == 1:
+            reason_text = reasons[0]
+        else:
+            reason_text = ", ".join(reasons[:-1]) + " e " + reasons[-1]
+        lines.append(f"{asset}: {reason_text}.")
+    return tuple(lines)
+
+
 def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[PatrimonialAnalysisItem, ...]:
     strengths: list[str] = []
     highlights: list[str] = []
@@ -134,14 +181,21 @@ def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[
     elif operational.structural_level == "Alta":
         evolution.append("A estrutura da carteira exige aprofundamento por concentração ou qualidade de cobertura.")
 
+    asset_attention = _asset_attention_lines(operational)
+
     if operational.quantitative_level == "Baixa":
-        strengths.append("O motor quantitativo não identificou alerta dominante entre os ativos com histórico disponível.")
-    elif operational.quantitative_level == "Alta":
-        evolution.append("Há ativos com risco histórico elevado que merecem aprofundamento individual.")
+        strengths.append("Os movimentos recentes dos investimentos não mostram um ponto de atenção dominante.")
+    elif asset_attention:
+        evolution.extend(asset_attention)
+        evolution.append(
+            "Vamos acompanhar esses investimentos mais de perto para entender se esse comportamento continua, "
+            "se estabiliza ou perde importância dentro da carteira. Qualquer sugestão de ajuste só deve aparecer "
+            "quando houver evidência suficiente para justificar uma mudança."
+        )
 
     if quantitative.analyzed_position_count:
         highlights.append(
-            "Os indicadores históricos disponíveis foram usados como apoio, sem excluir as demais posições da leitura da carteira."
+            "Usamos o histórico disponível como apoio para entender melhor o comportamento dos investimentos, sem deixar os demais de fora da análise."
         )
 
     if structural.warnings:
@@ -151,7 +205,7 @@ def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[
         return PatrimonialAnalysisItem(
             title=title,
             reading=" ".join(values) if values else fallback,
-            evidence=("inteligência estrutural e quantitativa do ARGOS",),
+            evidence=("carteira atual", "histórico de mercado disponível"),
             confidence="Média",
         )
 
@@ -224,7 +278,7 @@ def build_institution_patrimonial_report(
         key="final_diagnosis",
         title="Diagnóstico final",
         summary=(
-            "Síntese baseada somente nas evidências estruturais e quantitativas disponíveis nesta instituição."
+            "Juntando tudo, estes são os pontos que estão bem e os que vamos acompanhar mais de perto."
         ),
         items=_final_items(structural, quantitative, operational),
     )
