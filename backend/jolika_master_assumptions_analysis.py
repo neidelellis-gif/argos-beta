@@ -6,7 +6,6 @@ from typing import Any
 
 from backend.jolika_master_assumptions import (
     JOLIKA_MASTER_ASSUMPTIONS_APPROVED_ON,
-    JOLIKA_MASTER_ASSUMPTIONS_SOURCE,
     JOLIKA_MASTER_ASSUMPTIONS_VERSION,
     get_jolika_master_assumptions,
 )
@@ -59,9 +58,7 @@ def _quantitative_coverage(quantitative: Any | None) -> tuple[int, int]:
 
 def _source_evidence() -> tuple[str, ...]:
     return (
-        f"Premissas Mestres JOLIKA v{JOLIKA_MASTER_ASSUMPTIONS_VERSION}",
-        f"aprovadas em {JOLIKA_MASTER_ASSUMPTIONS_APPROVED_ON}",
-        JOLIKA_MASTER_ASSUMPTIONS_SOURCE,
+        f"Regras da JOLIKA v{JOLIKA_MASTER_ASSUMPTIONS_VERSION}, aprovadas em {JOLIKA_MASTER_ASSUMPTIONS_APPROVED_ON}",
     )
 
 
