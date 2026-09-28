@@ -61,18 +61,20 @@ def test_stage_three_becomes_available_without_inventing_missing_return_or_decis
     assert stage.key == "master_assumptions"
     assert stage.status == "available"
     assert len(stage.items) == 5
+    assert stage.title == "Sua carteira e seus objetivos"
     assert tuple(item.title for item in stage.items) == (
-        "Objetivo Patrimonial",
-        "Retorno Esperado",
-        "Risco Aceitável",
-        "Alocação e Diversificação",
-        "Regras de Decisão",
+        "Seu objetivo",
+        "O retorno que buscamos",
+        "Quanto risco faz sentido",
+        "Como o dinheiro está distribuído",
+        "Como vamos tomar decisões",
     )
 
     return_item = stage.items[1]
     decision_item = stage.items[4]
-    assert "não mensurável" in return_item.reading
-    assert "não mensurável" in decision_item.reading
+    assert "12% ao ano em USD" in return_item.reading
+    assert "precisamos acompanhar o desempenho ao longo do tempo" in return_item.reading
+    assert "não queremos mudar a carteira só porque um investimento subiu ou caiu" in decision_item.reading.casefold()
     assert all("Premissas Mestres JOLIKA v1.0" in item.evidence for item in stage.items)
 
 
@@ -85,6 +87,22 @@ def test_consolidated_stage_can_use_structural_evidence_without_fake_quantitativ
     assert stage.status == "available"
     risk_item = stage.items[2]
     allocation_item = stage.items[3]
-    assert "dados quantitativos" in risk_item.reading
-    assert "2 classe(s) econômica(s)" in allocation_item.reading
-    assert "maior posição em USD: 5.4%" in allocation_item.reading
+    assert "faltam dados do comportamento dos investimentos" in risk_item.reading
+    assert "2 tipos principais de investimento" in allocation_item.reading
+    assert "a maior posição representa 5.4% da carteira em USD" in allocation_item.reading
+
+
+def test_stage_three_avoids_finance_jargon_in_visible_copy() -> None:
+    stage = build_master_assumptions_stage(
+        _structural(),
+        quantitative=SimpleNamespace(
+            analyzed_position_count=8,
+            unavailable_position_count=2,
+        ),
+        operational=SimpleNamespace(overall_level="Baixa"),
+    )
+
+    visible = " ".join([stage.title, stage.summary] + [item.title + " " + item.reading for item in stage.items])
+    assert "aderência" not in visible.casefold()
+    assert "premissas mestres" not in visible.casefold()
+    assert "classe(s) econômica(s)" not in visible.casefold()
