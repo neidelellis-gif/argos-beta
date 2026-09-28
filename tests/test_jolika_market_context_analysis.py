@@ -240,3 +240,72 @@ def test_cpi_macro_context_does_not_claim_every_portfolio_class_is_relevant() ->
     assert "Ações" in stage.items[0].reading
     assert "Cripto" not in stage.items[0].reading
     assert "Direção do impacto: Não determinada" in stage.items[0].reading
+
+
+def test_stage4_uses_portuguese_executive_summary_for_fed_projection() -> None:
+    fed = FactCandidate(
+        id="fed-projection-pt",
+        title="Federal Reserve Board and Federal Open Market Committee release economic projections from the September FOMC meeting",
+        description="Official economic projections.",
+        source="Federal Reserve",
+        published_at=datetime(2026, 9, 16, tzinfo=timezone.utc),
+        importance=FactImportance.HIGH,
+        category=FactCategory.ECONOMY,
+    )
+
+    stage = build_market_context_stage((_position(),), (fed,))
+
+    assert stage.status == "available"
+    assert stage.items[0].reading.startswith(
+        "O Federal Reserve divulgou novas projeções econômicas após a reunião do FOMC."
+    )
+    assert "release economic projections" not in stage.items[0].reading
+
+
+def test_stage4_deduplicates_repeated_source_in_evidence() -> None:
+    projection = FactCandidate(
+        id="fed-projection-source",
+        title="Federal Reserve releases economic projections",
+        description="Official economic projections.",
+        source="Federal Reserve",
+        published_at=datetime(2026, 9, 16, 18, tzinfo=timezone.utc),
+        importance=FactImportance.HIGH,
+        category=FactCategory.ECONOMY,
+    )
+    statement = FactCandidate(
+        id="fed-statement-source",
+        title="Federal Reserve issues FOMC statement",
+        description="Official FOMC statement.",
+        source="Federal Reserve",
+        published_at=datetime(2026, 9, 16, 19, tzinfo=timezone.utc),
+        importance=FactImportance.HIGH,
+        category=FactCategory.ECONOMY,
+    )
+
+    stage = build_market_context_stage((_position(),), (projection, statement))
+
+    assert stage.items[0].evidence == (
+        "Fonte: Federal Reserve",
+        "Official FOMC statement.",
+        "Official economic projections.",
+    )
+
+
+def test_stage4_uses_portuguese_market_summary_for_google_news() -> None:
+    discovery = FactCandidate(
+        id="google-gld-pt",
+        title="A former finance chief joins SPDR Gold Trust sponsor board",
+        description="Market discovery headline.",
+        source="Google News",
+        published_at=datetime(2026, 9, 24, 12, tzinfo=timezone.utc),
+        importance=FactImportance.MEDIUM,
+        category=FactCategory.MARKETS,
+        related_assets=("GLD",),
+    )
+
+    stage = build_market_context_stage((_position("GLD"),), (discovery,))
+
+    assert stage.items[0].reading.startswith(
+        "Foi identificada uma notícia de mercado diretamente relacionada a GLD."
+    )
+    assert "A former finance chief" not in stage.items[0].reading
