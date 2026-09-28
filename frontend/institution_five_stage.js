@@ -301,7 +301,25 @@ const InstitutionFiveStage = (() => {
         if (labelNode) labelNode.textContent = label;
     }
 
-    function applyConsolidatedPresentation(dashboard) {
+    function consolidatedMetricValues(dashboard, model) {
+        const consolidated = dashboard?.consolidated || {};
+        const totals = Object.entries(consolidated.totals_by_currency || {});
+        const totalText = totals.length
+            ? totals.map(([currency, value]) => formatCurrency(value, currency)).join(" · ")
+            : "—";
+        const attentionCount = Array.isArray(model?.attention) ? model.attention.length : 0;
+
+        return {
+            totalText,
+            positions: String(consolidated.position_count ?? "—"),
+            largestPosition: model?.largestPosition || "—",
+            attention: attentionCount
+                ? `${attentionCount} ativo${attentionCount > 1 ? "s" : ""}`
+                : "Nenhum"
+        };
+    }
+
+    function applyConsolidatedPresentation(dashboard, model) {
         const title = document.getElementById("institutionName");
         const meta = document.getElementById("institutionMeta");
         const kicker = document.getElementById("analysisModeKicker");
@@ -319,7 +337,7 @@ const InstitutionFiveStage = (() => {
             status.textContent = "Concluída";
             status.classList.add("done");
         }
-        if (legacySummary) legacySummary.hidden = true;
+        if (legacySummary) legacySummary.hidden = false;
         if (legacyMetrics) legacyMetrics.hidden = false;
         if (decision) decision.hidden = true;
         if (footer) footer.hidden = true;
@@ -328,31 +346,11 @@ const InstitutionFiveStage = (() => {
             if (label) label.textContent = "Leituras individuais concluídas";
         }
 
-        const consolidated = dashboard?.consolidated || {};
-        const totals = Object.entries(consolidated.totals_by_currency || {});
-        const totalText = totals.length
-            ? totals.map(([currency, value]) => formatCurrency(value, currency)).join(" · ")
-            : "—";
-        const currencies = totals.map(([currency]) => currency);
-
-        setMetric("metricValue", "Patrimônio consolidado", totalText);
-        setMetric(
-            "metricPositions",
-            "Posições consolidadas",
-            String(consolidated.position_count ?? "—")
-        );
-        setMetric(
-            "metricCurrencies",
-            "Moedas encontradas",
-            currencies.join(" · ") || "—"
-        );
-        setMetric(
-            "metricSituation",
-            "Condição da análise",
-            dashboard?.session?.consolidation_authorized === true
-                ? "Consolidação concluída"
-                : "Consolidação não autorizada"
-        );
+        const metrics = consolidatedMetricValues(dashboard, model);
+        setMetric("metricValue", "Patrimônio consolidado", metrics.totalText);
+        setMetric("metricPositions", "Posições consolidadas", metrics.positions);
+        setMetric("metricCurrencies", "Maior posição", metrics.largestPosition);
+        setMetric("metricSituation", "Pontos de atenção", metrics.attention);
 
         const completed = new Set(
             Array.isArray(dashboard?.session?.completed_institutions)
@@ -379,7 +377,7 @@ const InstitutionFiveStage = (() => {
         }
 
         state.hidden = true;
-        renderExecutiveReport(report, container);
+        const model = renderExecutiveReport(report, container);
 
         if (typeof window !== "undefined" && typeof window.CustomEvent === "function") {
             window.dispatchEvent(new CustomEvent("argos:patrimonial-report", {
@@ -388,7 +386,7 @@ const InstitutionFiveStage = (() => {
         }
 
         if (report.scope === "consolidated") {
-            applyConsolidatedPresentation(dashboard);
+            applyConsolidatedPresentation(dashboard, model);
         }
     }
 
@@ -467,6 +465,7 @@ const InstitutionFiveStage = (() => {
             executiveModel,
             executiveHeadline,
             parseAttention,
+            consolidatedMetricValues,
             isConsolidatedMode,
             prepareConsolidatedLoading,
             revealConsolidatedView

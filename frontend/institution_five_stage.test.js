@@ -51,6 +51,21 @@ test("executive model limits the primary view to three strengths, three attentio
     });
 });
 
+test("consolidated metrics keep executive largest position and attention count", () => {
+    const model = helpers.executiveModel(report());
+    const metrics = helpers.consolidatedMetricValues({
+        consolidated: {
+            totals_by_currency: { USD: 5924150.28 },
+            position_count: 68
+        }
+    }, model);
+
+    assert.equal(metrics.largestPosition, "9.3%");
+    assert.equal(metrics.attention, "3 ativos");
+    assert.equal(metrics.positions, "68");
+    assert.match(metrics.totalText, /5,924,150\.28/);
+});
+
 test("executive model does not expose methodology labels", () => {
     const visible = JSON.stringify(helpers.executiveModel(report()));
     assert.doesNotMatch(visible, /5 etapas|metodologia|premissas mestres/i);
