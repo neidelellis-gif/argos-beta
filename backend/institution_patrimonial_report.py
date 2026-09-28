@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, Iterable
 
 from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
 from backend.jolika_market_context_analysis import build_market_context_stage
@@ -94,8 +94,8 @@ def _quantitative_items(quantitative: Any) -> tuple[PatrimonialAnalysisItem, ...
             PatrimonialAnalysisItem(
                 title="Quanto os investimentos oscilaram",
                 reading=(
-                    "Entre os investimentos com histórico suficiente, a maior oscilação observada, "
-                    f"ajustada para um ano, foi de {max(volatilities) * 100:.1f}%."
+                    f"Maior oscilação estimada para um ano: {max(volatilities) * 100:.1f}%, "
+                    "entre os ativos com histórico suficiente."
                 ),
                 evidence=(
                     f"histórico de mercado de até {quantitative.lookback_days} dias",
@@ -108,8 +108,8 @@ def _quantitative_items(quantitative: Any) -> tuple[PatrimonialAnalysisItem, ...
             PatrimonialAnalysisItem(
                 title="Maior queda no período",
                 reading=(
-                    "Entre os investimentos com histórico suficiente, a maior queda do ponto mais alto "
-                    f"até o mais baixo foi de {max(drawdowns) * 100:.1f}%."
+                    f"Maior queda do ponto mais alto ao mais baixo: {max(drawdowns) * 100:.1f}%, "
+                    "entre os ativos com histórico suficiente."
                 ),
                 evidence=(
                     f"histórico de mercado de até {quantitative.lookback_days} dias",
@@ -232,8 +232,7 @@ def build_institution_patrimonial_report(
     total_quantitative = analyzed_count + unavailable_count
     coverage_note = (
         f"A análise considera as {structural.position_count} posições da carteira. "
-        "Para cada investimento, usamos os dados que estão disponíveis e damos mais peso ao que conseguimos confirmar. "
-        "Quando um indicador depende de um histórico mais longo, ele é usado apenas como apoio e não exclui a posição da análise."
+        "Histórico incompleto limita indicadores, mas não exclui investimentos."
     )
 
     diagnosis = PatrimonialAnalysisStage(
@@ -258,9 +257,8 @@ def build_institution_patrimonial_report(
         key="composition",
         title="Análise da composição",
         summary=(
-            f"{structural.position_count} posições analisadas em "
-            f"{', '.join(structural.currencies) or 'moeda não identificada'}, "
-            "com leitura por classes, concentração e risco histórico quando disponível."
+            f"{structural.position_count} posições em "
+            f"{', '.join(structural.currencies) or 'moeda não identificada'}: distribuição e concentração."
         ),
         items=composition_items,
         status="available" if composition_items else "limited",

@@ -257,9 +257,9 @@ def _macro_exposure_text(
     else:
         classes = ()
     if not classes:
-        return "Esse é um dado de ambiente que vale acompanhar junto com a carteira, sem tirar uma conclusão precipitada."
+        return "Contexto geral, sem ligação específica confirmada com a carteira."
     return (
-        "Isso merece atenção porque se conecta a "
+        "O dado se conecta a "
         + ", ".join(label.casefold() for label in classes)
         + "."
     )
@@ -273,14 +273,13 @@ def _conversation_reading(
     if item.affected_assets:
         assets = ", ".join(item.affected_assets[:5])
         return (
-            f"{summary} Como isso toca diretamente {assets}, vale manter no radar. "
-            "Por enquanto, ainda não há informação suficiente para dizer se isso melhora ou piora a posição."
+            f"{summary} Por enquanto, efeito sobre {assets} não confirmado."
         )
 
     context = _macro_exposure_text(positions, item)
     return (
         f"{summary} {context} "
-        "Por enquanto, ainda não há base suficiente para dizer se o efeito é favorável ou desfavorável para a carteira."
+        "Por enquanto, efeito favorável ou desfavorável não confirmado."
     )
 
 
@@ -306,8 +305,7 @@ def build_market_context_stage(
             "market_context",
             "Carteira × ambiente de mercado",
             (
-                "Não encontramos fatos recentes que mudem de forma clara a leitura da sua carteira. "
-                "Por enquanto, vamos continuar acompanhando sem forçar uma conclusão."
+                "Sem fatos recentes ligados à carteira; vamos continuar acompanhando sem forçar uma conclusão."
             ),
         )
 
@@ -348,8 +346,7 @@ def build_market_context_stage(
         key="market_context",
         title="Carteira × ambiente de mercado",
         summary=(
-            "Hoje, estes são os pontos do mercado que realmente conversam com a sua carteira. "
-            "Quando ainda não der para saber se uma notícia ajuda ou atrapalha uma posição, "
+            "Quando o efeito na sua carteira for incerto, "
             "vamos deixar essa conclusão em aberto e continuar acompanhando."
         ),
         items=tuple(report_items),

@@ -85,9 +85,8 @@ def build_master_assumptions_stage(
         PatrimonialAnalysisItem(
             title="Seu objetivo",
             reading=(
-                "A carteira está distribuída entre diferentes tipos de investimento e nenhuma posição domina o conjunto. "
-                f"Hoje, {concentration}. Isso é um bom ponto de partida para proteger e fazer o patrimônio crescer, "
-                "mas precisamos acompanhar a evolução ao longo do tempo para saber se esse objetivo está sendo alcançado."
+                "Preservar e ampliar o patrimônio. A composição atual, sozinha, "
+                "não confirma o resultado ao longo do tempo."
             ),
             evidence=_source_evidence() + ("carteira atual",),
             confidence="Parcial",
@@ -95,9 +94,8 @@ def build_master_assumptions_stage(
         PatrimonialAnalysisItem(
             title="O retorno que buscamos",
             reading=(
-                "A referência da JOLIKA continua sendo buscar cerca de 12% ao ano em USD. "
-                "Uma fotografia de hoje não mostra se estamos chegando lá; precisamos acompanhar o desempenho ao longo do tempo "
-                "e o risco assumido para alcançar esse resultado."
+                "Meta-base: 12% ao ano em USD, não um teto. Para avaliar resultado e risco, "
+                "precisamos acompanhar o desempenho ao longo do tempo."
             ),
             evidence=_source_evidence() + ("meta de retorno da JOLIKA",),
             confidence="Alta sobre a limitação",
@@ -106,15 +104,13 @@ def build_master_assumptions_stage(
             title="Quanto risco faz sentido",
             reading=(
                 (
-                    "A JOLIKA aceita oscilações maiores quando existe uma boa razão para isso. "
-                    "Além de olhar como o dinheiro está distribuído, usamos o histórico de mercado quando ele é confiável. "
-                    "Quando esse histórico ainda é curto, não forçamos uma conclusão: o investimento continua fazendo parte da análise pelo papel que ocupa na carteira."
+                    "Oscilações maiores exigem retorno potencial proporcional. Com histórico curto, "
+                    "o investimento continua fazendo parte da análise pelo seu papel na carteira."
                 )
                 if quantitative is not None
                 else (
-                    "A JOLIKA aceita oscilações maiores quando existe uma boa razão para isso. "
-                    "Hoje conseguimos avaliar bem como o dinheiro está distribuído. "
-                    "À medida que o histórico de mercado aumenta, vamos acrescentando essa informação sem deixar nenhum investimento fora da leitura da carteira."
+                    "Avaliamos a distribuição do patrimônio, sem deixar nenhum investimento fora da leitura da carteira. "
+                    "O risco histórico ainda precisa de dados."
                 )
             ),
             evidence=_source_evidence() + ("histórico disponível dos investimentos",),
@@ -123,8 +119,7 @@ def build_master_assumptions_stage(
         PatrimonialAnalysisItem(
             title="Como o dinheiro está distribuído",
             reading=(
-                f"O dinheiro está dividido entre {class_count} tipos principais de investimento; {concentration}. "
-                "A ideia é evitar depender demais de poucos investimentos sem espalhar o patrimônio só por espalhar."
+                f"{class_count} tipos principais de investimento; {concentration}."
             ),
             evidence=_source_evidence() + ("carteira atual",),
             confidence="Média",
@@ -133,9 +128,7 @@ def build_master_assumptions_stage(
             title="Como vamos tomar decisões",
             reading=(
                 "Não queremos mudar a carteira só porque um investimento subiu ou caiu. "
-                "As decisões devem considerar se a ideia por trás do investimento continua fazendo sentido, "
-                "o risco envolvido e o efeito sobre o conjunto da carteira. "
-                "Ainda precisamos construir mais histórico das decisões para avaliar esse ponto melhor."
+                "Avaliamos a tese, o risco e o efeito na carteira. Falta histórico para avaliar as decisões."
             ),
             evidence=_source_evidence() + ("histórico de decisões ainda incompleto",),
             confidence="Alta sobre a limitação",
@@ -143,9 +136,7 @@ def build_master_assumptions_stage(
     )
 
     summary = (
-        "Queremos responder a uma pergunta simples: esta carteira continua fazendo sentido para o que a JOLIKA quer alcançar? "
-        "Hoje já dá para enxergar bem como o dinheiro está distribuído. Para avaliar retorno e a qualidade das decisões, "
-        "ainda precisamos de mais histórico."
+        "Objetivos e composição da carteira. Retorno e decisões ainda precisam de mais histórico."
     )
 
     return PatrimonialAnalysisStage(
