@@ -106,65 +106,122 @@ body { height:auto; min-height:100vh; overflow-x:hidden; overflow-y:auto; }
 .institution-shell { min-height:100vh; height:auto; }
 
 
-/* Executive portfolio reading: methodology stays in the engine, not in the primary client view. */
-.executive-section > .institution-panel-heading { padding-bottom:14px; }
-.executive-report-grid {
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:0 38px;
+/* Executive portfolio reading: dense, decision-oriented and limited to the essentials. */
+.executive-section {
+    margin-top:30px;
+    padding:24px 26px 26px;
+    border:1px solid rgba(236,235,231,.09);
+    border-radius:10px;
+    background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));
 }
-.executive-card {
-    padding:20px 0 22px;
-    border-top:1px solid rgba(236,235,231,.075);
-}
-.executive-card h3 {
-    margin:0 0 11px;
-    font-size:1rem;
-    font-weight:620;
-}
-.executive-card-list {
-    margin:0;
-    padding:0;
-    list-style:none;
-    display:grid;
-    gap:9px;
-}
-.executive-card-list li {
-    position:relative;
-    padding-left:15px;
-    color:rgba(236,235,231,.72);
-    font-size:.9rem;
-    line-height:1.48;
-}
-.executive-card-list li::before {
-    content:"";
-    position:absolute;
-    left:0;
-    top:.64em;
-    width:5px;
-    height:5px;
-    border-radius:50%;
-    background:#c5a35f;
-}
-.executive-card p,
-.executive-card-empty {
-    margin:0;
-    color:rgba(236,235,231,.72);
-    font-size:.9rem;
-    line-height:1.5;
-}
-.executive-card-wide {
-    grid-column:1 / -1;
-    padding-top:18px;
+.executive-section > .institution-panel-heading {
+    padding-bottom:14px;
+    margin-bottom:14px;
     border-bottom:1px solid rgba(236,235,231,.075);
 }
-.executive-card-forwarding p {
-    max-width:850px;
-    font-size:.95rem;
+.executive-section > .institution-panel-heading h2 {
+    font-size:1.28rem;
 }
-.institution-supporting-details { margin-top:28px; }
+.executive-report-grid {
+    display:grid;
+    grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);
+    gap:14px;
+}
+.executive-card {
+    padding:20px 21px;
+    border:1px solid rgba(236,235,231,.075);
+    border-radius:8px;
+    background:rgba(255,255,255,.014);
+}
+.executive-card-kicker {
+    margin:0 0 7px;
+    color:rgba(236,235,231,.38);
+    font-size:.62rem;
+    font-weight:700;
+    letter-spacing:.15em;
+}
+.executive-card h3 {
+    margin:0 0 15px;
+    font-size:1.02rem;
+    font-weight:640;
+}
+.executive-card-positive {
+    border-top:2px solid rgba(143,200,168,.46);
+}
+.executive-card-attention {
+    border-top:2px solid rgba(216,187,121,.62);
+}
+.executive-card-market {
+    border-top:2px solid rgba(145,168,196,.42);
+}
+.executive-card-forwarding {
+    border-top:2px solid rgba(197,163,95,.64);
+}
+.executive-strength-list,
+.executive-attention-list,
+.executive-market-list {
+    display:grid;
+    gap:0;
+}
+.executive-strength-row {
+    display:grid;
+    grid-template-columns:20px minmax(0,1fr);
+    gap:9px;
+    padding:9px 0;
+    border-top:1px solid rgba(236,235,231,.05);
+}
+.executive-strength-row:first-child,
+.executive-attention-row:first-child,
+.executive-market-row:first-child {
+    border-top:0;
+    padding-top:0;
+}
+.executive-strength-mark {
+    color:#8fc8a8;
+    font-size:.84rem;
+    line-height:1.5;
+}
+.executive-strength-row p,
+.executive-attention-row p,
+.executive-market-row p,
+.executive-card-empty,
+.executive-forwarding-text {
+    margin:0;
+    color:rgba(236,235,231,.69);
+    font-size:.88rem;
+    line-height:1.48;
+}
+.executive-attention-row {
+    display:grid;
+    grid-template-columns:78px minmax(0,1fr);
+    gap:13px;
+    padding:11px 0;
+    border-top:1px solid rgba(236,235,231,.055);
+}
+.executive-asset {
+    color:#e3c67f;
+    font-size:.88rem;
+    letter-spacing:.015em;
+}
+.executive-market-row {
+    padding:10px 0;
+    border-top:1px solid rgba(236,235,231,.055);
+}
+.executive-market-row strong {
+    display:block;
+    margin-bottom:5px;
+    font-size:.86rem;
+    color:rgba(236,235,231,.88);
+}
+.executive-forwarding-text {
+    font-size:.93rem;
+    color:rgba(236,235,231,.78);
+}
+.institution-supporting-details { margin-top:24px; }
+.institution-actions { padding-top:28px; }
 
 @media (max-width:900px) {
+    .executive-section { padding:20px; }
     .executive-report-grid { grid-template-columns:1fr; }
-    .executive-card-wide { grid-column:auto; }
+    .executive-attention-row { grid-template-columns:70px minmax(0,1fr); }
 }

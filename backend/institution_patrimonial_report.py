@@ -143,17 +143,7 @@ def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
         "high_volatility": 1,
         "elevated_volatility": 1,
     }
-    readable = {
-        "deep_drawdown": "queda recente relevante",
-        "relevant_drawdown": "queda recente relevante",
-        "high_cvar": "quedas recentes mais fortes que o normal",
-        "elevated_cvar": "quedas recentes mais fortes que o normal",
-        "high_var": "dias recentes de queda acima do normal",
-        "elevated_var": "dias recentes de queda acima do normal",
-        "high_volatility": "oscilações recentes elevadas",
-        "elevated_volatility": "oscilações recentes elevadas",
-    }
-    grouped: dict[str, tuple[int, int, str]] = {}
+    grouped: dict[str, dict[str, Any]] = {}
 
     for index, attention in enumerate(tuple(getattr(operational, "attention_items", ()) or ())):
         if getattr(attention, "source", None) != "QUANTITATIVE":
@@ -169,19 +159,42 @@ def _asset_attention_lines(operational: Any) -> tuple[str, ...]:
         else:
             asset = label or identifier
 
-        reason_key = getattr(attention, "reason", "")
-        score = priority.get(reason_key, 0)
-        reason = readable.get(reason_key, "comportamento recente que merece acompanhamento")
-        current = grouped.get(asset)
-        if current is None or score > current[0]:
-            grouped[asset] = (score, index, reason)
+        reason = getattr(attention, "reason", "")
+        entry = grouped.setdefault(asset, {"score": 0, "index": index, "reasons": set()})
+        entry["score"] = max(entry["score"], priority.get(reason, 0))
+        entry["reasons"].add(reason)
+
+    def description(reasons: set[str]) -> str:
+        has_drawdown = bool(reasons & {"deep_drawdown", "relevant_drawdown"})
+        has_tail = bool(reasons & {"high_cvar", "elevated_cvar", "high_var", "elevated_var"})
+        has_volatility = bool(reasons & {"high_volatility", "elevated_volatility"})
+
+        if has_drawdown and (has_tail or has_volatility):
+            return (
+                "queda recente relevante, acompanhada de oscilações acima do normal; "
+                "merece acompanhamento para verificar se o movimento persiste"
+            )
+        if has_drawdown:
+            return (
+                "queda recente relevante; merece acompanhamento para verificar se o movimento persiste"
+            )
+        if has_tail and has_volatility:
+            return (
+                "quedas recentes acima do normal e oscilações elevadas; "
+                "merece acompanhamento mais próximo"
+            )
+        if has_tail:
+            return "quedas recentes acima do normal; merece acompanhamento mais próximo"
+        if has_volatility:
+            return "oscilações recentes elevadas; merece acompanhamento"
+        return "comportamento recente que merece acompanhamento"
 
     ranked = sorted(
         grouped.items(),
-        key=lambda item: (-item[1][0], item[1][1]),
+        key=lambda item: (-int(item[1]["score"]), int(item[1]["index"])),
     )
     return tuple(
-        f"{asset}: {values[2]}."
+        f"{asset} — {description(values['reasons'])}."
         for asset, values in ranked[:3]
     )
 
@@ -195,26 +208,45 @@ def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[
             concentrations,
             key=lambda item: float(getattr(item, "top_1_weight", 0) or 0),
         )
-        top_weight = float(getattr(strongest, "top_1_weight", 0) or 0)
-        if top_weight < 0.15:
+        currency = getattr(strongest, "currency", "moeda identificada")
+        top_1 = float(getattr(strongest, "top_1_weight", 0) or 0)
+        top_5 = float(getattr(strongest, "top_5_weight", 0) or 0)
+
+        if top_1 < 0.15:
             strengths.append(
-                f"Nenhuma posição domina a carteira; a maior representa {top_weight * 100:.1f}% em {getattr(strongest, 'currency', 'moeda identificada')}."
+                f"Nenhuma posição domina a carteira: a maior representa {top_1 * 100:.1f}% em {currency}."
+            )
+        if top_5 and top_5 < 0.55:
+            strengths.append(
+                f"As 5 maiores posições somam {top_5 * 100:.1f}% em {currency}; o restante está distribuído entre as demais posições."
             )
 
-    if operational.structural_level == "Baixa":
-        strengths.append("A estrutura da carteira não mostra um problema dominante neste momento.")
-    elif operational.structural_level == "Alta" and len(attention) < 3:
-        attention.append("A concentração ou a cobertura dos dados também merece avaliação.")
+    allocations = tuple(getattr(structural, "economic_allocation_by_currency", ()) or ())
+    if len(allocations) == 1:
+        currency, allocation = allocations[0]
+        positive = [
+            (asset_class, amount)
+            for asset_class, amount in allocation
+            if amount is not None and amount > 0
+        ]
+        total = sum((amount for _, amount in positive), Decimal("0"))
+        if total > 0 and len(positive) >= 4:
+            top_class, top_amount = max(positive, key=lambda pair: pair[1])
+            strengths.append(
+                f"O patrimônio está distribuído entre {len(positive)} classes; "
+                f"a maior é {_economic_class_label(top_class)}, com {_pct(top_amount / total)} em {currency}."
+            )
 
-    if operational.quantitative_level == "Baixa":
-        strengths.append("Os movimentos recentes não mostram um ponto de atenção dominante.")
-
+    if operational.structural_level == "Alta" and len(attention) < 3:
+        attention.append("Estrutura da carteira — concentração ou cobertura de dados também merece avaliação.")
     if structural.warnings and len(attention) < 3:
-        attention.append("Há dados da carteira que precisam ser conferidos antes de qualquer providência.")
+        attention.append("Qualidade dos dados — há informações que precisam ser conferidas antes de qualquer providência.")
 
     strengths = strengths[:3]
     attention = attention[:3]
-    primary_problem = attention[0].rstrip(".") if attention else ""
+    primary_asset = ""
+    if attention:
+        primary_asset = attention[0].split(" — ", 1)[0].rstrip(".:")
 
     return (
         PatrimonialAnalysisItem(
@@ -232,9 +264,10 @@ def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[
         PatrimonialAnalysisItem(
             title="Encaminhamento",
             reading=(
-                f"O principal ponto de atenção é {primary_problem}. "
-                "Sugerimos conversar com seu gerente de banco ou Banker para avaliar as providências adequadas."
-                if primary_problem
+                f"O principal ponto de atenção hoje é {primary_asset}. "
+                "Sugerimos conversar com seu gerente de banco ou Banker para avaliar as providências adequadas "
+                "caso esse comportamento persista ou se intensifique."
+                if primary_asset
                 else "Nada relevante exige providência neste momento."
             ),
             evidence=("carteira atual", "histórico de mercado disponível"),

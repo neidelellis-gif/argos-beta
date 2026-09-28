@@ -224,12 +224,9 @@ def _executive_summary(item: JolikaMarketContextItem) -> str:
 
     if item.source == "Google News":
         if item.affected_assets:
-            return (
-                "Encontramos uma notícia de mercado diretamente relacionada a "
-                + ", ".join(item.affected_assets[:3])
-                + "."
-            )
-        return "Encontramos uma notícia de mercado que pode ser relevante para a sua carteira."
+            assets = ", ".join(item.affected_assets[:3])
+            return f"{assets} teve uma notícia específica de mercado."
+        return "Surgiu uma notícia de mercado que pode ser relevante para a carteira."
 
     return item.title.rstrip(".") + "."
 
@@ -257,13 +254,19 @@ def _macro_exposure_text(
     else:
         classes = ()
     if not classes:
-        return "Contexto geral, sem ligação específica confirmada com a carteira."
-    return (
-        "O dado se conecta a "
-        + ", ".join(label.casefold() for label in classes)
-        + "."
-    )
-
+        return "O efeito específico sobre a carteira ainda não está definido."
+    selected = classes[:3]
+    if len(selected) == 1:
+        class_text = selected[0].casefold()
+    elif len(selected) == 2:
+        class_text = f"{selected[0].casefold()} e {selected[1].casefold()}"
+    else:
+        class_text = (
+            ", ".join(label.casefold() for label in selected[:-1])
+            + " e "
+            + selected[-1].casefold()
+        )
+    return f"Isso pode repercutir principalmente em {class_text}."
 
 def _conversation_reading(
     item: JolikaMarketContextItem,
@@ -271,17 +274,11 @@ def _conversation_reading(
 ) -> str:
     summary = _executive_summary(item)
     if item.affected_assets:
-        assets = ", ".join(item.affected_assets[:5])
-        return (
-            f"{summary} Por enquanto, efeito sobre {assets} não confirmado."
-        )
+        assets = ", ".join(item.affected_assets[:3])
+        return f"{summary} O efeito sobre {assets} ainda não está confirmado."
 
     context = _macro_exposure_text(positions, item)
-    return (
-        f"{summary} {context} "
-        "Por enquanto, efeito favorável ou desfavorável não confirmado."
-    )
-
+    return f"{summary} {context}"
 
 def _friendly_bucket_title(bucket: str) -> str:
     return {

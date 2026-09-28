@@ -137,6 +137,7 @@ const InstitutionFiveStage = (() => {
     function executiveModel(report) {
         const finalStage = stageByKey(report, "final_diagnosis");
         const marketStage = stageByKey(report, "market_context");
+        const compositionStage = stageByKey(report, "composition");
         const strengths = splitReading(itemByTitle(finalStage, "O que está bem")?.reading, 3);
         const attention = splitReading(itemByTitle(finalStage, "O que merece atenção")?.reading, 3);
         const forwarding = itemByTitle(finalStage, "Encaminhamento")?.reading || "Nada relevante exige providência neste momento.";
@@ -149,43 +150,135 @@ const InstitutionFiveStage = (() => {
                 }))
                 .filter((item) => item.reading)
             : [];
-        return { strengths, attention, market, forwarding };
+
+        const concentrationItem = (Array.isArray(compositionStage?.items) ? compositionStage.items : [])
+            .find((item) => /maiores posições/i.test(String(item?.title || "")));
+        const concentrationText = String(concentrationItem?.reading || "");
+        const largestMatch = concentrationText.match(/Maior posição\s+([0-9.,]+%)/i);
+        const largestPosition = largestMatch ? largestMatch[1] : null;
+
+        return { strengths, attention, market, forwarding, largestPosition };
     }
 
-    function compactCard(title, values, className = "") {
-        const article = element("article", `executive-card ${className}`.trim());
-        article.append(element("h3", "", title));
-        if (!values.length) {
-            article.append(element("p", "executive-card-empty", "Sem destaque adicional."));
-            return article;
+    function executiveHeadline(model) {
+        const attentionCount = model.attention.length;
+        const concentration = model.largestPosition
+            ? `A maior posição representa ${model.largestPosition}`
+            : "A carteira não mostra concentração dominante confirmada";
+
+        if (!attentionCount) {
+            return `${concentration}. Nenhum problema relevante exige providência neste momento.`;
         }
-        const list = element("ul", "executive-card-list");
-        values.forEach((value) => list.append(element("li", "", value)));
-        article.append(list);
+        const positions = attentionCount === 1 ? "1 posição apresenta" : `${attentionCount} posições apresentam`;
+        return `${concentration}. ${positions} comportamento recente que merece acompanhamento mais próximo.`;
+    }
+
+    function parseAttention(value) {
+        const text = String(value || "").trim();
+        const separator = text.includes(" — ") ? " — " : ": ";
+        const parts = text.split(separator);
+        if (parts.length < 2) return { asset: "Atenção", detail: text };
+        return {
+            asset: parts.shift().trim(),
+            detail: parts.join(separator).trim()
+        };
+    }
+
+    function executiveCard(kicker, title, className = "") {
+        const article = element("article", `executive-card ${className}`.trim());
+        article.append(
+            element("p", "executive-card-kicker", kicker),
+            element("h3", "", title)
+        );
         return article;
+    }
+
+    function renderStrengthCard(values) {
+        const card = executiveCard("ESTRUTURA", "O que está bem", "executive-card-positive");
+        if (!values.length) {
+            card.append(element("p", "executive-card-empty", "Sem destaque positivo adicional."));
+            return card;
+        }
+        const list = element("div", "executive-strength-list");
+        values.forEach((value) => {
+            const row = element("div", "executive-strength-row");
+            row.append(
+                element("span", "executive-strength-mark", "✓"),
+                element("p", "", value)
+            );
+            list.append(row);
+        });
+        card.append(list);
+        return card;
+    }
+
+    function renderAttentionCard(values) {
+        const card = executiveCard("PRIORIDADE", "O que merece atenção", "executive-card-attention");
+        if (!values.length) {
+            card.append(element("p", "executive-card-empty", "Nenhum problema relevante foi confirmado."));
+            return card;
+        }
+        const list = element("div", "executive-attention-list");
+        values.forEach((value) => {
+            const item = parseAttention(value);
+            const row = element("div", "executive-attention-row");
+            row.append(
+                element("strong", "executive-asset", item.asset),
+                element("p", "", item.detail)
+            );
+            list.append(row);
+        });
+        card.append(list);
+        return card;
+    }
+
+    function renderMarketCard(items) {
+        if (!items.length) return null;
+        const card = executiveCard("CONTEXTO", "O que está acontecendo", "executive-card-market");
+        const list = element("div", "executive-market-list");
+        items.forEach((item) => {
+            const row = element("div", "executive-market-row");
+            row.append(
+                element("strong", "", item.title),
+                element("p", "", item.reading)
+            );
+            list.append(row);
+        });
+        card.append(list);
+        return card;
+    }
+
+    function renderForwardingCard(text) {
+        const card = executiveCard("PRÓXIMO PASSO", "Encaminhamento", "executive-card-forwarding");
+        card.append(element("p", "executive-forwarding-text", text));
+        return card;
     }
 
     function renderExecutiveReport(report, container) {
         const model = executiveModel(report);
+        const summary = document.getElementById("executiveSummary");
+        if (summary) summary.textContent = executiveHeadline(model);
+
+        setMetric(
+            "metricCurrencies",
+            "Maior posição",
+            model.largestPosition || "—"
+        );
+        setMetric(
+            "metricSituation",
+            "Pontos de atenção",
+            model.attention.length ? `${model.attention.length} ativo${model.attention.length > 1 ? "s" : ""}` : "Nenhum"
+        );
+
         container.append(
-            compactCard("O que está bem", model.strengths, "executive-card-positive"),
-            compactCard("O que merece atenção", model.attention, "executive-card-attention")
+            renderStrengthCard(model.strengths),
+            renderAttentionCard(model.attention)
         );
 
-        if (model.market.length) {
-            container.append(compactCard(
-                "O que está acontecendo",
-                model.market.map((item) => `${item.title}: ${item.reading}`),
-                "executive-card-market"
-            ));
-        }
-
-        const forwarding = element("article", "executive-card executive-card-wide executive-card-forwarding");
-        forwarding.append(
-            element("h3", "", "Encaminhamento"),
-            element("p", "", model.forwarding)
-        );
-        container.append(forwarding);
+        const marketCard = renderMarketCard(model.market);
+        if (marketCard) container.append(marketCard);
+        container.append(renderForwardingCard(model.forwarding));
+        return model;
     }
 
     function formatCurrency(value, currency) {
@@ -372,6 +465,8 @@ const InstitutionFiveStage = (() => {
             formatCurrency,
             splitReading,
             executiveModel,
+            executiveHeadline,
+            parseAttention,
             isConsolidatedMode,
             prepareConsolidatedLoading,
             revealConsolidatedView
