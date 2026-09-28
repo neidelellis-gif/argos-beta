@@ -7,9 +7,9 @@ what the supplied evidence supports.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Iterable
 import re
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 from backend.daily_facts_engine import DailyFactsEngine
 from backend.important_facts import FactCandidate, FactCategory
@@ -320,16 +320,6 @@ def build_market_context_stage(
         if not bucket_items:
             continue
         primary = bucket_items[0]
-        exposures = tuple(
-            sorted(
-                {
-                    asset
-                    for candidate in bucket_items
-                    for asset in candidate.affected_assets
-                },
-                key=lambda value: (value.casefold(), value),
-            )
-        )
         report_items.append(
             PatrimonialAnalysisItem(
                 title=_friendly_bucket_title(bucket),

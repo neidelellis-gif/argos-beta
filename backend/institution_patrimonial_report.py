@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
 import re
-from typing import Any, Iterable
+from collections.abc import Iterable
+from decimal import Decimal
+from typing import Any
 
-from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
 from backend.jolika_market_context_analysis import build_market_context_stage
+from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
 from backend.patrimonial_analysis_method import (
     PatrimonialAnalysisItem,
     PatrimonialAnalysisReport,
     PatrimonialAnalysisStage,
     build_patrimonial_analysis_report,
-    unavailable_stage,
 )
 
 
@@ -32,7 +32,7 @@ def _composition_items(structural: Any) -> tuple[PatrimonialAnalysisItem, ...]:
     items: list[PatrimonialAnalysisItem] = []
 
     for currency, allocation in structural.economic_allocation_by_currency:
-        total = sum((amount for _, amount in allocation), Decimal("0"))
+        total = sum((amount for _, amount in allocation), Decimal(0))
         if total <= 0:
             continue
         reading = " · ".join(
@@ -266,7 +266,7 @@ def _final_items(structural: Any, quantitative: Any, operational: Any) -> tuple[
             for asset_class, amount in allocation
             if amount is not None and amount > 0
         ]
-        total = sum((amount for _, amount in positive), Decimal("0"))
+        total = sum((amount for _, amount in positive), Decimal(0))
         if total > 0 and len(positive) >= 4:
             top_class, top_amount = max(positive, key=lambda pair: pair[1])
             strengths.append(

@@ -7,7 +7,6 @@ from typing import Any
 from backend.jolika_master_assumptions import (
     JOLIKA_MASTER_ASSUMPTIONS_APPROVED_ON,
     JOLIKA_MASTER_ASSUMPTIONS_VERSION,
-    get_jolika_master_assumptions,
 )
 from backend.patrimonial_analysis_method import (
     PatrimonialAnalysisItem,
@@ -75,11 +74,8 @@ def build_master_assumptions_stage(
     measure a premise such as realized return or decision quality.
     """
 
-    assumptions = {item.key: item for item in get_jolika_master_assumptions()}
     concentration = _max_concentration(structural)
     class_count = _economic_class_count(structural)
-    analyzed, unavailable = _quantitative_coverage(quantitative)
-    overall_level = getattr(operational, "overall_level", None)
 
     items = (
         PatrimonialAnalysisItem(

@@ -1,18 +1,23 @@
 """Regression tests for concise presentation, using synthetic portfolio inputs."""
+
+import unittest
 from decimal import Decimal
 from types import SimpleNamespace as NS
-import unittest
 from unittest.mock import patch
 
 from backend.institution_patrimonial_report import (
-    _asset_attention_lines, _display_asset_label, _quantitative_items,
+    _asset_attention_lines,
+    _display_asset_label,
+    _quantitative_items,
     build_institution_patrimonial_report,
 )
-from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
 from backend.jolika_market_context_analysis import (
-    JolikaMarketContextItem, _conversation_reading, _evidence_lines,
+    JolikaMarketContextItem,
+    _conversation_reading,
+    _evidence_lines,
     build_market_context_stage,
 )
+from backend.jolika_master_assumptions_analysis import build_master_assumptions_stage
 
 
 def structural(weight="0.054"):
@@ -22,8 +27,8 @@ def structural(weight="0.054"):
         concentration_by_currency=(NS(currency="USD", top_1_weight=Decimal(weight),
             top_3_weight=Decimal("0.14"), top_5_weight=Decimal("0.21")),),
         economic_allocation_by_currency=(("USD", (
-            (NS(value="Ações"), Decimal("60")),
-            (NS(value="Renda Fixa"), Decimal("40")),)),),
+            (NS(value="Ações"), Decimal(60)),
+            (NS(value="Renda Fixa"), Decimal(40)),)),),
     )
 
 

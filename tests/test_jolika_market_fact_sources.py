@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 from backend.daily.models import ExternalDataResult, MarketEvent
 from backend.important_facts import FactCandidate, FactCategory, FactImportance
-from backend.jolika_market_fact_sources import load_market_context_facts
 from backend.jolika_market_context_analysis import build_market_context_stage
+from backend.jolika_market_fact_sources import load_market_context_facts
 
 
 NOW = datetime(2026, 9, 24, 15, 0, tzinfo=timezone.utc)
